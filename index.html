@@ -885,9 +885,9 @@ const SLIPPAGE = 0;
 const DELTA_ROWS = [
   { delta: 0.10, label: '0.10', tag: 'SAFE', winPct: 88 },
   { delta: 0.12, label: '0.12', tag: 'REC MORN', winPct: 86 },
-  { delta: 0.15, label: '0.15', tag: 'MED', winPct: 83 },
-  { delta: 0.18, label: '0.18', tag: 'REC ARVO', winPct: 80 },
-  { delta: 0.20, label: '0.20', tag: 'REC ARVO', winPct: 78 },
+  { delta: 0.15, label: '0.15', tag: 'REC ARVO', winPct: 83 },
+  { delta: 0.18, label: '0.18', tag: 'MED', winPct: 80 },
+  { delta: 0.20, label: '0.20', tag: 'AGGR', winPct: 78 },
   { delta: 0.25, label: '0.25', tag: 'AGGR', winPct: 72 },
   { delta: 0.30, label: '0.30', tag: 'HIGH RISK', winPct: 66 },
 ];
@@ -1100,7 +1100,7 @@ function scan() {
 
   const rows = computeRows();
   const regime = getRegime(state.vix);
-  const recDelta = state.mode === 'arvo' ? 0.20 : 0.12;
+  const recDelta = state.mode === 'arvo' ? 0.15 : 0.12;
   const recRow = rows.find(r => r.delta === recDelta) || rows[3];
   const autoStrat = state.vix < 22 && regime.size > 0 ? 'ic' : 'put';
   const active = state.strategy === 'auto' ? autoStrat : state.strategy;
@@ -1115,7 +1115,7 @@ function scan() {
   const wklyMid = Math.max(bsm(state.spx, wklyShort, wklyT, 0.045, iv, 'put').price - bsm(state.spx, wklyLong, wklyT, 0.045, iv, 'put').price, 0);
   const wklyFill = Math.max(wklyMid - SLIPPAGE, 0);
 
-  document.getElementById('scanInfo').innerHTML = `${state.lastUpdated || ''} &middot; ${state.mode === 'arvo' ? 'ARVO \u0394 0.20' : 'MORN \u0394 0.12'} &middot; Fill = mid (live)`;
+  document.getElementById('scanInfo').innerHTML = `${state.lastUpdated || ''} &middot; ${state.mode === 'arvo' ? 'ARVO \u0394 0.15' : 'MORN \u0394 0.12'} &middot; Fill = mid (live)`;
 
   // REGIME STRIP
   document.getElementById('regimeRow').innerHTML = `
