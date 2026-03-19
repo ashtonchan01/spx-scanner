@@ -177,6 +177,10 @@ input, select, button, textarea { font-family: 'IBM Plex Mono', monospace; outli
   /* Settings: single column */
   .settings-grid { grid-template-columns: 1fr !important; }
 
+  /* Phases: responsive */
+  .phase-metrics { grid-template-columns: 1fr 1fr !important; }
+  .phase-columns { grid-template-columns: 1fr !important; }
+
   /* Charts: shorter on mobile */
   canvas { max-height: 200px; }
 
@@ -265,6 +269,7 @@ input, select, button, textarea { font-family: 'IBM Plex Mono', monospace; outli
 <div class="tab-bar">
   <button class="tab-btn active" data-tab="dashboard" onclick="switchTab('dashboard')">DASHBOARD</button>
   <button class="tab-btn" data-tab="scanner" onclick="switchTab('scanner')">SCANNER</button>
+  <button class="tab-btn" data-tab="phases" onclick="switchTab('phases')">PHASES</button>
   <button class="tab-btn" data-tab="log" onclick="switchTab('log')">LOG TRADES</button>
   <button class="tab-btn" data-tab="settings" onclick="switchTab('settings')">SETTINGS</button>
 </div>
@@ -372,6 +377,14 @@ input, select, button, textarea { font-family: 'IBM Plex Mono', monospace; outli
 </div>
 
 <!-- Playbook moved into scanner tab -->
+
+<!-- ============================================================ -->
+<!-- TAB: PHASES -->
+<!-- ============================================================ -->
+<div id="tab-phases" class="tab-content">
+  <div style="display:flex;gap:0;margin-bottom:12px;border-bottom:2px solid var(--border)" id="phase-sub-tabs"></div>
+  <div id="phase-detail"></div>
+</div>
 
 <!-- ============================================================ -->
 <!-- TAB: LOG TRADES -->
@@ -509,6 +522,250 @@ const PHASES = [
   { id: 4, name: 'The Machine', min: 300000, target: 1000000, contracts: '1 per $12k', perK: 12000, weekly: 15000, roi: '40%', color: 'var(--purple)' },
 ];
 
+const PHASE_DETAILS = {
+  1: {
+    subtitle: 'Prove the System Works',
+    range: '$10,000 → $25,000',
+    timeline: '~6 months',
+    sizing: { contracts: '2 fixed', perTrade: '$80–$160 credit', maxRisk: '$2,000/trade (10% of starting)', margin: '$2,000–$4,000 held' },
+    weeklyPlan: {
+      target: '$576/week (avg)',
+      Mon: '1× Weekly Put Spread (5DTE, Δ0.10) + 1× 0DTE Morning (Δ0.12)',
+      Tue: '1× 0DTE Arvo (Δ0.18–0.20)',
+      Wed: '1× 0DTE Arvo (skip FOMC days)',
+      Thu: 'Check weekly + 1× 0DTE Arvo',
+      Fri: 'Close weekly + 1× 0DTE Arvo (tight Δ0.15)',
+    },
+    rules: [
+      'Min credit: $0.80 per contract',
+      'Structure stop: close at 2× credit received',
+      '50% profit target: close at 50% of max profit',
+      'No trading first 15 min after open',
+      'No revenge trades — 1 loss = done for the day',
+      'Paper trade first 2 weeks before going live',
+    ],
+    graduation: [
+      '60+ trading days completed',
+      '75%+ win rate sustained',
+      'Zero rule breaks in last 30 days',
+      'Account reaches $25,000',
+    ],
+    risks: [
+      'Flash crash through short strike — use stop loss, never hold through',
+      'Overtrading after a loss — hard rule: 1 loss = stop',
+      'VIX spike > 30 — cut size by 50%, widen strikes',
+    ],
+    compounding: '$10k → $15k (Month 2) → $20k (Month 4) → $25k (Month 6)',
+  },
+  2: {
+    subtitle: 'Scale With Discipline',
+    range: '$25,000 → $75,000',
+    timeline: '~8 months',
+    sizing: { contracts: '1 per $6,000 capital', perTrade: '$160–$500 credit', maxRisk: '5% of capital per trade', margin: 'Scales with contracts' },
+    weeklyPlan: {
+      target: '$1,500/week (avg)',
+      Mon: '1× Weekly Put Spread (5DTE) + 0DTE Morning (scale contracts)',
+      Tue: '0DTE Arvo — primary income day',
+      Wed: '0DTE Arvo (skip FOMC)',
+      Thu: 'Weekly check + 0DTE Arvo',
+      Fri: 'Close weekly + conservative 0DTE',
+    },
+    rules: [
+      'Scale contracts: 1 per $6k capital (e.g. $30k = 5 contracts)',
+      'Same min credit, structure stop, 50% target rules',
+      'Start adding call spreads on green days (VIX < 18)',
+      'Begin iron condors when comfortable (Tue–Thu only)',
+      'Max 2 trades per session',
+      'Weekly review every Sunday — track stats in trade log',
+    ],
+    graduation: [
+      '78%+ win rate over 6 months',
+      'Consistent weekly income above $1,200',
+      'Successfully managed 3+ losing streaks without rule breaks',
+      'Account reaches $75,000',
+    ],
+    risks: [
+      'Scaling too fast — stick to 1 per $6k, no exceptions',
+      'Correlation risk — avoid stacking same-side spreads',
+      'Complacency after winning streaks — stay disciplined',
+    ],
+    compounding: '$25k → $35k (Month 2) → $50k (Month 5) → $75k (Month 8)',
+  },
+  3: {
+    subtitle: 'Real Money, Real Discipline',
+    range: '$75,000 → $300,000',
+    timeline: '~12 months',
+    sizing: { contracts: '1 per $8,000 capital', perTrade: '$500–$2,000 credit', maxRisk: '4% of capital per trade', margin: 'Monitor margin utilization < 50%' },
+    weeklyPlan: {
+      target: '$5,000/week (avg)',
+      Mon: 'Weekly spread + scaled 0DTE morning',
+      Tue: '0DTE Arvo — full size',
+      Wed: '0DTE Arvo (FOMC week: 50% size)',
+      Thu: 'Weekly management + 0DTE Arvo',
+      Fri: 'Close weekly + reduced 0DTE',
+    },
+    rules: [
+      'Scale contracts: 1 per $8k capital (wider spacing than Phase 2)',
+      '45% tax reserve — set aside from every winning trade',
+      'FOMC week: 50% position size across all trades',
+      'Monthly withdrawal allowed: up to 10% of profits',
+      'Diversify entries: stagger times, mix put/call spreads',
+      'Max drawdown circuit breaker: -8% monthly = pause 1 week',
+    ],
+    graduation: [
+      '78%+ win rate sustained over 12 months',
+      '$5k+ weekly average for 3 consecutive months',
+      'Survived at least 1 major market event without blowup',
+      'Account reaches $300,000',
+    ],
+    risks: [
+      'Tax liability — 45% reserve is non-negotiable',
+      'Position sizing discipline — $8k per contract, not $6k',
+      'Lifestyle creep — don\'t increase spending with account size',
+    ],
+    compounding: '$75k → $120k (Month 3) → $180k (Month 6) → $300k (Month 12)',
+  },
+  4: {
+    subtitle: 'Wealth Generation Engine',
+    range: '$300,000 → $1,000,000',
+    timeline: '~18 months',
+    sizing: { contracts: '1 per $12,000 capital', perTrade: '$2,000–$8,000 credit', maxRisk: '3% of capital per trade', margin: 'Monitor margin utilization < 40%' },
+    weeklyPlan: {
+      target: '$15,000/week (avg)',
+      Mon: 'Weekly spread + 0DTE morning (conservative delta)',
+      Tue: '0DTE Arvo — bread and butter',
+      Wed: '0DTE Arvo (FOMC week: 50% or skip)',
+      Thu: 'Weekly management + 0DTE Arvo',
+      Fri: 'Close weekly + light 0DTE if conditions perfect',
+    },
+    rules: [
+      'Scale contracts: 1 per $12k capital (max conservatism)',
+      '45% tax reserve continues',
+      '$25,000/month withdrawals begin at $750k',
+      'Consider splitting across 2 broker accounts for SIPC coverage',
+      'Max 60% margin utilization at any time',
+      'Quarterly review with accountant',
+    ],
+    graduation: [
+      'Account reaches $1,000,000',
+      'Consistent $15k+ weekly for 6 months',
+      'Full tax compliance and professional accounting',
+      'Transition plan: reduce to 30% ROI target, increase withdrawals',
+    ],
+    risks: [
+      'Single broker risk — split accounts above $500k (SIPC limit)',
+      'Black swan events — always have disaster hedge (long put at Δ0.02)',
+      'Burnout — consider reducing to 3 days/week',
+    ],
+    compounding: '$300k → $450k (Month 4) → $650k (Month 9) → $1M (Month 18)',
+  },
+};
+
+let selectedPhase = 1;
+
+function renderPhases() {
+  const phase = PHASES[selectedPhase - 1];
+  const detail = PHASE_DETAILS[selectedPhase];
+  const currentPhase = getPhase(traderData.currentCapital);
+
+  // Sub-tab buttons
+  document.getElementById('phase-sub-tabs').innerHTML = PHASES.map(p =>
+    `<button style="padding:10px 20px;font-family:'Inter',sans-serif;font-size:11px;letter-spacing:2px;font-weight:600;background:transparent;border:none;cursor:pointer;border-bottom:3px solid ${selectedPhase===p.id?p.color:'transparent'};color:${selectedPhase===p.id?p.color:'var(--textDim)'};transition:all 0.15s" onclick="selectedPhase=${p.id};renderPhases()">
+      PHASE ${p.id}${currentPhase.id===p.id?' ●':''}
+    </button>`
+  ).join('');
+
+  const isCurrentPhase = currentPhase.id === phase.id;
+  const d = detail;
+
+  document.getElementById('phase-detail').innerHTML = `
+    <!-- Phase Header -->
+    <div class="panel" style="padding:20px;margin-bottom:12px;border-left:4px solid ${phase.color}">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+        <div>
+          <div class="chakra" style="font-size:24px;font-weight:700;color:${phase.color}">PHASE ${phase.id}: ${phase.name.toUpperCase()}</div>
+          <div style="font-size:13px;color:var(--textMid);margin-top:4px">${d.subtitle}</div>
+        </div>
+        <div style="display:flex;gap:12px;align-items:center">
+          ${isCurrentPhase ? '<span style="font-size:10px;padding:4px 10px;background:rgba(0,229,255,0.1);border:1px solid rgba(0,229,255,0.3);color:var(--cyan);letter-spacing:1px">CURRENT PHASE</span>' : ''}
+          <span style="font-size:12px;color:var(--textMid)">${d.range}</span>
+          <span style="font-size:12px;color:var(--gold)">${d.timeline}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Key Metrics -->
+    <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:12px" class="phase-metrics">
+      <div class="stat-card"><div class="stat-label">CONTRACTS</div><div class="stat-value" style="font-size:18px;color:var(--green)">${phase.contracts}</div></div>
+      <div class="stat-card"><div class="stat-label">WEEKLY TARGET</div><div class="stat-value" style="font-size:18px;color:var(--gold)">$${phase.weekly.toLocaleString()}</div></div>
+      <div class="stat-card"><div class="stat-label">ANNUAL ROI</div><div class="stat-value" style="font-size:18px;color:var(--cyan)">${phase.roi}</div></div>
+      <div class="stat-card"><div class="stat-label">CREDIT / TRADE</div><div class="stat-value" style="font-size:18px;color:var(--white)">${d.sizing.perTrade}</div></div>
+      <div class="stat-card"><div class="stat-label">MAX RISK</div><div class="stat-value" style="font-size:18px;color:var(--red)">${d.sizing.maxRisk}</div></div>
+    </div>
+
+    <!-- Two-column layout: Weekly Plan + Rules -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px" class="phase-columns">
+      <!-- Weekly Plan -->
+      <div class="panel" style="padding:16px">
+        <div class="label" style="margin-bottom:10px">WEEKLY EXECUTION PLAN</div>
+        <div style="padding:8px 12px;background:rgba(240,180,41,0.08);border:1px solid rgba(240,180,41,0.2);margin-bottom:10px;font-size:12px;color:var(--gold)">
+          Target: ${d.weeklyPlan.target}
+        </div>
+        ${['Mon','Tue','Wed','Thu','Fri'].map(day => `
+          <div style="display:flex;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)">
+            <span style="font-size:11px;font-weight:700;color:var(--cyan);min-width:32px">${day}</span>
+            <span style="font-size:11px;color:var(--textMid)">${d.weeklyPlan[day]}</span>
+          </div>
+        `).join('')}
+      </div>
+
+      <!-- Rules -->
+      <div class="panel" style="padding:16px">
+        <div class="label" style="margin-bottom:10px">PHASE RULES</div>
+        ${d.rules.map(r => `
+          <div style="padding:6px 0;border-bottom:1px solid var(--border);font-size:11px;color:var(--textMid)">
+            <span style="color:var(--green);margin-right:6px">✓</span>${r}
+          </div>
+        `).join('')}
+      </div>
+    </div>
+
+    <!-- Two-column: Graduation + Risks -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px" class="phase-columns">
+      <!-- Graduation Criteria -->
+      <div class="panel" style="padding:16px">
+        <div class="label" style="margin-bottom:10px">GRADUATION CRITERIA</div>
+        ${d.graduation.map(g => `
+          <div style="padding:6px 0;border-bottom:1px solid var(--border);font-size:11px;color:var(--textMid)">
+            <span style="color:var(--gold);margin-right:6px">★</span>${g}
+          </div>
+        `).join('')}
+      </div>
+
+      <!-- Killer Risks -->
+      <div class="panel" style="padding:16px">
+        <div class="label" style="margin-bottom:10px;color:var(--red)">KILLER RISKS</div>
+        ${d.risks.map(r => `
+          <div style="padding:6px 0;border-bottom:1px solid var(--border);font-size:11px;color:var(--textMid)">
+            <span style="color:var(--red);margin-right:6px">⚠</span>${r}
+          </div>
+        `).join('')}
+      </div>
+    </div>
+
+    <!-- Compounding Timeline -->
+    <div class="panel" style="padding:16px">
+      <div class="label" style="margin-bottom:10px">COMPOUNDING TIMELINE</div>
+      <div style="font-size:13px;color:var(--white);font-family:'IBM Plex Mono',monospace;padding:10px;background:var(--panelAlt);border:1px solid var(--border)">
+        ${d.compounding}
+      </div>
+      <div style="margin-top:10px;font-size:11px;color:var(--textDim)">
+        Margin: ${d.sizing.margin}
+      </div>
+    </div>
+  `;
+}
+
 function getPhase(capital) {
   for (let i = PHASES.length - 1; i >= 0; i--) {
     if (capital >= PHASES[i].min) return PHASES[i];
@@ -610,6 +867,7 @@ function switchTab(tab) {
   document.querySelectorAll('.tab-content').forEach(c => c.classList.toggle('active', c.id === 'tab-' + tab));
   if (tab === 'scanner') renderPlaybook();
   if (tab === 'dashboard') { renderDashboard(); renderProjections(); }
+  if (tab === 'phases') renderPhases();
   if (tab === 'log') renderTradeHistory();
   if (tab === 'settings') renderSettings();
 }
