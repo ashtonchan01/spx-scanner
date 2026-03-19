@@ -1480,54 +1480,106 @@ function drawPnLChart(trades) {
 // ══════════════════════════════════════════════════════════════════════════════
 // PLAYBOOK TAB
 // ══════════════════════════════════════════════════════════════════════════════
-const PLAYBOOK = {
-  Mon: {
-    trades: [
-      { name: 'Weekly Spread', time: '12:45-1:00', dte: '5DTE', delta: '\u0394 0.10', credit: '$1.00 min', contracts: '1ct', type: 'put' },
-      { name: '0DTE Morning', time: '1:00-1:15', dte: '0DTE', delta: '\u0394 0.12', credit: '$0.80 min', contracts: '2ct', type: 'put' },
-      { name: '0DTE Arvo (optional)', time: '3:00-4:00', dte: '0DTE', delta: '\u0394 0.20', credit: '$0.80 min', contracts: '2ct', type: 'put' },
-    ],
-    rules: ['Open weekly put spread first', 'Then enter morning 0DTE', 'Arvo is optional if morning fills'],
-    hardClose: '6:00 AM AEDT',
-  },
-  Tue: {
-    trades: [
-      { name: '0DTE Arvo', time: '3:00-4:00', dte: '0DTE', delta: '\u0394 0.18-0.20', credit: '$0.80 min', contracts: '2ct', type: 'put' },
-    ],
-    rules: ['Arvo session only', 'Wait for stable market'],
-    hardClose: '6:00 AM AEDT',
-  },
-  Wed: {
-    trades: [
-      { name: '0DTE Arvo', time: '3:00-4:00', dte: '0DTE', delta: '\u0394 0.18-0.20', credit: '$0.80 min', contracts: '2ct', type: 'put' },
-    ],
-    rules: ['FOMC day = NO TRADE', 'If no FOMC, arvo session only'],
-    hardClose: '5:30 AM AEDT',
-  },
-  Thu: {
-    trades: [
-      { name: 'Weekly Check', time: '-', dte: '5DTE', delta: '-', credit: '-', contracts: '-', type: 'check' },
-      { name: '0DTE Arvo', time: '3:00-4:00', dte: '0DTE', delta: '\u0394 0.18-0.20', credit: '$0.85 min', contracts: '2ct', type: 'put' },
-    ],
-    rules: ['Check weekly spread health', 'Roll or close if tested', 'Then arvo 0DTE'],
-    hardClose: '5:45 AM AEDT',
-  },
-  Fri: {
-    trades: [
-      { name: 'Close Weekly', time: '-', dte: '5DTE', delta: '-', credit: '-', contracts: '-', type: 'close' },
-      { name: '0DTE Arvo (careful)', time: '3:00-3:45', dte: '0DTE', delta: '\u0394 0.15', credit: '$0.90 min', contracts: '2ct', type: 'put' },
-    ],
-    rules: ['Close weekly first', 'Tighter delta for Friday', 'Shorter window, earlier stop'],
-    hardClose: '5:30 AM AEDT',
-  },
-};
+// Phase-aware playbook: Phase 1-2 = arvo only Tue-Fri, Phase 3-4 = dual session Tue-Fri
+function getPlaybook() {
+  const ph = getPhase(traderData.currentCapital);
+  const dual = ph.id >= 3; // Phase 3+ gets morning + arvo
+  const stagger = ph.id >= 4; // Phase 4 staggers entries
+  const sizeNote = stagger ? 'Scale in 3 batches (8-8-9)' : '';
+  const arvoDelta = '\u0394 0.15';
+  const mornDelta = '\u0394 0.12';
 
+  return {
+    Mon: {
+      trades: [
+        { name: 'Weekly Spread', time: '12:45-1:00', dte: '5DTE', delta: '\u0394 0.10', credit: '$1.00 min', contracts: '1ct', type: 'put' },
+        { name: '0DTE Morning', time: '1:00-1:15', dte: '0DTE', delta: mornDelta, credit: '$0.80 min', contracts: 'phase', type: 'put' },
+        ...(dual ? [{ name: '0DTE Arvo', time: '3:00-4:00', dte: '0DTE', delta: arvoDelta, credit: '$0.80 min', contracts: 'phase', type: 'put' }] : []),
+      ],
+      rules: [
+        'Open weekly put spread first',
+        'Then enter morning 0DTE',
+        ...(dual ? ['Arvo session: only if morning session was a WIN', sizeNote].filter(Boolean) : ['Arvo is optional — skip if morning fills well']),
+      ],
+      hardClose: '6:00 AM AEDT',
+    },
+    Tue: {
+      trades: [
+        ...(dual ? [{ name: '0DTE Morning', time: '1:00-1:15', dte: '0DTE', delta: mornDelta, credit: '$0.80 min', contracts: 'phase', type: 'put' }] : []),
+        { name: '0DTE Arvo', time: '3:00-4:00', dte: '0DTE', delta: arvoDelta, credit: '$0.80 min', contracts: 'phase', type: 'put' },
+      ],
+      rules: [
+        ...(dual ? [
+          'Morning session: put spread only, close before arvo',
+          'Arvo session: put or IC depending on VIX regime',
+          'If morning LOSS → skip arvo, hard stop for the day',
+          sizeNote,
+        ].filter(Boolean) : ['Arvo session only', 'Wait for stable market']),
+      ],
+      hardClose: '6:00 AM AEDT',
+    },
+    Wed: {
+      trades: [
+        ...(dual ? [{ name: '0DTE Morning', time: '1:00-1:15', dte: '0DTE', delta: mornDelta, credit: '$0.80 min', contracts: 'phase', type: 'put' }] : []),
+        { name: '0DTE Arvo', time: '3:00-4:00', dte: '0DTE', delta: arvoDelta, credit: '$0.80 min', contracts: 'phase', type: 'put' },
+      ],
+      rules: [
+        'FOMC day = NO TRADE (both sessions)',
+        ...(dual ? [
+          'If no FOMC: morning put spread + arvo session',
+          'If morning LOSS → skip arvo',
+          'FOMC week: 50% position size all week',
+          sizeNote,
+        ].filter(Boolean) : ['If no FOMC, arvo session only']),
+      ],
+      hardClose: '5:30 AM AEDT',
+    },
+    Thu: {
+      trades: [
+        { name: 'Weekly Check', time: '-', dte: '5DTE', delta: '-', credit: '-', contracts: '-', type: 'check' },
+        ...(dual ? [{ name: '0DTE Morning', time: '1:00-1:15', dte: '0DTE', delta: mornDelta, credit: '$0.80 min', contracts: 'phase', type: 'put' }] : []),
+        { name: '0DTE Arvo', time: '3:00-4:00', dte: '0DTE', delta: arvoDelta, credit: '$0.85 min', contracts: 'phase', type: 'put' },
+      ],
+      rules: [
+        'Check weekly spread health — roll or close if tested',
+        ...(dual ? [
+          'Morning session: put spread, tighter stop (SPX ≤ short+10)',
+          'Arvo session: higher min credit ($0.85)',
+          'If morning LOSS → skip arvo',
+          sizeNote,
+        ].filter(Boolean) : ['Then arvo 0DTE']),
+      ],
+      hardClose: '5:45 AM AEDT',
+    },
+    Fri: {
+      trades: [
+        { name: 'Close Weekly', time: '-', dte: '5DTE', delta: '-', credit: '-', contracts: '-', type: 'close' },
+        ...(dual ? [{ name: '0DTE Morning (careful)', time: '1:00-1:10', dte: '0DTE', delta: mornDelta, credit: '$0.90 min', contracts: 'phase', type: 'put' }] : []),
+        { name: '0DTE Arvo (careful)', time: '3:00-3:45', dte: '0DTE', delta: '\u0394 0.12', credit: '$0.90 min', contracts: 'phase', type: 'put' },
+      ],
+      rules: [
+        'Close weekly first',
+        'Tighter delta for Friday — both sessions use \u0394 0.12',
+        'Shorter window, earlier stop',
+        ...(dual ? [
+          'If morning LOSS → NO arvo trade',
+          'Max 1 loss on Fridays — protect the week\'s gains',
+          sizeNote,
+        ].filter(Boolean) : []),
+      ],
+      hardClose: '5:30 AM AEDT',
+    },
+  };
+}
 let selectedPlaybookDay = ['Mon','Tue','Wed','Thu','Fri'][(new Date().getDay() + 6) % 7] || 'Mon';
-if (!PLAYBOOK[selectedPlaybookDay]) selectedPlaybookDay = 'Mon';
+if (!getPlaybook()[selectedPlaybookDay]) selectedPlaybookDay = 'Mon';
 
 function renderPlaybook() {
+  const PLAYBOOK = getPlaybook(); // Recalculate each render so phase changes are reflected
   const todayIdx = new Date().getDay();
   const todayName = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][todayIdx];
+  const ph = getPhase(traderData.currentCapital);
+  const dual = ph.id >= 3;
 
   // Day selector buttons
   document.getElementById('playbook-day-btns').innerHTML = ['Mon','Tue','Wed','Thu','Fri'].map(d =>
@@ -1547,13 +1599,19 @@ function renderPlaybook() {
       <div class="day-header" style="color:var(--white)">${selectedPlaybookDay.toUpperCase()} PLAYBOOK</div>
       <div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap">
         <span style="font-size:10px;padding:4px 8px;background:rgba(255,71,87,0.1);border:1px solid rgba(255,71,87,0.3);color:var(--red)">HARD CLOSE: ${day.hardClose}</span>
-        <span style="font-size:10px;padding:4px 8px;background:rgba(0,208,132,0.1);border:1px solid rgba(0,208,132,0.3);color:var(--green)">PHASE ${pbPhase.id}: ${pbContracts} CONTRACTS TODAY</span>
+        <span style="font-size:10px;padding:4px 8px;background:rgba(0,208,132,0.1);border:1px solid rgba(0,208,132,0.3);color:var(--green)">PHASE ${pbPhase.id}: ${pbContracts} CONTRACTS</span>
+        <span style="font-size:10px;padding:4px 8px;background:${dual?'rgba(0,229,255,0.1)':'rgba(255,215,0,0.1)'};border:1px solid ${dual?'rgba(0,229,255,0.3)':'rgba(255,215,0,0.3)'};color:${dual?'var(--cyan)':'var(--gold)'}">${dual?'DUAL SESSION: MORN + ARVO':'SINGLE SESSION: ARVO ONLY'}</span>
       </div>
 
       <!-- Trades for this day -->
       <div class="label" style="margin-bottom:6px">SCHEDULED TRADES</div>
       ${day.trades.map(t => {
-        const ctDisplay = t.contracts === '-' ? '-' : (t.contracts === '1ct' ? '1ct' : pbContracts + 'ct');
+        const ctDisplay = t.contracts === '-' ? '-' : (t.contracts === '1ct' ? '1ct' : t.contracts === 'phase' ? pbContracts + 'ct' : t.contracts);
+        // Stagger breakdown for Phase 4+ with large contract counts
+        const showStagger = t.contracts === 'phase' && pbPhase.id >= 4 && pbContracts >= 10;
+        const b1 = showStagger ? Math.floor(pbContracts / 3) : 0;
+        const b2 = showStagger ? Math.floor(pbContracts / 3) : 0;
+        const b3 = showStagger ? pbContracts - b1 - b2 : 0;
         return `
         <div class="trade-entry" style="border-left:3px solid ${t.type==='check'?'var(--gold)':t.type==='close'?'var(--red)':'var(--green)'}">
           <div style="display:flex;justify-content:space-between;margin-bottom:4px">
@@ -1566,6 +1624,28 @@ function renderPlaybook() {
             <span style="color:var(--textMid)">Credit: <span style="color:var(--green)">${t.credit}</span></span>
             <span style="color:var(--textMid)">Size: <span style="color:var(--white);font-weight:700">${ctDisplay}</span></span>
           </div>
+          ${showStagger ? `
+          <div style="margin-top:8px;padding:8px 10px;background:rgba(0,229,255,0.05);border:1px solid rgba(0,229,255,0.15);border-radius:4px">
+            <div style="font-size:10px;color:var(--cyan);letter-spacing:2px;margin-bottom:6px;font-weight:700">STAGGER PLAN — ${pbContracts} CONTRACTS</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px">
+              <div style="text-align:center;padding:6px;background:rgba(0,208,132,0.08);border:1px solid rgba(0,208,132,0.2);border-radius:3px">
+                <div style="font-size:9px;color:var(--textDim);margin-bottom:2px">BATCH 1</div>
+                <div style="font-size:16px;font-weight:700;color:var(--green)">${b1}ct</div>
+                <div style="font-size:9px;color:var(--textDim)">Enter first</div>
+              </div>
+              <div style="text-align:center;padding:6px;background:rgba(255,215,0,0.08);border:1px solid rgba(255,215,0,0.2);border-radius:3px">
+                <div style="font-size:9px;color:var(--textDim);margin-bottom:2px">BATCH 2</div>
+                <div style="font-size:16px;font-weight:700;color:var(--gold)">${b2}ct</div>
+                <div style="font-size:9px;color:var(--textDim)">+2 min wait</div>
+              </div>
+              <div style="text-align:center;padding:6px;background:rgba(0,229,255,0.08);border:1px solid rgba(0,229,255,0.2);border-radius:3px">
+                <div style="font-size:9px;color:var(--textDim);margin-bottom:2px">BATCH 3</div>
+                <div style="font-size:16px;font-weight:700;color:var(--cyan)">${b3}ct</div>
+                <div style="font-size:9px;color:var(--textDim)">+2 min wait</div>
+              </div>
+            </div>
+            <div style="margin-top:6px;font-size:10px;color:var(--textDim)">\u26A0 If fill slips below min credit after Batch 1 — STOP. Do not force remaining batches.</div>
+          </div>` : ''}
         </div>`;
       }).join('')}
 
