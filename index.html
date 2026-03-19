@@ -1590,7 +1590,6 @@ function renderPlaybook() {
   ).join('');
 
   const day = PLAYBOOK[selectedPlaybookDay];
-  const dayTrades = traderData.trades.filter(t => t.day === selectedPlaybookDay);
   const pbPhase = getPhase(traderData.currentCapital);
   const pbContracts = pbPhase.perK ? Math.max(1, Math.floor(traderData.currentCapital / pbPhase.perK)) : 2;
 
@@ -1653,16 +1652,6 @@ function renderPlaybook() {
       <div class="label" style="margin:12px 0 6px">RULES</div>
       ${day.rules.map(r => `<div style="padding:4px 0;font-size:12px;color:var(--textMid);border-bottom:1px solid var(--border)">\u2022 ${r}</div>`).join('')}
 
-      <!-- Logged trades for this day -->
-      ${dayTrades.length > 0 ? `
-        <div class="label" style="margin:12px 0 6px">LOGGED TRADES (${selectedPlaybookDay})</div>
-        ${dayTrades.map(t => `
-          <div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--border)">
-            <span style="font-size:12px;color:var(--white)">${t.type} - ${t.date}</span>
-            <span style="font-size:12px;font-weight:700;color:${t.win?'var(--green)':'var(--red)'}">${t.win?'+':''}${fmt$(t.result||0)}</span>
-          </div>
-        `).join('')}
-      ` : ''}
     </div>`;
 
   // Weekly income model strip (only if element exists)
