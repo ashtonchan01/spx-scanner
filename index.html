@@ -1105,7 +1105,8 @@ function scan() {
   const autoStrat = state.vix < 22 && regime.size > 0 ? 'ic' : 'put';
   const active = state.strategy === 'auto' ? autoStrat : state.strategy;
   const useIC = active === 'ic', useCall = active === 'call';
-  const contracts = 2;
+  const phase = getPhase(traderData.currentCapital);
+  const contracts = phase.perK ? Math.max(1, Math.floor(traderData.currentCapital / phase.perK)) : 2;
   const dailyMove = Math.round(state.spx * (state.vix / 100) / Math.sqrt(365));
   const iv = state.vix / 100;
   const stopBuffer = state.mode === 'arvo' ? 10 : 15;
@@ -1131,8 +1132,8 @@ function scan() {
       { l:'SPX', v:state.spx.toLocaleString(), c:'var(--white)' },
       { l:'VIX', v:f2(state.vix), c:regime.color },
       { l:'EXP MOVE', v:`\u00B1${dailyMove}`, c:'var(--gold)' },
-      { l:'RANGE', v:`${(state.spx-dailyMove).toLocaleString()}\u2013${(state.spx+dailyMove).toLocaleString()}`, c:'var(--textMid)' },
-    ].map(s => `<div class="panel" style="padding:12px 16px"><div style="font-size:10px;color:var(--textDim);letter-spacing:1px;margin-bottom:3px">${s.l}</div><div class="chakra" style="font-size:${s.l==='RANGE'?13:22}px;font-weight:700;color:${s.c}">${s.v}</div></div>`).join('')}`;
+      { l:'CONTRACTS', v:`${contracts}`, c:'var(--green)' },
+    ].map(s => `<div class="panel" style="padding:12px 16px"><div style="font-size:10px;color:var(--textDim);letter-spacing:1px;margin-bottom:3px">${s.l}</div><div class="chakra" style="font-size:22px;font-weight:700;color:${s.c}">${s.v}</div></div>`).join('')}`;
 
   // MAIN AREA: 3 Tickets + Rules
   function liveBanner(key, color) {
@@ -1167,7 +1168,7 @@ function scan() {
           {l:'WIN PROB',v:`${recRow.putProb}%`,color:'var(--gold)'},
           {l:'50% TGT',v:`\$${f2(pF*0.5)}`,color:'var(--green)'},
           {l:'STOP SPX \u2264',v:`${recRow.putStop}`,big:1,color:'var(--red)'},
-          {l:'CTRS',v:'2',color:'var(--green)'},{l:'INCOME',v:fmt$(pF*contracts*100),color:'var(--green)'},
+          {l:'CTRS',v:contracts,color:'var(--green)'},{l:'INCOME',v:fmt$(pF*contracts*100),color:'var(--green)'},
         ])}
         ${!pB.live&&!recRow.putOK?'<div style="margin-top:6px;padding:5px 8px;background:rgba(255,71,87,0.08);border:1px solid rgba(255,71,87,0.25);font-size:10px;color:var(--red)">\u26A0 Below $0.80</div>':''}
       </div>
@@ -1182,7 +1183,7 @@ function scan() {
           {l:'WIN PROB',v:`${recRow.callProb}%`,color:'var(--gold)'},
           {l:'50% TGT',v:`\$${f2(cF*0.5)}`,color:'var(--green)'},
           {l:'STOP SPX \u2265',v:`${recRow.callStop}`,big:1,color:'var(--red)'},
-          {l:'CTRS',v:'2',color:'var(--green)'},{l:'INCOME',v:fmt$(cF*contracts*100),color:'var(--green)'},
+          {l:'CTRS',v:contracts,color:'var(--green)'},{l:'INCOME',v:fmt$(cF*contracts*100),color:'var(--green)'},
         ])}
         <div style="margin-top:6px;padding:5px 8px;background:rgba(240,180,41,0.05);border:1px solid rgba(240,180,41,0.15);font-size:10px;color:var(--gold)">Use on confirmed bearish days only</div>
       </div>
@@ -1206,7 +1207,7 @@ function scan() {
           {l:'COMBINED',v:`\$${f2(recRow.icFill)}`,big:1,color:recRow.icOK?'var(--cyan)':'var(--red)'},
           {l:'ZONE',v:recRow.profitZone},
           {l:'50% TGT',v:`\$${f2(recRow.icFill*0.5)}`,color:'var(--green)'},
-          {l:'CTRS',v:'2',color:'var(--green)'},{l:'INCOME',v:fmt$(recRow.icFill*contracts*100),color:'var(--green)'},
+          {l:'CTRS',v:contracts,color:'var(--green)'},{l:'INCOME',v:fmt$(recRow.icFill*contracts*100),color:'var(--green)'},
         ])}
         <div style="margin-top:6px;padding:5px 8px;background:rgba(255,71,87,0.05);border:1px solid rgba(255,71,87,0.15);font-size:10px;color:var(--red)">Close all if SPX hits either strike \u00B1${stopBuffer}pts</div>
       </div>
@@ -1274,7 +1275,6 @@ function scan() {
   const putW=recRow.putFill*contracts*100, calW=recRow.callFill*contracts*100;
   const icW=recRow.icFill*contracts*100, icL=recRow.icFill*2*contracts*100;
   const wkD=wklyFill*100/5;
-  const phase = getPhase(traderData.currentCapital);
 
   document.getElementById('bottomArea').innerHTML = `
     <div class="bottom-3col" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
@@ -1539,17 +1539,22 @@ function renderPlaybook() {
 
   const day = PLAYBOOK[selectedPlaybookDay];
   const dayTrades = traderData.trades.filter(t => t.day === selectedPlaybookDay);
+  const pbPhase = getPhase(traderData.currentCapital);
+  const pbContracts = pbPhase.perK ? Math.max(1, Math.floor(traderData.currentCapital / pbPhase.perK)) : 2;
 
   document.getElementById('playbook-day-content').innerHTML = `
     <div class="day-card ${selectedPlaybookDay===todayName?'today':''}">
       <div class="day-header" style="color:var(--white)">${selectedPlaybookDay.toUpperCase()} PLAYBOOK</div>
-      <div style="display:flex;gap:6px;margin-bottom:12px">
+      <div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap">
         <span style="font-size:10px;padding:4px 8px;background:rgba(255,71,87,0.1);border:1px solid rgba(255,71,87,0.3);color:var(--red)">HARD CLOSE: ${day.hardClose}</span>
+        <span style="font-size:10px;padding:4px 8px;background:rgba(0,208,132,0.1);border:1px solid rgba(0,208,132,0.3);color:var(--green)">PHASE ${pbPhase.id}: ${pbContracts} CONTRACTS TODAY</span>
       </div>
 
       <!-- Trades for this day -->
       <div class="label" style="margin-bottom:6px">SCHEDULED TRADES</div>
-      ${day.trades.map(t => `
+      ${day.trades.map(t => {
+        const ctDisplay = t.contracts === '-' ? '-' : (t.contracts === '1ct' ? '1ct' : pbContracts + 'ct');
+        return `
         <div class="trade-entry" style="border-left:3px solid ${t.type==='check'?'var(--gold)':t.type==='close'?'var(--red)':'var(--green)'}">
           <div style="display:flex;justify-content:space-between;margin-bottom:4px">
             <span style="font-size:13px;font-weight:700;color:var(--white)">${t.name}</span>
@@ -1559,10 +1564,10 @@ function renderPlaybook() {
             <span style="color:var(--textMid)">Time: <span style="color:var(--gold)">${t.time}</span></span>
             <span style="color:var(--textMid)">Delta: <span style="color:var(--cyan)">${t.delta}</span></span>
             <span style="color:var(--textMid)">Credit: <span style="color:var(--green)">${t.credit}</span></span>
-            <span style="color:var(--textMid)">Size: <span style="color:var(--white)">${t.contracts}</span></span>
+            <span style="color:var(--textMid)">Size: <span style="color:var(--white);font-weight:700">${ctDisplay}</span></span>
           </div>
-        </div>
-      `).join('')}
+        </div>`;
+      }).join('')}
 
       <!-- Rules -->
       <div class="label" style="margin:12px 0 6px">RULES</div>
