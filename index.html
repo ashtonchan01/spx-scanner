@@ -1483,22 +1483,28 @@ function drawPnLChart(trades) {
 // Phase-aware playbook: Phase 1-2 = arvo only Tue-Fri, Phase 3-4 = dual session Tue-Fri
 function getPlaybook() {
   const ph = getPhase(traderData.currentCapital);
+  const contracts0DTE = ph.perK ? Math.max(1, Math.floor(traderData.currentCapital / ph.perK)) : 2;
   const dual = ph.id >= 3; // Phase 3+ gets morning + arvo
   const stagger = ph.id >= 4; // Phase 4 staggers entries
   const sizeNote = stagger ? 'Scale in 3 batches (8-8-9)' : '';
   const arvoDelta = '\u0394 0.15';
   const mornDelta = '\u0394 0.12';
+  // Weekly contracts: ~25% of 0DTE size, min 1
+  const wklyCtMap = { 1: 1, 2: 1, 3: Math.max(1, Math.round(contracts0DTE * 0.25)), 4: Math.max(2, Math.round(contracts0DTE * 0.25)) };
+  const wklyCt = wklyCtMap[ph.id] || 1;
+  const wklyLabel = wklyCt + 'ct';
 
   return {
     Mon: {
       trades: [
-        { name: 'Weekly Spread', time: '12:45-1:00', dte: '5DTE', delta: '\u0394 0.10', credit: '$1.00 min', contracts: '1ct', type: 'put' },
+        { name: 'Weekly Spread', time: '12:45-1:00', dte: '5DTE', delta: '\u0394 0.10', credit: '$1.00 min', contracts: wklyLabel, type: 'put' },
         { name: '0DTE Morning', time: '1:00-1:15', dte: '0DTE', delta: mornDelta, credit: '$0.80 min', contracts: 'phase', type: 'put' },
         ...(dual ? [{ name: '0DTE Arvo', time: '3:00-4:00', dte: '0DTE', delta: arvoDelta, credit: '$0.80 min', contracts: 'phase', type: 'put' }] : []),
       ],
       rules: [
-        'Open weekly put spread first',
+        `Open weekly put spread first (${wklyCt}ct)`,
         'Then enter morning 0DTE',
+        ...(wklyCt > 1 ? ['FOMC week: skip weekly or halve size'] : []),
         ...(dual ? ['Arvo session: only if morning session was a WIN', sizeNote].filter(Boolean) : ['Arvo is optional — skip if morning fills well']),
       ],
       hardClose: '6:00 AM AEDT',
@@ -1536,7 +1542,7 @@ function getPlaybook() {
     },
     Thu: {
       trades: [
-        { name: 'Weekly Check', time: '-', dte: '5DTE', delta: '-', credit: '-', contracts: '-', type: 'check' },
+        { name: 'Weekly Check', time: '-', dte: '5DTE', delta: '-', credit: '-', contracts: wklyLabel, type: 'check' },
         ...(dual ? [{ name: '0DTE Morning', time: '1:00-1:15', dte: '0DTE', delta: mornDelta, credit: '$0.80 min', contracts: 'phase', type: 'put' }] : []),
         { name: '0DTE Arvo', time: '3:00-4:00', dte: '0DTE', delta: arvoDelta, credit: '$0.85 min', contracts: 'phase', type: 'put' },
       ],
@@ -1553,7 +1559,7 @@ function getPlaybook() {
     },
     Fri: {
       trades: [
-        { name: 'Close Weekly', time: '-', dte: '5DTE', delta: '-', credit: '-', contracts: '-', type: 'close' },
+        { name: 'Close Weekly', time: '-', dte: '5DTE', delta: '-', credit: '-', contracts: wklyLabel, type: 'close' },
         ...(dual ? [{ name: '0DTE Morning (careful)', time: '1:00-1:10', dte: '0DTE', delta: mornDelta, credit: '$0.90 min', contracts: 'phase', type: 'put' }] : []),
         { name: '0DTE Arvo (careful)', time: '3:00-3:45', dte: '0DTE', delta: '\u0394 0.12', credit: '$0.90 min', contracts: 'phase', type: 'put' },
       ],
