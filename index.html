@@ -85,7 +85,7 @@ input, select, button, textarea { font-family: 'IBM Plex Mono', monospace; outli
 
 /* SCANNER GRID LAYOUT */
 .top-bar { display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: center; margin-bottom: 10px; }
-.regime-strip { display: grid; grid-template-columns: 2.5fr 1fr 1fr 1fr 1fr; gap: 1px; margin-bottom: 8px; }
+.regime-strip { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 1px; margin-bottom: 8px; }
 .delta-full { margin-bottom: 8px; }
 
 /* Playbook day card */
@@ -327,25 +327,25 @@ input, select, button, textarea { font-family: 'IBM Plex Mono', monospace; outli
 </div>
 
 <!-- INPUT ROW -->
-<div id="inputPanel" class="panel flash" style="padding:10px 16px;margin-bottom:8px;border-width:2px">
-  <div class="scanner-inputs" style="display:grid;grid-template-columns:180px 120px 110px 130px 180px 130px 180px auto 1fr;gap:10px;align-items:end">
+<div id="inputPanel" class="panel flash" style="padding:12px 16px;margin-bottom:8px;border-width:2px">
+  <div class="scanner-inputs" style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1.5fr 1fr 1.5fr auto;gap:10px;align-items:end">
     <div>
-      <div class="label" style="margin-bottom:3px">SPX PRICE</div>
-      <div style="display:flex">
-        <span style="padding:8px 10px;background:var(--panelAlt);border:1px solid var(--borderBright);border-right:none;color:var(--textDim);font-size:14px">$</span>
-        <input id="spxInput" type="number" value="5800" style="width:100%;background:var(--panelAlt);border:1px solid var(--borderBright);color:var(--white);padding:8px 12px;font-size:22px;font-weight:700" onkeydown="if(event.key==='Enter')scan()">
+      <div class="label" style="margin-bottom:4px">SPX PRICE</div>
+      <div style="display:flex;height:42px">
+        <span style="display:flex;align-items:center;padding:0 10px;background:var(--panelAlt);border:1px solid var(--borderBright);border-right:none;color:var(--textDim);font-size:13px">$</span>
+        <input id="spxInput" type="number" value="5800" style="width:100%;background:var(--panelAlt);border:1px solid var(--borderBright);color:var(--white);padding:0 10px;font-size:18px;font-weight:700;height:100%;box-sizing:border-box" onkeydown="if(event.key==='Enter')scan()">
       </div>
     </div>
     <div>
-      <div class="label" style="margin-bottom:3px">VIX</div>
-      <div style="display:flex">
-        <span style="padding:8px 10px;background:var(--panelAlt);border:1px solid var(--borderBright);border-right:none;color:var(--textDim);font-size:14px">V</span>
-        <input id="vixInput" type="number" step="0.1" value="22" style="width:100%;background:var(--panelAlt);border:1px solid var(--borderBright);color:var(--white);padding:8px 12px;font-size:22px;font-weight:700" onkeydown="if(event.key==='Enter')scan()">
+      <div class="label" style="margin-bottom:4px">VIX</div>
+      <div style="display:flex;height:42px">
+        <span style="display:flex;align-items:center;padding:0 10px;background:var(--panelAlt);border:1px solid var(--borderBright);border-right:none;color:var(--textDim);font-size:13px">V</span>
+        <input id="vixInput" type="number" step="0.1" value="22" style="width:100%;background:var(--panelAlt);border:1px solid var(--borderBright);color:var(--white);padding:0 10px;font-size:18px;font-weight:700;height:100%;box-sizing:border-box" onkeydown="if(event.key==='Enter')scan()">
       </div>
     </div>
     <div>
-      <div class="label" style="margin-bottom:3px">WIDTH</div>
-      <select id="widthSelect" style="width:100%;background:var(--panelAlt);border:1px solid var(--borderBright);color:var(--white);padding:8px 10px;font-size:14px;font-weight:700;height:42px;cursor:pointer" onchange="scan()">
+      <div class="label" style="margin-bottom:4px">WIDTH</div>
+      <select id="widthSelect" style="width:100%;background:var(--panelAlt);border:1px solid var(--borderBright);color:var(--white);padding:0 10px;font-size:14px;font-weight:700;height:42px;cursor:pointer;box-sizing:border-box" onchange="scan()">
         <option value="10" selected>10 pts &#9733;</option>
         <option value="15">15 pts</option>
         <option value="20">20 pts</option>
@@ -353,39 +353,40 @@ input, select, button, textarea { font-family: 'IBM Plex Mono', monospace; outli
       </select>
     </div>
     <div>
-      <div class="label" style="margin-bottom:3px">MODE</div>
-      <div style="display:flex;height:42px" id="modeButtons">
-        <button class="mode-btn" data-mode="morning" style="flex:1;border:none;cursor:pointer;font-size:12px;font-family:'IBM Plex Mono',monospace;background:var(--panelAlt);color:var(--textDim);border-top:1px solid var(--borderBright);border-left:1px solid var(--borderBright);border-right:1px solid var(--borderBright);border-bottom:3px solid var(--border)" onclick="setMode('morning')">MORN</button>
-        <button class="mode-btn active" data-mode="arvo" style="flex:1;border:none;cursor:pointer;font-size:12px;font-family:'IBM Plex Mono',monospace;background:rgba(0,208,132,0.15);color:var(--green);border-top:1px solid var(--borderBright);border-left:1px solid var(--borderBright);border-right:1px solid var(--borderBright);border-bottom:3px solid var(--green)" onclick="setMode('arvo')">ARVO</button>
+      <div class="label" style="margin-bottom:4px">200DMA</div>
+      <div style="display:flex;height:42px">
+        <span style="display:flex;align-items:center;padding:0 8px;background:var(--panelAlt);border:1px solid var(--borderBright);border-right:none;color:var(--textDim);font-size:11px">MA</span>
+        <input id="dma200Input" type="number" value="" placeholder="5700" style="width:100%;background:var(--panelAlt);border:1px solid var(--borderBright);color:var(--white);padding:0 8px;font-size:14px;font-weight:700;height:100%;box-sizing:border-box" onkeydown="if(event.key==='Enter'){state.dma200=parseFloat(this.value)||0;localStorage.setItem('spx_dma200',state.dma200);scan()}" onchange="state.dma200=parseFloat(this.value)||0;localStorage.setItem('spx_dma200',state.dma200);scan()">
       </div>
     </div>
     <div>
-      <div class="label" style="margin-bottom:3px">STRATEGY</div>
-      <div style="display:flex;height:42px" id="stratButtons">
-        <button class="strat-btn active" data-strat="auto" onclick="setStrategy('auto')" style="flex:1;border:none;cursor:pointer;font-size:11px;font-family:'IBM Plex Mono',monospace;background:rgba(0,229,255,0.15);color:var(--cyan);border-bottom:3px solid var(--cyan);border-top:1px solid var(--borderBright);border-left:1px solid var(--borderBright);border-right:1px solid var(--borderBright)">AUTO</button>
-        <button class="strat-btn" data-strat="put" onclick="setStrategy('put')" style="flex:1;border:none;cursor:pointer;font-size:11px;font-family:'IBM Plex Mono',monospace;background:var(--panelAlt);color:var(--textDim);border-bottom:3px solid var(--border);border-top:1px solid var(--borderBright);border-left:1px solid var(--borderBright);border-right:1px solid var(--borderBright)">PUT</button>
-        <button class="strat-btn" data-strat="call" onclick="setStrategy('call')" style="flex:1;border:none;cursor:pointer;font-size:11px;font-family:'IBM Plex Mono',monospace;background:var(--panelAlt);color:var(--textDim);border-bottom:3px solid var(--border);border-top:1px solid var(--borderBright);border-left:1px solid var(--borderBright);border-right:1px solid var(--borderBright)">CALL</button>
-        <button class="strat-btn" data-strat="ic" onclick="setStrategy('ic')" style="flex:1;border:none;cursor:pointer;font-size:11px;font-family:'IBM Plex Mono',monospace;background:var(--panelAlt);color:var(--textDim);border-bottom:3px solid var(--border);border-top:1px solid var(--borderBright);border-left:1px solid var(--borderBright);border-right:1px solid var(--borderBright)">IC</button>
+      <div class="label" style="margin-bottom:4px">MODE / STRATEGY</div>
+      <div style="display:flex;height:42px" id="modeStratRow">
+        <button class="mode-btn" data-mode="morning" style="flex:1;border:none;cursor:pointer;font-size:11px;font-family:'IBM Plex Mono',monospace;background:var(--panelAlt);color:var(--textDim);border-top:1px solid var(--borderBright);border-left:1px solid var(--borderBright);border-right:1px solid var(--borderBright);border-bottom:3px solid var(--border)" onclick="setMode('morning')">MORN</button>
+        <button class="mode-btn active" data-mode="arvo" style="flex:1;border:none;cursor:pointer;font-size:11px;font-family:'IBM Plex Mono',monospace;background:rgba(0,208,132,0.15);color:var(--green);border-top:1px solid var(--borderBright);border-left:1px solid var(--borderBright);border-right:1px solid var(--borderBright);border-bottom:3px solid var(--green)" onclick="setMode('arvo')">ARVO</button>
+        <div style="width:1px;background:var(--borderBright)"></div>
+        <button class="strat-btn active" data-strat="auto" onclick="setStrategy('auto')" style="flex:1;border:none;cursor:pointer;font-size:10px;font-family:'IBM Plex Mono',monospace;background:rgba(0,229,255,0.15);color:var(--cyan);border-bottom:3px solid var(--cyan);border-top:1px solid var(--borderBright);border-right:1px solid var(--borderBright)">AUTO</button>
+        <button class="strat-btn" data-strat="put" onclick="setStrategy('put')" style="flex:1;border:none;cursor:pointer;font-size:10px;font-family:'IBM Plex Mono',monospace;background:var(--panelAlt);color:var(--textDim);border-bottom:3px solid var(--border);border-top:1px solid var(--borderBright);border-right:1px solid var(--borderBright)">PUT</button>
+        <button class="strat-btn" data-strat="call" onclick="setStrategy('call')" style="flex:1;border:none;cursor:pointer;font-size:10px;font-family:'IBM Plex Mono',monospace;background:var(--panelAlt);color:var(--textDim);border-bottom:3px solid var(--border);border-top:1px solid var(--borderBright);border-right:1px solid var(--borderBright)">CALL</button>
+        <button class="strat-btn" data-strat="ic" onclick="setStrategy('ic')" style="flex:1;border:none;cursor:pointer;font-size:10px;font-family:'IBM Plex Mono',monospace;background:var(--panelAlt);color:var(--textDim);border-bottom:3px solid var(--border);border-top:1px solid var(--borderBright);border-right:1px solid var(--borderBright)">IC</button>
       </div>
     </div>
     <div>
-      <div class="label" style="margin-bottom:3px">200DMA</div>
-      <div style="display:flex">
-        <span style="padding:8px 8px;background:var(--panelAlt);border:1px solid var(--borderBright);border-right:none;color:var(--textDim);font-size:12px">MA</span>
-        <input id="dma200Input" type="number" value="" placeholder="e.g. 5700" style="width:80px;background:var(--panelAlt);border:1px solid var(--borderBright);color:var(--white);padding:8px 8px;font-size:14px;font-weight:700" onkeydown="if(event.key==='Enter'){state.dma200=parseFloat(this.value)||0;localStorage.setItem('spx_dma200',state.dma200);scan()}" onchange="state.dma200=parseFloat(this.value)||0;localStorage.setItem('spx_dma200',state.dma200);scan()">
-      </div>
-    </div>
-    <div>
-      <div class="label" style="margin-bottom:3px">BIAS</div>
+      <div class="label" style="margin-bottom:4px">BIAS</div>
       <div style="display:flex;height:42px" id="biasButtons">
         <button class="bias-btn" data-bias="bull" onclick="setBias('bull')" style="flex:1;border:none;cursor:pointer;font-size:11px;font-family:'IBM Plex Mono',monospace;background:var(--panelAlt);color:var(--textDim);border-bottom:3px solid var(--border);border-top:1px solid var(--borderBright);border-left:1px solid var(--borderBright);border-right:1px solid var(--borderBright)">↑ BULL</button>
         <button class="bias-btn active" data-bias="neutral" onclick="setBias('neutral')" style="flex:1;border:none;cursor:pointer;font-size:11px;font-family:'IBM Plex Mono',monospace;background:rgba(0,229,255,0.15);color:var(--cyan);border-bottom:3px solid var(--cyan);border-top:1px solid var(--borderBright);border-left:1px solid var(--borderBright);border-right:1px solid var(--borderBright)">→ NEUT</button>
         <button class="bias-btn" data-bias="bear" onclick="setBias('bear')" style="flex:1;border:none;cursor:pointer;font-size:11px;font-family:'IBM Plex Mono',monospace;background:var(--panelAlt);color:var(--textDim);border-bottom:3px solid var(--border);border-top:1px solid var(--borderBright);border-left:1px solid var(--borderBright);border-right:1px solid var(--borderBright)">↓ BEAR</button>
       </div>
     </div>
-    <button id="scanBtn" class="btn" style="height:42px;padding:0 24px;border:2px solid var(--cyan);color:var(--cyan);font-size:13px;letter-spacing:2px;font-weight:700" onclick="scan()">&#8635; SCAN</button>
-    <div id="scanInfo" style="font-size:10px;color:var(--textDim);text-align:right;padding-bottom:4px">Enter SPX &amp; VIX then press SCAN</div>
+    <div>
+      <div class="label" style="margin-bottom:4px">&nbsp;</div>
+      <div style="display:flex;gap:8px;height:42px;align-items:stretch">
+        <button id="scanBtn" class="btn" style="padding:0 20px;border:2px solid var(--cyan);color:var(--cyan);font-size:12px;letter-spacing:2px;font-weight:700;height:100%" onclick="scan()">&#8635; SCAN</button>
+      </div>
+    </div>
   </div>
+  <div id="scanInfo" style="font-size:10px;color:var(--textDim);text-align:right;padding-top:6px">Enter SPX &amp; VIX then press SCAN</div>
 </div>
 
 <!-- REGIME STRIP -->
