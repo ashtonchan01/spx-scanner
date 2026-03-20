@@ -107,6 +107,38 @@ input, select, button, textarea { font-family: 'IBM Plex Mono', monospace; outli
 /* Inline edit */
 .inline-edit { background: var(--panelAlt); border: 1px solid var(--borderBright); color: var(--white); padding: 4px 6px; font-size: 11px; font-family: 'IBM Plex Mono', monospace; width: 80px; }
 
+/* Economic headline banner */
+.econ-headline { padding: 8px 16px; margin-bottom: 8px; border: 1px solid var(--border); border-left: 4px solid var(--gold); background: var(--panelAlt); display: flex; align-items: center; gap: 12px; }
+.econ-headline .econ-badge { font-size: 9px; letter-spacing: 2px; padding: 3px 8px; font-weight: 700; border: 1px solid; }
+.econ-headline .econ-events { display: flex; gap: 16px; flex-wrap: wrap; flex: 1; }
+.econ-headline .econ-item { font-size: 11px; display: flex; align-items: center; gap: 6px; }
+.econ-headline .econ-dot { width: 6px; height: 6px; border-radius: 50%; display: inline-block; }
+
+/* Calendar tab */
+.cal-month-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 1px; }
+.cal-header-cell { padding: 8px 4px; text-align: center; font-size: 10px; letter-spacing: 2px; color: var(--textDim); background: var(--panel); }
+.cal-day-cell { min-height: 80px; padding: 6px; background: var(--panelAlt); border: 1px solid var(--border); vertical-align: top; cursor: default; transition: border-color 0.15s; }
+.cal-day-cell:hover { border-color: var(--borderBright); }
+.cal-day-cell.today { border-color: var(--cyan); border-width: 2px; }
+.cal-day-cell.other-month { opacity: 0.3; }
+.cal-day-cell.weekend { background: rgba(255,255,255,0.02); }
+.cal-day-num { font-size: 12px; font-weight: 700; color: var(--white); margin-bottom: 4px; }
+.cal-event { font-size: 8px; padding: 2px 4px; margin-bottom: 2px; border-left: 2px solid; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cal-event.high { border-color: var(--red); color: var(--red); background: rgba(255,71,87,0.08); }
+.cal-event.medium { border-color: var(--gold); color: var(--gold); background: rgba(240,180,41,0.08); }
+.cal-event.low { border-color: var(--green); color: var(--green); background: rgba(0,208,132,0.08); }
+.cal-nav { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+.cal-nav-btn { background: var(--panelAlt); border: 1px solid var(--border); color: var(--textMid); padding: 8px 14px; cursor: pointer; font-size: 14px; transition: all 0.15s; }
+.cal-nav-btn:hover { border-color: var(--cyan); color: var(--cyan); }
+.cal-view-toggle { display: flex; gap: 0; }
+.cal-view-toggle .btn { border-radius: 0; }
+.cal-view-toggle .btn.active { background: rgba(0,229,255,0.15); color: var(--cyan); border-color: var(--cyan); }
+.cal-upcoming { margin-top: 12px; }
+.cal-upcoming-item { display: flex; align-items: center; gap: 12px; padding: 10px 14px; background: var(--panelAlt); border: 1px solid var(--border); margin-bottom: 4px; }
+.cal-upcoming-item.high { border-left: 3px solid var(--red); }
+.cal-upcoming-item.medium { border-left: 3px solid var(--gold); }
+.cal-upcoming-item.low { border-left: 3px solid var(--green); }
+
 /* ══ PWA / MOBILE RESPONSIVE ══════════════════════════════════════════════ */
 
 /* Safe area for iPhone notch / Dynamic Island */
@@ -180,6 +212,14 @@ input, select, button, textarea { font-family: 'IBM Plex Mono', monospace; outli
   /* Phases: responsive */
   .phase-metrics { grid-template-columns: 1fr 1fr !important; }
   .phase-columns { grid-template-columns: 1fr !important; }
+
+  /* Calendar: smaller cells on mobile */
+  .cal-day-cell { min-height: 50px; padding: 4px; }
+  .cal-event { font-size: 7px; }
+  .cal-day-num { font-size: 10px; }
+  .cal-nav { flex-wrap: wrap; }
+  .econ-headline { flex-wrap: wrap; gap: 6px; }
+  .econ-headline .econ-events { gap: 8px; }
 
   /* Charts: shorter on mobile */
   canvas { max-height: 200px; }
@@ -265,10 +305,14 @@ input, select, button, textarea { font-family: 'IBM Plex Mono', monospace; outli
 </div>
 <div id="connError" style="display:none;margin-bottom:8px;padding:8px 12px;background:rgba(255,71,87,0.06);border:1px solid rgba(255,71,87,0.2);font-size:9px"></div>
 
+<!-- ECONOMIC HEADLINE BANNER (always visible) -->
+<div id="econ-headline" class="econ-headline"></div>
+
 <!-- TAB BAR -->
 <div class="tab-bar">
   <button class="tab-btn active" data-tab="dashboard" onclick="switchTab('dashboard')">DASHBOARD</button>
   <button class="tab-btn" data-tab="scanner" onclick="switchTab('scanner')">SCANNER</button>
+  <button class="tab-btn" data-tab="calendar" onclick="switchTab('calendar')">CALENDAR</button>
   <button class="tab-btn" data-tab="phases" onclick="switchTab('phases')">PHASES</button>
   <button class="tab-btn" data-tab="log" onclick="switchTab('log')">LOG TRADES</button>
   <button class="tab-btn" data-tab="settings" onclick="switchTab('settings')">SETTINGS</button>
@@ -343,6 +387,23 @@ input, select, button, textarea { font-family: 'IBM Plex Mono', monospace; outli
 
 <!-- BOTTOM: Weekly + Income + Phase -->
 <div id="bottomArea"></div>
+</div>
+
+<!-- ============================================================ -->
+<!-- TAB: CALENDAR -->
+<!-- ============================================================ -->
+<div id="tab-calendar" class="tab-content">
+  <div class="cal-nav">
+    <button class="cal-nav-btn" onclick="calNavMonth(-1)">&larr;</button>
+    <div id="cal-month-title" class="chakra" style="font-size:20px;font-weight:700;color:var(--white);min-width:200px;text-align:center"></div>
+    <button class="cal-nav-btn" onclick="calNavMonth(1)">&rarr;</button>
+    <button class="btn" style="border-color:var(--cyan);color:var(--cyan);margin-left:8px" onclick="calGoToday()">TODAY</button>
+    <div class="cal-view-toggle" style="margin-left:auto">
+      <button class="btn active" id="cal-view-month" onclick="setCalView('month')">MONTH</button>
+      <button class="btn" id="cal-view-list" onclick="setCalView('list')">LIST</button>
+    </div>
+  </div>
+  <div id="cal-body"></div>
 </div>
 
 <!-- ============================================================ -->
@@ -867,6 +928,7 @@ function switchTab(tab) {
   document.querySelectorAll('.tab-content').forEach(c => c.classList.toggle('active', c.id === 'tab-' + tab));
   if (tab === 'scanner') renderPlaybook();
   if (tab === 'dashboard') { renderDashboard(); renderProjections(); }
+  if (tab === 'calendar') renderCalendar();
   if (tab === 'phases') renderPhases();
   if (tab === 'log') renderTradeHistory();
   if (tab === 'settings') renderSettings();
@@ -1705,6 +1767,347 @@ function renderPlaybook() {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
+// ECONOMIC CALENDAR DATA & RENDERING
+// ══════════════════════════════════════════════════════════════════════════════
+
+// Comprehensive economic calendar — recurring events by month/week pattern
+// Format: { name, impact: 'high'|'medium'|'low', time (AEDT), schedule: { type, ... } }
+const ECON_RECURRING = [
+  // MONTHLY — specific dates or week patterns
+  { name: 'Non-Farm Payrolls (NFP)', impact: 'high', time: '12:30 AM', schedule: { type: 'nthFriday', nth: 1 }, tradingNote: 'SKIP morning session. Arvo only if settled.' },
+  { name: 'CPI (Inflation)', impact: 'high', time: '12:30 AM', schedule: { type: 'midMonth', around: 13 }, tradingNote: 'Pre-market volatility. Delay entry 30min.' },
+  { name: 'Core PPI', impact: 'high', time: '12:30 AM', schedule: { type: 'midMonth', around: 14 }, tradingNote: 'Usually day after CPI. Watch for follow-through.' },
+  { name: 'FOMC Rate Decision', impact: 'high', time: '4:00 AM', schedule: { type: 'fomc' }, tradingNote: 'NO TRADE day. 50% size all FOMC week.' },
+  { name: 'FOMC Minutes', impact: 'high', time: '4:00 AM', schedule: { type: 'fomcMinutes' }, tradingNote: 'Reduced size. Close before release.' },
+  { name: 'Retail Sales', impact: 'medium', time: '12:30 AM', schedule: { type: 'midMonth', around: 16 }, tradingNote: 'Watch for consumer spending surprise.' },
+  { name: 'GDP (Advance/Prelim/Final)', impact: 'high', time: '12:30 AM', schedule: { type: 'lastWeek', weekday: 4 }, tradingNote: 'End-of-quarter release. Delay entry.' },
+  { name: 'PCE Price Index', impact: 'high', time: '12:30 AM', schedule: { type: 'lastWeek', weekday: 5 }, tradingNote: 'Fed\'s preferred inflation gauge. Caution.' },
+  { name: 'ISM Manufacturing PMI', impact: 'medium', time: '12:00 AM', schedule: { type: 'firstBizDay' }, tradingNote: 'First trading day of month. Can set tone.' },
+  { name: 'ISM Services PMI', impact: 'medium', time: '12:00 AM', schedule: { type: 'nthBizDay', nth: 3 }, tradingNote: 'Services sector health check.' },
+  { name: 'Consumer Confidence', impact: 'medium', time: '12:00 AM', schedule: { type: 'lastTuesday' }, tradingNote: 'Late-month sentiment reading.' },
+  { name: 'Michigan Consumer Sentiment', impact: 'low', time: '12:00 AM', schedule: { type: 'nthFriday', nth: 2 }, tradingNote: 'Prelim reading. Usually priced in.' },
+  { name: 'Durable Goods Orders', impact: 'medium', time: '12:30 AM', schedule: { type: 'lateMonth', around: 26 }, tradingNote: 'Manufacturing indicator.' },
+  { name: 'New Home Sales', impact: 'low', time: '12:00 AM', schedule: { type: 'lateMonth', around: 25 }, tradingNote: 'Housing data. Low impact usually.' },
+  { name: 'Existing Home Sales', impact: 'low', time: '12:00 AM', schedule: { type: 'midMonth', around: 20 }, tradingNote: 'Housing market indicator.' },
+  // WEEKLY
+  { name: 'Initial Jobless Claims', impact: 'medium', time: '12:30 AM', schedule: { type: 'weekly', weekday: 4 }, tradingNote: 'Every Thursday. Usually manageable.' },
+  { name: 'SPX 0DTE Expiry', impact: 'low', time: 'All day', schedule: { type: 'daily' }, tradingNote: 'Standard 0DTE day.' },
+  { name: 'SPX Weekly Options Expiry', impact: 'medium', time: 'Close', schedule: { type: 'weekly', weekday: 5 }, tradingNote: 'Friday pin risk. Tighter delta.' },
+];
+
+// FOMC meeting dates (2026 — update annually)
+const FOMC_DATES_2026 = [
+  // Each entry is [month (0-indexed), day] for the 2-day meeting (announcement on day 2)
+  [0, 28], [0, 29],   // Jan 28-29
+  [2, 17], [2, 18],   // Mar 17-18
+  [4, 5],  [4, 6],    // May 5-6
+  [5, 16], [5, 17],   // Jun 16-17
+  [6, 28], [6, 29],   // Jul 28-29
+  [8, 16], [8, 17],   // Sep 16-17
+  [9, 27], [9, 28],   // Oct 27-28
+  [11, 8], [11, 9],   // Dec 8-9
+];
+
+// FOMC minutes dates (roughly 3 weeks after meeting)
+const FOMC_MINUTES_2026 = [
+  [1, 19], // Feb 19 (minutes of Jan meeting)
+  [3, 9],  // Apr 9 (minutes of Mar meeting)
+  [4, 28], // May 28 (minutes of May meeting)
+  [6, 9],  // Jul 9 (minutes of Jun meeting)
+  [7, 20], // Aug 20 (minutes of Jul meeting)
+  [9, 8],  // Oct 8 (minutes of Sep meeting)
+  [10, 19],// Nov 19 (minutes of Oct meeting)
+];
+
+// Known fixed-date events for 2026
+const FIXED_EVENTS_2026 = [
+  { date: [0, 1], name: 'New Year\'s Day — MARKET CLOSED', impact: 'high' },
+  { date: [0, 19], name: 'MLK Day — MARKET CLOSED', impact: 'high' },
+  { date: [1, 16], name: 'Presidents\' Day — MARKET CLOSED', impact: 'high' },
+  { date: [3, 3], name: 'Good Friday — MARKET CLOSED', impact: 'high' },
+  { date: [4, 25], name: 'Memorial Day — MARKET CLOSED', impact: 'high' },
+  { date: [5, 19], name: 'Juneteenth — MARKET CLOSED', impact: 'high' },
+  { date: [6, 3], name: 'Independence Day (observed) — MARKET CLOSED', impact: 'high' },
+  { date: [8, 7], name: 'Labor Day — MARKET CLOSED', impact: 'high' },
+  { date: [10, 26], name: 'Thanksgiving — MARKET CLOSED', impact: 'high' },
+  { date: [10, 27], name: 'Black Friday — EARLY CLOSE 1pm', impact: 'medium' },
+  { date: [11, 25], name: 'Christmas Day — MARKET CLOSED', impact: 'high' },
+  { date: [11, 24], name: 'Christmas Eve — EARLY CLOSE 1pm', impact: 'medium' },
+  // Quad witching (3rd Friday of Mar, Jun, Sep, Dec)
+  { date: [2, 20], name: 'Quad Witching', impact: 'high', tradingNote: 'Massive volume/volatility. Tighten stops.' },
+  { date: [5, 19], name: 'Quad Witching', impact: 'high', tradingNote: 'Massive volume/volatility. Tighten stops.' },
+  { date: [8, 18], name: 'Quad Witching', impact: 'high', tradingNote: 'Massive volume/volatility. Tighten stops.' },
+  { date: [11, 18], name: 'Quad Witching', impact: 'high', tradingNote: 'Massive volume/volatility. Tighten stops.' },
+];
+
+let calViewMonth = new Date().getMonth();
+let calViewYear = new Date().getFullYear();
+let calViewMode = 'month'; // 'month' or 'list'
+
+function calNavMonth(dir) { calViewMonth += dir; if (calViewMonth > 11) { calViewMonth = 0; calViewYear++; } if (calViewMonth < 0) { calViewMonth = 11; calViewYear--; } renderCalendar(); }
+function calGoToday() { calViewMonth = new Date().getMonth(); calViewYear = new Date().getFullYear(); renderCalendar(); }
+function setCalView(v) { calViewMode = v; document.getElementById('cal-view-month').classList.toggle('active', v==='month'); document.getElementById('cal-view-list').classList.toggle('active', v==='list'); renderCalendar(); }
+
+function getNthWeekday(year, month, weekday, nth) {
+  let count = 0;
+  for (let d = 1; d <= 31; d++) {
+    const dt = new Date(year, month, d);
+    if (dt.getMonth() !== month) break;
+    if (dt.getDay() === weekday) { count++; if (count === nth) return d; }
+  }
+  return null;
+}
+
+function getLastWeekday(year, month, weekday) {
+  const lastDay = new Date(year, month + 1, 0).getDate();
+  for (let d = lastDay; d >= 1; d--) {
+    if (new Date(year, month, d).getDay() === weekday) return d;
+  }
+  return null;
+}
+
+function getFirstBizDay(year, month) {
+  for (let d = 1; d <= 7; d++) {
+    const dow = new Date(year, month, d).getDay();
+    if (dow >= 1 && dow <= 5) return d;
+  }
+  return 1;
+}
+
+function getNthBizDay(year, month, nth) {
+  let count = 0;
+  for (let d = 1; d <= 31; d++) {
+    const dt = new Date(year, month, d);
+    if (dt.getMonth() !== month) break;
+    if (dt.getDay() >= 1 && dt.getDay() <= 5) { count++; if (count === nth) return d; }
+  }
+  return null;
+}
+
+function getEventsForDate(year, month, day) {
+  const events = [];
+  const dow = new Date(year, month, day).getDay(); // 0=Sun
+
+  // Fixed events
+  FIXED_EVENTS_2026.forEach(e => {
+    if (year === 2026 && e.date[0] === month && e.date[1] === day) {
+      events.push({ name: e.name, impact: e.impact, time: '', tradingNote: e.tradingNote || '' });
+    }
+  });
+
+  // FOMC
+  FOMC_DATES_2026.forEach(f => {
+    if (year === 2026 && f[0] === month && f[1] === day) {
+      events.push({ name: 'FOMC Rate Decision', impact: 'high', time: '4:00 AM AEDT', tradingNote: 'NO TRADE day. 50% size all FOMC week.' });
+    }
+  });
+
+  // FOMC minutes
+  FOMC_MINUTES_2026.forEach(f => {
+    if (year === 2026 && f[0] === month && f[1] === day) {
+      events.push({ name: 'FOMC Minutes Release', impact: 'high', time: '4:00 AM AEDT', tradingNote: 'Reduced size. Close before release.' });
+    }
+  });
+
+  // Recurring events
+  ECON_RECURRING.forEach(evt => {
+    const s = evt.schedule;
+    let match = false;
+    if (s.type === 'nthFriday') { match = day === getNthWeekday(year, month, 5, s.nth); }
+    else if (s.type === 'midMonth') { match = Math.abs(day - s.around) <= 1 && dow >= 1 && dow <= 5; }
+    else if (s.type === 'lateMonth') { match = Math.abs(day - s.around) <= 1 && dow >= 1 && dow <= 5; }
+    else if (s.type === 'firstBizDay') { match = day === getFirstBizDay(year, month); }
+    else if (s.type === 'nthBizDay') { match = day === getNthBizDay(year, month, s.nth); }
+    else if (s.type === 'lastTuesday') { match = day === getLastWeekday(year, month, 2); }
+    else if (s.type === 'lastWeek') { match = day === getLastWeekday(year, month, s.weekday); }
+    else if (s.type === 'weekly') { match = dow === s.weekday; }
+    else if (s.type === 'fomc' || s.type === 'fomcMinutes') { match = false; } // handled above
+    else if (s.type === 'daily') { match = dow >= 1 && dow <= 5; }
+
+    if (match) {
+      // Avoid duplicating FOMC if already added from fixed dates
+      if (evt.name.includes('FOMC')) return;
+      events.push({ name: evt.name, impact: evt.impact, time: evt.time + ' AEDT', tradingNote: evt.tradingNote || '' });
+    }
+  });
+
+  return events;
+}
+
+function renderEconHeadline() {
+  const now = new Date();
+  const y = now.getFullYear(), m = now.getMonth(), d = now.getDate();
+  const todayEvents = getEventsForDate(y, m, d).filter(e => e.name !== 'SPX 0DTE Expiry');
+  const dow = now.getDay();
+  const el = document.getElementById('econ-headline');
+
+  if (todayEvents.length === 0 || dow === 0 || dow === 6) {
+    // No notable events or weekend — show a calm message
+    const dayName = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][dow];
+    const isWeekend = dow === 0 || dow === 6;
+    el.innerHTML = `
+      <span class="econ-badge" style="color:var(--green);border-color:var(--green)">CLEAR</span>
+      <div class="econ-events">
+        <span class="econ-item" style="color:var(--textMid)">${isWeekend ? dayName + ' — Markets Closed' : dayName + ' — No major economic events. Standard playbook.'}</span>
+      </div>`;
+    el.style.borderLeftColor = 'var(--green)';
+    return;
+  }
+
+  const hasHigh = todayEvents.some(e => e.impact === 'high');
+  const hasMedium = todayEvents.some(e => e.impact === 'medium');
+  const badgeColor = hasHigh ? 'var(--red)' : hasMedium ? 'var(--gold)' : 'var(--green)';
+  const badgeText = hasHigh ? 'CAUTION' : hasMedium ? 'WATCH' : 'CLEAR';
+
+  el.style.borderLeftColor = badgeColor;
+  el.innerHTML = `
+    <span class="econ-badge" style="color:${badgeColor};border-color:${badgeColor}">${badgeText}</span>
+    <div class="econ-events">
+      ${todayEvents.map(e => {
+        const dc = e.impact === 'high' ? 'var(--red)' : e.impact === 'medium' ? 'var(--gold)' : 'var(--green)';
+        return `<span class="econ-item"><span class="econ-dot" style="background:${dc}"></span><span style="color:var(--white);font-weight:600">${e.name}</span>${e.time ? `<span style="color:var(--textDim);font-size:10px">${e.time}</span>` : ''}</span>`;
+      }).join('')}
+    </div>
+    ${hasHigh ? `<span style="font-size:10px;color:var(--red);white-space:nowrap">⚠ Check playbook rules</span>` : ''}`;
+}
+
+function renderCalendar() {
+  document.getElementById('cal-month-title').textContent =
+    new Date(calViewYear, calViewMonth).toLocaleDateString('en-AU', { month: 'long', year: 'numeric' }).toUpperCase();
+
+  if (calViewMode === 'month') renderCalendarMonth();
+  else renderCalendarList();
+}
+
+function renderCalendarMonth() {
+  const firstDay = new Date(calViewYear, calViewMonth, 1).getDay(); // 0=Sun
+  const daysInMonth = new Date(calViewYear, calViewMonth + 1, 0).getDate();
+  const daysInPrev = new Date(calViewYear, calViewMonth, 0).getDate();
+  const today = new Date();
+  const isThisMonth = today.getFullYear() === calViewYear && today.getMonth() === calViewMonth;
+
+  let html = '<div class="cal-month-grid">';
+  // Headers (Mon-first)
+  ['MON','TUE','WED','THU','FRI','SAT','SUN'].forEach(d => {
+    html += `<div class="cal-header-cell">${d}</div>`;
+  });
+
+  // Adjust firstDay to Mon-first (0=Mon, 6=Sun)
+  const startOffset = (firstDay + 6) % 7;
+
+  // Previous month fill
+  for (let i = startOffset - 1; i >= 0; i--) {
+    const d = daysInPrev - i;
+    const pm = calViewMonth === 0 ? 11 : calViewMonth - 1;
+    const py = calViewMonth === 0 ? calViewYear - 1 : calViewYear;
+    const evts = getEventsForDate(py, pm, d).filter(e => e.name !== 'SPX 0DTE Expiry');
+    html += `<div class="cal-day-cell other-month">
+      <div class="cal-day-num" style="color:var(--textDim)">${d}</div>
+      ${evts.slice(0,3).map(e => `<div class="cal-event ${e.impact}">${e.name}</div>`).join('')}
+    </div>`;
+  }
+
+  // Current month
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dt = new Date(calViewYear, calViewMonth, d);
+    const isToday = isThisMonth && d === today.getDate();
+    const isWeekend = dt.getDay() === 0 || dt.getDay() === 6;
+    const evts = getEventsForDate(calViewYear, calViewMonth, d).filter(e => e.name !== 'SPX 0DTE Expiry');
+
+    html += `<div class="cal-day-cell ${isToday?'today':''} ${isWeekend?'weekend':''}" ${evts.length ? `onclick="showDayDetail(${calViewYear},${calViewMonth},${d})"` : ''} ${evts.length ? 'style="cursor:pointer"' : ''}>
+      <div class="cal-day-num">${d}</div>
+      ${evts.slice(0,3).map(e => `<div class="cal-event ${e.impact}">${e.name}</div>`).join('')}
+      ${evts.length > 3 ? `<div style="font-size:8px;color:var(--textDim)">+${evts.length-3} more</div>` : ''}
+    </div>`;
+  }
+
+  // Next month fill (complete the grid)
+  const totalCells = startOffset + daysInMonth;
+  const remaining = (7 - (totalCells % 7)) % 7;
+  for (let d = 1; d <= remaining; d++) {
+    const nm = calViewMonth === 11 ? 0 : calViewMonth + 1;
+    const ny = calViewMonth === 11 ? calViewYear + 1 : calViewYear;
+    const evts = getEventsForDate(ny, nm, d).filter(e => e.name !== 'SPX 0DTE Expiry');
+    html += `<div class="cal-day-cell other-month">
+      <div class="cal-day-num" style="color:var(--textDim)">${d}</div>
+      ${evts.slice(0,3).map(e => `<div class="cal-event ${e.impact}">${e.name}</div>`).join('')}
+    </div>`;
+  }
+
+  html += '</div>';
+
+  // Day detail popup area
+  html += '<div id="cal-day-detail" style="margin-top:12px"></div>';
+
+  document.getElementById('cal-body').innerHTML = html;
+}
+
+function renderCalendarList() {
+  const daysInMonth = new Date(calViewYear, calViewMonth + 1, 0).getDate();
+  const today = new Date();
+  let html = '<div class="cal-upcoming">';
+  let hasEvents = false;
+
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dt = new Date(calViewYear, calViewMonth, d);
+    const dow = dt.getDay();
+    if (dow === 0 || dow === 6) continue;
+    const evts = getEventsForDate(calViewYear, calViewMonth, d).filter(e => e.name !== 'SPX 0DTE Expiry' && e.name !== 'SPX Weekly Options Expiry');
+    if (evts.length === 0) continue;
+    hasEvents = true;
+    const isToday = today.getFullYear() === calViewYear && today.getMonth() === calViewMonth && today.getDate() === d;
+    const dayName = dt.toLocaleDateString('en-AU', { weekday: 'short', month: 'short', day: 'numeric' });
+
+    evts.forEach(e => {
+      html += `<div class="cal-upcoming-item ${e.impact}" ${isToday?'style="background:rgba(0,229,255,0.05)"':''}>
+        <div style="min-width:100px">
+          <div style="font-size:12px;font-weight:700;color:${isToday?'var(--cyan)':'var(--white)'}">${dayName}</div>
+          ${isToday ? '<div style="font-size:9px;color:var(--cyan)">TODAY</div>' : ''}
+        </div>
+        <div style="flex:1">
+          <div style="font-size:13px;font-weight:600;color:var(--white)">${e.name}</div>
+          <div style="font-size:10px;color:var(--textDim)">${e.time || ''}</div>
+        </div>
+        <div style="text-align:right">
+          <span style="font-size:9px;padding:2px 6px;border:1px solid ${e.impact==='high'?'var(--red)':e.impact==='medium'?'var(--gold)':'var(--green)'};color:${e.impact==='high'?'var(--red)':e.impact==='medium'?'var(--gold)':'var(--green)'}">${e.impact.toUpperCase()}</span>
+          ${e.tradingNote ? `<div style="font-size:9px;color:var(--textMid);margin-top:4px">${e.tradingNote}</div>` : ''}
+        </div>
+      </div>`;
+    });
+  }
+
+  if (!hasEvents) html += '<div style="text-align:center;padding:40px;color:var(--textDim)">No notable events this month</div>';
+  html += '</div>';
+  document.getElementById('cal-body').innerHTML = html;
+}
+
+function showDayDetail(y, m, d) {
+  const evts = getEventsForDate(y, m, d);
+  const dt = new Date(y, m, d);
+  const dayName = dt.toLocaleDateString('en-AU', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+  const el = document.getElementById('cal-day-detail');
+
+  el.innerHTML = `
+    <div class="panel" style="padding:16px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <div class="chakra" style="font-size:16px;font-weight:700;color:var(--white)">${dayName}</div>
+        <button class="btn" style="border-color:var(--textDim);color:var(--textDim);font-size:10px;padding:4px 10px" onclick="document.getElementById('cal-day-detail').innerHTML=''">CLOSE</button>
+      </div>
+      ${evts.length === 0 ? '<div style="color:var(--textDim)">No events scheduled</div>' : evts.map(e => `
+        <div style="display:flex;align-items:flex-start;gap:12px;padding:10px;background:var(--panelAlt);border:1px solid var(--border);border-left:3px solid ${e.impact==='high'?'var(--red)':e.impact==='medium'?'var(--gold)':'var(--green)'};margin-bottom:6px">
+          <div style="flex:1">
+            <div style="font-size:13px;font-weight:600;color:var(--white)">${e.name}</div>
+            <div style="font-size:11px;color:var(--textDim);margin-top:2px">${e.time || 'All day'}</div>
+            ${e.tradingNote ? `<div style="font-size:11px;color:var(--gold);margin-top:6px;padding:4px 8px;background:rgba(240,180,41,0.08);border:1px solid rgba(240,180,41,0.15)">📋 ${e.tradingNote}</div>` : ''}
+          </div>
+          <span style="font-size:9px;padding:2px 6px;border:1px solid ${e.impact==='high'?'var(--red)':e.impact==='medium'?'var(--gold)':'var(--green)'};color:${e.impact==='high'?'var(--red)':e.impact==='medium'?'var(--gold)':'var(--green)'}">${e.impact.toUpperCase()}</span>
+        </div>`).join('')}
+    </div>`;
+
+  el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
 // LOG TRADES TAB
 // ══════════════════════════════════════════════════════════════════════════════
 function addTrade() {
@@ -2195,6 +2598,7 @@ const savedUrl = localStorage.getItem('ibkr_url');
 if (savedUrl) document.getElementById('urlInput').value = savedUrl;
 renderDashboard();
 renderProjections();
+renderEconHeadline();
 scan();
 
 // Auto-load from cloud on startup if configured
