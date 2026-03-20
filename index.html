@@ -1485,8 +1485,8 @@ function getPlaybook() {
   const ph = getPhase(traderData.currentCapital);
   const contracts0DTE = ph.perK ? Math.max(1, Math.floor(traderData.currentCapital / ph.perK)) : 2;
   const dual = ph.id >= 3; // Phase 3+ gets morning + arvo
-  const stagger = ph.id >= 4; // Phase 4 staggers entries
-  const sizeNote = stagger ? 'Scale in 3 batches (8-8-9)' : '';
+  const stagger = ph.id >= 3; // Phase 3+ staggers entries
+  const sizeNote = stagger ? (ph.id >= 4 ? 'Scale in 3 batches' : 'Scale in 2 batches (50/50)') : '';
   const arvoDelta = '\u0394 0.15';
   const mornDelta = '\u0394 0.12';
   // Weekly contracts: ~25% of 0DTE size, min 1
@@ -1612,11 +1612,12 @@ function renderPlaybook() {
       <div class="label" style="margin-bottom:6px">SCHEDULED TRADES</div>
       ${day.trades.map(t => {
         const ctDisplay = t.contracts === '-' ? '-' : (t.contracts === '1ct' ? '1ct' : t.contracts === 'phase' ? pbContracts + 'ct' : t.contracts);
-        // Stagger breakdown for Phase 4+ with large contract counts
-        const showStagger = t.contracts === 'phase' && pbPhase.id >= 4 && pbContracts >= 10;
-        const b1 = showStagger ? Math.floor(pbContracts / 3) : 0;
-        const b2 = showStagger ? Math.floor(pbContracts / 3) : 0;
-        const b3 = showStagger ? pbContracts - b1 - b2 : 0;
+        // Stagger breakdown for Phase 3+ with enough contracts
+        const showStagger = t.contracts === 'phase' && pbPhase.id >= 3 && pbContracts >= 4;
+        const batches3 = pbPhase.id >= 4; // Phase 4+ = 3 batches, Phase 3 = 2 batches
+        const b1 = showStagger ? (batches3 ? Math.floor(pbContracts / 3) : Math.floor(pbContracts / 2)) : 0;
+        const b2 = showStagger ? (batches3 ? Math.floor(pbContracts / 3) : pbContracts - Math.floor(pbContracts / 2)) : 0;
+        const b3 = showStagger && batches3 ? pbContracts - b1 - b2 : 0;
         return `
         <div class="trade-entry" style="border-left:3px solid ${t.type==='check'?'var(--gold)':t.type==='close'?'var(--red)':'var(--green)'}">
           <div style="display:flex;justify-content:space-between;margin-bottom:4px">
@@ -1631,8 +1632,8 @@ function renderPlaybook() {
           </div>
           ${showStagger ? `
           <div style="margin-top:8px;padding:8px 10px;background:rgba(0,229,255,0.05);border:1px solid rgba(0,229,255,0.15);border-radius:4px">
-            <div style="font-size:10px;color:var(--cyan);letter-spacing:2px;margin-bottom:6px;font-weight:700">STAGGER PLAN — ${pbContracts} CONTRACTS</div>
-            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px">
+            <div style="font-size:10px;color:var(--cyan);letter-spacing:2px;margin-bottom:6px;font-weight:700">STAGGER PLAN — ${pbContracts} CONTRACTS (${batches3?'3':'2'} BATCHES)</div>
+            <div style="display:grid;grid-template-columns:${batches3?'1fr 1fr 1fr':'1fr 1fr'};gap:6px">
               <div style="text-align:center;padding:6px;background:rgba(0,208,132,0.08);border:1px solid rgba(0,208,132,0.2);border-radius:3px">
                 <div style="font-size:9px;color:var(--textDim);margin-bottom:2px">BATCH 1</div>
                 <div style="font-size:16px;font-weight:700;color:var(--green)">${b1}ct</div>
@@ -1643,11 +1644,11 @@ function renderPlaybook() {
                 <div style="font-size:16px;font-weight:700;color:var(--gold)">${b2}ct</div>
                 <div style="font-size:9px;color:var(--textDim)">+2 min wait</div>
               </div>
-              <div style="text-align:center;padding:6px;background:rgba(0,229,255,0.08);border:1px solid rgba(0,229,255,0.2);border-radius:3px">
+              ${batches3 ? `<div style="text-align:center;padding:6px;background:rgba(0,229,255,0.08);border:1px solid rgba(0,229,255,0.2);border-radius:3px">
                 <div style="font-size:9px;color:var(--textDim);margin-bottom:2px">BATCH 3</div>
                 <div style="font-size:16px;font-weight:700;color:var(--cyan)">${b3}ct</div>
                 <div style="font-size:9px;color:var(--textDim)">+2 min wait</div>
-              </div>
+              </div>` : ''}
             </div>
             <div style="margin-top:6px;font-size:10px;color:var(--textDim)">\u26A0 If fill slips below min credit after Batch 1 — STOP. Do not force remaining batches.</div>
           </div>` : ''}
