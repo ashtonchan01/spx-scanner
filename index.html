@@ -2008,17 +2008,22 @@ function drawProjectionChart() {
   ctx.textAlign = 'right';
   ctx.fillText(`YOU ARE HERE — ${fmt$(currentCap)}`, youX - 12, youY - 8);
 
-  // Legend
-  ctx.font = '11px JetBrains Mono';
-  ctx.fillStyle = '#3B9EFF';
-  ctx.fillRect(W - 200, 10, 14, 3);
-  ctx.fillText('80% Win Rate', W - 180, 15);
-  ctx.fillStyle = '#00D084';
-  ctx.fillRect(W - 200, 26, 14, 3);
-  ctx.fillText('85% Win Rate', W - 180, 31);
-  ctx.fillStyle = '#FF6B35';
-  ctx.fillRect(W - 200, 42, 14, 3);
-  ctx.fillText(`Current: ${fmt$(currentCap)}`, W - 180, 47);
+  // Legend — bottom-left, inside chart area
+  const lx = pad.left + 10, ly = H - pad.bottom - 42;
+  ctx.font = '10px IBM Plex Mono';
+  ctx.textAlign = 'left';
+  const legends = [
+    { color: '#3B9EFF', label: '80% Win Rate' },
+    { color: '#00D084', label: '85% Win Rate' },
+    { color: '#FF6B35', label: `Current: ${fmt$(currentCap)}` },
+  ];
+  legends.forEach((l, i) => {
+    ctx.beginPath();
+    ctx.arc(lx + 4, ly + i * 14, 3, 0, Math.PI * 2);
+    ctx.fillStyle = l.color;
+    ctx.fill();
+    ctx.fillText(l.label, lx + 14, ly + i * 14 + 4);
+  });
 }
 
 function renderMilestones() {
