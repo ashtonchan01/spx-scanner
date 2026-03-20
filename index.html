@@ -1888,8 +1888,8 @@ function drawProjectionChart() {
   const data85 = projectGrowth(currentCap, 0, 0, 0.85, projYears);
 
   const allCaps = [...data80.map(d=>d.capital), ...data85.map(d=>d.capital)];
-  const minCap = currentCap * 0.9; // 10% below start for breathing room
-  const maxCap = Math.max(...allCaps) * 1.05;
+  const minCap = 0; // Y-axis starts from $0
+  const maxCap = Math.max(1000000, Math.max(...allCaps)) * 1.05;
   const maxWeek = Math.max(data80[data80.length-1].week, data85[data85.length-1].week);
 
   const pad = { top: 30, bottom: 40, left: 80, right: 20 };
