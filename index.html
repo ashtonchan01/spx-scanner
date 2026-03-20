@@ -1874,18 +1874,19 @@ function drawProjectionChart() {
   ctx.clearRect(0, 0, W, H);
 
   const currentCap = traderData.currentCapital || 10000;
+  const startCap = 10000; // Always start growth from $10k
 
-  // Find how many years needed for 85% WR to hit $1M (cap at 15 years)
+  // Find how many years needed for 85% WR to hit $1M from $10k (cap at 15 years)
   let projYears = 2;
   while (projYears <= 15) {
-    const test = projectGrowth(currentCap, 0, 0, 0.85, projYears);
+    const test = projectGrowth(startCap, 0, 0, 0.85, projYears);
     if (test[test.length - 1].capital >= 1000000) break;
     projYears++;
   }
   projYears = Math.max(projYears, 2); // minimum 2 years
 
-  const data80 = projectGrowth(currentCap, 0, 0, 0.80, projYears);
-  const data85 = projectGrowth(currentCap, 0, 0, 0.85, projYears);
+  const data80 = projectGrowth(startCap, 0, 0, 0.80, projYears);
+  const data85 = projectGrowth(startCap, 0, 0, 0.85, projYears);
 
   const allCaps = [...data80.map(d=>d.capital), ...data85.map(d=>d.capital)];
   const minCap = 0; // Y-axis starts from $0
@@ -1968,8 +1969,20 @@ function drawProjectionChart() {
   ctx.lineWidth = 2;
   ctx.stroke();
 
-  // "YOU ARE HERE" vertical marker at week 0 (current capital)
-  const youX = x(0);
+  // "YOU ARE HERE" — find the week where 85% WR curve crosses current capital
+  let youWeek = 0;
+  for (let i = 1; i < data85.length; i++) {
+    if (data85[i].capital >= currentCap) {
+      // Interpolate between data points
+      const prev = data85[i-1], curr = data85[i];
+      const frac = (currentCap - prev.capital) / (curr.capital - prev.capital);
+      youWeek = prev.week + frac * (curr.week - prev.week);
+      break;
+    }
+  }
+  if (youWeek === 0 && currentCap >= startCap) youWeek = 0; // still at start
+
+  const youX = x(youWeek);
   const youY = y(currentCap);
 
   // Vertical line from top to bottom
@@ -1979,7 +1992,7 @@ function drawProjectionChart() {
   ctx.beginPath(); ctx.moveTo(youX, pad.top); ctx.lineTo(youX, H - pad.bottom); ctx.stroke();
   ctx.setLineDash([]);
 
-  // Dot at current capital
+  // Dot on 85% line
   ctx.beginPath();
   ctx.arc(youX, youY, 7, 0, Math.PI * 2);
   ctx.fillStyle = 'rgba(255,107,53,0.25)';
@@ -1989,11 +2002,13 @@ function drawProjectionChart() {
   ctx.fillStyle = '#FF6B35';
   ctx.fill();
 
-  // Label
+  // Label — position to the right, or left if near edge
   ctx.font = 'bold 11px IBM Plex Mono';
   ctx.fillStyle = '#FF6B35';
-  ctx.textAlign = 'left';
-  ctx.fillText(`YOU ARE HERE — ${fmt$(currentCap)}`, youX + 12, youY - 8);
+  const labelText = `YOU ARE HERE — ${fmt$(currentCap)}`;
+  const labelRight = youX > W * 0.6;
+  ctx.textAlign = labelRight ? 'right' : 'left';
+  ctx.fillText(labelText, labelRight ? youX - 12 : youX + 12, youY - 8);
 
   // Legend
   ctx.font = '11px JetBrains Mono';
