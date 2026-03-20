@@ -1956,18 +1956,18 @@ function drawProjectionChart() {
   ctx.lineWidth = 2;
   ctx.stroke();
 
-  // "YOU ARE HERE" marker at week 0 (current capital)
+  // "YOU ARE HERE" vertical marker at week 0 (current capital)
   const youX = x(0);
   const youY = y(currentCap);
 
-  // Horizontal line from marker to right edge
+  // Vertical line from top to bottom
   ctx.strokeStyle = '#FF6B35';
   ctx.lineWidth = 1;
   ctx.setLineDash([3, 3]);
-  ctx.beginPath(); ctx.moveTo(youX, youY); ctx.lineTo(W - pad.right, youY); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(youX, pad.top); ctx.lineTo(youX, H - pad.bottom); ctx.stroke();
   ctx.setLineDash([]);
 
-  // Pulsing dot
+  // Dot at current capital
   ctx.beginPath();
   ctx.arc(youX, youY, 7, 0, Math.PI * 2);
   ctx.fillStyle = 'rgba(255,107,53,0.25)';
@@ -2014,14 +2014,38 @@ function renderMilestones() {
 }
 
 function renderSensitivity() {
-  const rows = [
-    { wr: '65%', annual: '-$2,040/yr', timeline: 'Never reach $1M', color: 'var(--red)' },
-    { wr: '70%', annual: '$4,080/yr', timeline: '25+ years', color: 'var(--red)' },
-    { wr: '75%', annual: '$10,200/yr', timeline: '13 years', color: 'var(--gold)' },
-    { wr: '80%', annual: '$16,320/yr', timeline: '9 years', color: 'var(--blue)' },
-    { wr: '85%', annual: '$22,440/yr', timeline: '7 years', color: 'var(--green)' },
-    { wr: '90%', annual: '$28,560/yr', timeline: '6 years', color: 'var(--green)' },
-  ];
+  const phase = getPhase(traderData.currentCapital);
+  const weeklyTarget = phase.weekly;
+  const currentCap = traderData.currentCapital || 10000;
+  const tradesPerWeek = 6;
+
+  // Derive per-trade win/loss from weekly target at 80% WR baseline
+  // weeklyTarget = wins*grossWin - losses*grossLoss - fees
+  // At 80%: 4.8*grossWin - 1.2*grossLoss ≈ weeklyTarget
+  // Assume loss = 2x win (spread risk/reward)
+  const grossWin = Math.round(weeklyTarget / (tradesPerWeek * 0.80 - tradesPerWeek * 0.20 * 2));
+  const grossLoss = grossWin * 2;
+  const fees = tradesPerWeek * 5.60;
+
+  const rows = [0.65, 0.70, 0.75, 0.80, 0.85, 0.90].map(wr => {
+    const weeklyPnL = tradesPerWeek * wr * grossWin - tradesPerWeek * (1 - wr) * grossLoss - fees;
+    const annualPnL = weeklyPnL * 52;
+
+    // Simulate time to $1M
+    let cap = currentCap, weeks = 0;
+    const maxWeeks = 52 * 30;
+    while (cap < 1000000 && weeks < maxWeeks && cap > 0) {
+      const ph = getPhase(cap);
+      const cts = ph.perK ? Math.max(1, Math.floor(cap / ph.perK)) : 2;
+      const scale = cts / (phase.perK ? Math.max(1, Math.floor(currentCap / phase.perK)) : 2);
+      cap += weeklyPnL * scale;
+      weeks++;
+    }
+    const timeline = cap <= 0 ? 'Blows up' : weeks >= maxWeeks ? 'Never' : weeks < 52 ? `${weeks} weeks` : `${(weeks / 52).toFixed(1)} years`;
+    const color = wr >= 0.80 ? 'var(--green)' : wr >= 0.75 ? 'var(--gold)' : 'var(--red)';
+
+    return { wr: (wr * 100) + '%', annual: fmt$(annualPnL), timeline, color };
+  });
 
   document.getElementById('proj-sensitivity').innerHTML = `
     <table class="sens-table">
