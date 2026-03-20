@@ -1874,21 +1874,32 @@ function drawProjectionChart() {
   ctx.clearRect(0, 0, W, H);
 
   const currentCap = traderData.currentCapital || 10000;
-  const data80 = projectGrowth(currentCap, 160, 320, 0.80, 9);
-  const data85 = projectGrowth(currentCap, 160, 320, 0.85, 9);
+
+  // Find how many years needed for 85% WR to hit $1M (cap at 15 years)
+  let projYears = 2;
+  while (projYears <= 15) {
+    const test = projectGrowth(currentCap, 0, 0, 0.85, projYears);
+    if (test[test.length - 1].capital >= 1000000) break;
+    projYears++;
+  }
+  projYears = Math.max(projYears, 2); // minimum 2 years
+
+  const data80 = projectGrowth(currentCap, 0, 0, 0.80, projYears);
+  const data85 = projectGrowth(currentCap, 0, 0, 0.85, projYears);
 
   const allCaps = [...data80.map(d=>d.capital), ...data85.map(d=>d.capital)];
-  const maxCap = Math.max(...allCaps, 1000000);
-  const maxWeek = data80[data80.length-1].week;
+  const minCap = currentCap * 0.9; // 10% below start for breathing room
+  const maxCap = Math.max(...allCaps) * 1.05;
+  const maxWeek = Math.max(data80[data80.length-1].week, data85[data85.length-1].week);
 
   const pad = { top: 30, bottom: 40, left: 80, right: 20 };
   const cw = W - pad.left - pad.right;
   const ch = H - pad.top - pad.bottom;
 
   function x(week) { return pad.left + (week / maxWeek) * cw; }
-  function y(cap) { return pad.top + (1 - cap / maxCap) * ch; }
+  function y(cap) { return pad.top + (1 - (cap - minCap) / (maxCap - minCap)) * ch; }
 
-  // Reference lines
+  // Reference lines — only show those within visible range
   const refs = [
     { val: 25000, label: '$25k', color: 'var(--green)' },
     { val: 75000, label: '$75k', color: 'var(--blue)' },
@@ -1897,7 +1908,7 @@ function drawProjectionChart() {
   ];
 
   refs.forEach(r => {
-    if (r.val <= maxCap) {
+    if (r.val >= minCap && r.val <= maxCap) {
       ctx.strokeStyle = '#2E2E2E';
       ctx.lineWidth = 1;
       ctx.setLineDash([4, 4]);
@@ -1910,20 +1921,20 @@ function drawProjectionChart() {
     }
   });
 
-  // X-axis labels (years)
+  // X-axis labels (years) — dynamic based on projYears
   ctx.fillStyle = '#4A6070';
   ctx.font = '10px JetBrains Mono';
   ctx.textAlign = 'center';
-  for (let yr = 0; yr <= 9; yr++) {
+  for (let yr = 0; yr <= projYears; yr++) {
     const wk = yr * 52;
-    ctx.fillText(`Y${yr}`, x(wk), H - pad.bottom + 16);
+    if (wk <= maxWeek) ctx.fillText(`Y${yr}`, x(wk), H - pad.bottom + 16);
   }
 
   // Draw 80% WR area
   ctx.beginPath();
-  ctx.moveTo(x(data80[0].week), y(0));
+  ctx.moveTo(x(data80[0].week), y(minCap));
   data80.forEach(d => ctx.lineTo(x(d.week), y(d.capital)));
-  ctx.lineTo(x(data80[data80.length-1].week), y(0));
+  ctx.lineTo(x(data80[data80.length-1].week), y(minCap));
   ctx.closePath();
   const grad80 = ctx.createLinearGradient(0, pad.top, 0, H - pad.bottom);
   grad80.addColorStop(0, 'rgba(59,158,255,0.2)');
@@ -1940,9 +1951,9 @@ function drawProjectionChart() {
 
   // Draw 85% WR area
   ctx.beginPath();
-  ctx.moveTo(x(data85[0].week), y(0));
+  ctx.moveTo(x(data85[0].week), y(minCap));
   data85.forEach(d => ctx.lineTo(x(d.week), y(d.capital)));
-  ctx.lineTo(x(data85[data85.length-1].week), y(0));
+  ctx.lineTo(x(data85[data85.length-1].week), y(minCap));
   ctx.closePath();
   const grad85 = ctx.createLinearGradient(0, pad.top, 0, H - pad.bottom);
   grad85.addColorStop(0, 'rgba(0,208,132,0.2)');
