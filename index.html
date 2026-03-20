@@ -328,7 +328,7 @@ input, select, button, textarea { font-family: 'IBM Plex Mono', monospace; outli
 
 <!-- INPUT ROW -->
 <div id="inputPanel" class="panel flash" style="padding:10px 16px;margin-bottom:8px;border-width:2px">
-  <div class="scanner-inputs" style="display:grid;grid-template-columns:200px 160px 130px 150px 180px auto 1fr;gap:12px;align-items:end">
+  <div class="scanner-inputs" style="display:grid;grid-template-columns:180px 120px 110px 130px 180px 130px 180px auto 1fr;gap:10px;align-items:end">
     <div>
       <div class="label" style="margin-bottom:3px">SPX PRICE</div>
       <div style="display:flex">
@@ -366,6 +366,21 @@ input, select, button, textarea { font-family: 'IBM Plex Mono', monospace; outli
         <button class="strat-btn" data-strat="put" onclick="setStrategy('put')" style="flex:1;border:none;cursor:pointer;font-size:11px;font-family:'IBM Plex Mono',monospace;background:var(--panelAlt);color:var(--textDim);border-bottom:3px solid var(--border);border-top:1px solid var(--borderBright);border-left:1px solid var(--borderBright);border-right:1px solid var(--borderBright)">PUT</button>
         <button class="strat-btn" data-strat="call" onclick="setStrategy('call')" style="flex:1;border:none;cursor:pointer;font-size:11px;font-family:'IBM Plex Mono',monospace;background:var(--panelAlt);color:var(--textDim);border-bottom:3px solid var(--border);border-top:1px solid var(--borderBright);border-left:1px solid var(--borderBright);border-right:1px solid var(--borderBright)">CALL</button>
         <button class="strat-btn" data-strat="ic" onclick="setStrategy('ic')" style="flex:1;border:none;cursor:pointer;font-size:11px;font-family:'IBM Plex Mono',monospace;background:var(--panelAlt);color:var(--textDim);border-bottom:3px solid var(--border);border-top:1px solid var(--borderBright);border-left:1px solid var(--borderBright);border-right:1px solid var(--borderBright)">IC</button>
+      </div>
+    </div>
+    <div>
+      <div class="label" style="margin-bottom:3px">200DMA</div>
+      <div style="display:flex">
+        <span style="padding:8px 8px;background:var(--panelAlt);border:1px solid var(--borderBright);border-right:none;color:var(--textDim);font-size:12px">MA</span>
+        <input id="dma200Input" type="number" value="" placeholder="e.g. 5700" style="width:80px;background:var(--panelAlt);border:1px solid var(--borderBright);color:var(--white);padding:8px 8px;font-size:14px;font-weight:700" onkeydown="if(event.key==='Enter'){state.dma200=parseFloat(this.value)||0;localStorage.setItem('spx_dma200',state.dma200);scan()}" onchange="state.dma200=parseFloat(this.value)||0;localStorage.setItem('spx_dma200',state.dma200);scan()">
+      </div>
+    </div>
+    <div>
+      <div class="label" style="margin-bottom:3px">BIAS</div>
+      <div style="display:flex;height:42px" id="biasButtons">
+        <button class="bias-btn" data-bias="bull" onclick="setBias('bull')" style="flex:1;border:none;cursor:pointer;font-size:11px;font-family:'IBM Plex Mono',monospace;background:var(--panelAlt);color:var(--textDim);border-bottom:3px solid var(--border);border-top:1px solid var(--borderBright);border-left:1px solid var(--borderBright);border-right:1px solid var(--borderBright)">↑ BULL</button>
+        <button class="bias-btn active" data-bias="neutral" onclick="setBias('neutral')" style="flex:1;border:none;cursor:pointer;font-size:11px;font-family:'IBM Plex Mono',monospace;background:rgba(0,229,255,0.15);color:var(--cyan);border-bottom:3px solid var(--cyan);border-top:1px solid var(--borderBright);border-left:1px solid var(--borderBright);border-right:1px solid var(--borderBright)">→ NEUT</button>
+        <button class="bias-btn" data-bias="bear" onclick="setBias('bear')" style="flex:1;border:none;cursor:pointer;font-size:11px;font-family:'IBM Plex Mono',monospace;background:var(--panelAlt);color:var(--textDim);border-bottom:3px solid var(--border);border-top:1px solid var(--borderBright);border-left:1px solid var(--borderBright);border-right:1px solid var(--borderBright)">↓ BEAR</button>
       </div>
     </div>
     <button id="scanBtn" class="btn" style="height:42px;padding:0 24px;border:2px solid var(--cyan);color:var(--cyan);font-size:13px;letter-spacing:2px;font-weight:700" onclick="scan()">&#8635; SCAN</button>
@@ -936,6 +951,7 @@ function switchTab(tab) {
 // ══════════════════════════════════════════════════════════════════════════════
 let state = {
   spx: 5800, vix: 22, width: 10, mode: 'arvo', strategy: 'auto',
+  bias: 'neutral', dma200: parseFloat(localStorage.getItem('spx_dma200')) || 0,
   ibkrUrl: '', connected: false, fetching: false,
   liveSpx: null, liveVix: null, liveQuotes: {},
   lastUpdated: null,
@@ -1129,6 +1145,18 @@ function setStrategy(s) {
   });
   scan();
 }
+function setBias(b) {
+  state.bias = b;
+  const colors = { bull: 'var(--green)', neutral: 'var(--cyan)', bear: 'var(--red)' };
+  document.querySelectorAll('.bias-btn').forEach(btn => {
+    const a = btn.dataset.bias === b;
+    const c = colors[btn.dataset.bias];
+    btn.style.background = a ? `color-mix(in srgb, ${c} 15%, transparent)` : 'var(--panelAlt)';
+    btn.style.color = a ? c : 'var(--textDim)';
+    btn.style.borderBottom = a ? `3px solid ${c}` : '3px solid var(--border)';
+  });
+  scan();
+}
 
 // ── COMPUTE ──
 function computeRows() {
@@ -1161,9 +1189,23 @@ function scan() {
   const regime = getRegime(state.vix);
   const recDelta = state.mode === 'arvo' ? 0.15 : 0.12;
   const recRow = rows.find(r => r.delta === recDelta) || rows[3];
-  const autoStrat = state.vix < 22 && regime.size > 0 ? 'ic' : 'put';
+  // Bias-aware strategy recommendation
+  let autoStrat;
+  if (state.bias === 'bear') {
+    autoStrat = 'call'; // bearish day → sell call spreads (above market)
+  } else if (state.bias === 'bull') {
+    autoStrat = state.vix < 22 && regime.size > 0 ? 'ic' : 'put'; // bullish → normal (put or IC)
+  } else {
+    autoStrat = state.vix < 22 && regime.size > 0 ? 'ic' : 'put'; // neutral → normal
+  }
   const active = state.strategy === 'auto' ? autoStrat : state.strategy;
   const useIC = active === 'ic', useCall = active === 'call';
+  const isBearish = state.bias === 'bear';
+  const isBullish = state.bias === 'bull';
+  // 200DMA
+  const dma200 = state.dma200;
+  const dmaAbove = dma200 > 0 ? state.spx > dma200 : null;
+  const dmaDist = dma200 > 0 ? Math.round(state.spx - dma200) : null;
   const phase = getPhase(traderData.currentCapital);
   const contracts = phase.perK ? Math.max(1, Math.floor(traderData.currentCapital / phase.perK)) : 2;
   const dailyMove = Math.round(state.spx * (state.vix / 100) / Math.sqrt(365));
@@ -1192,7 +1234,26 @@ function scan() {
       { l:'VIX', v:f2(state.vix), c:regime.color },
       { l:'EXP MOVE', v:`\u00B1${dailyMove}`, c:'var(--gold)' },
       { l:'CONTRACTS', v:`${contracts}`, c:'var(--green)' },
-    ].map(s => `<div class="panel" style="padding:12px 16px"><div style="font-size:10px;color:var(--textDim);letter-spacing:1px;margin-bottom:3px">${s.l}</div><div class="chakra" style="font-size:22px;font-weight:700;color:${s.c}">${s.v}</div></div>`).join('')}`;
+      { l:'BIAS', v: isBearish ? '↓ BEAR' : isBullish ? '↑ BULL' : '→ NEUT', c: isBearish ? 'var(--red)' : isBullish ? 'var(--green)' : 'var(--cyan)' },
+    ].map(s => `<div class="panel" style="padding:12px 16px"><div style="font-size:10px;color:var(--textDim);letter-spacing:1px;margin-bottom:3px">${s.l}</div><div class="chakra" style="font-size:22px;font-weight:700;color:${s.c}">${s.v}</div></div>`).join('')}
+    ${dma200 > 0 ? `<div class="panel" style="padding:12px 16px"><div style="font-size:10px;color:var(--textDim);letter-spacing:1px;margin-bottom:3px">200DMA</div><div class="chakra" style="font-size:18px;font-weight:700;color:${dmaAbove?'var(--green)':'var(--red)'}">${dmaAbove?'↑':'↓'} ${Math.abs(dmaDist)}pts ${dmaAbove?'ABOVE':'BELOW'}</div></div>` : ''}`;
+    // 200DMA warning banner
+    if (dma200 > 0 && !dmaAbove && state.bias !== 'bear') {
+      document.getElementById('regimeRow').innerHTML += `
+        <div class="panel" style="grid-column:1/-1;border:2px solid var(--gold);border-left:4px solid var(--gold);padding:10px 16px;display:flex;align-items:center;gap:12px;background:rgba(240,180,41,0.06)">
+          <span style="font-size:20px">⚠️</span>
+          <div style="flex:1"><div style="font-size:12px;color:var(--gold);font-weight:700">SPX IS BELOW 200DMA — BEARISH STRUCTURE</div><div style="font-size:11px;color:var(--textMid);margin-top:2px">Consider setting bias to BEAR to avoid selling put spreads into downtrend</div></div>
+          <button class="btn" style="border-color:var(--red);color:var(--red);font-size:11px;padding:6px 14px;cursor:pointer" onclick="setBias('bear')">SET ↓ BEAR</button>
+        </div>`;
+    }
+    // Bearish day top banner
+    if (isBearish) {
+      document.getElementById('regimeRow').innerHTML += `
+        <div class="panel" style="grid-column:1/-1;border:2px solid var(--red);border-left:4px solid var(--red);padding:10px 16px;display:flex;align-items:center;gap:12px;background:rgba(255,71,87,0.06)">
+          <span style="font-size:20px">🐻</span>
+          <div><div style="font-size:13px;color:var(--red);font-weight:700;letter-spacing:1px">▲ USE CALL SPREAD TODAY</div><div style="font-size:11px;color:var(--textMid);margin-top:2px">Bearish bias active — put spreads are wrong-way trades</div></div>
+        </div>`;
+    }
 
   // MAIN AREA: 3 Tickets + Rules
   function liveBanner(key, color) {
@@ -1217,8 +1278,8 @@ function scan() {
   document.getElementById('mainArea').innerHTML = `
     <div class="tickets-grid" style="display:grid;grid-template-columns:1fr 1fr 1fr 320px;gap:8px;margin-bottom:8px">
       <!-- PUT -->
-      <div class="panelAlt" style="border:1px solid ${!useIC&&!useCall?'rgba(0,208,132,0.4)':'var(--border)'};border-top:3px solid var(--green);padding:12px 14px;position:relative">
-        ${!useIC&&!useCall?'<div class="tag" style="background:rgba(0,208,132,0.15);color:var(--green);border:1px solid rgba(0,208,132,0.3);font-size:9px">\u2605 REC</div>':''}
+      <div class="panelAlt" style="border:1px solid ${isBearish?'rgba(255,71,87,0.4)':!useIC&&!useCall?'rgba(0,208,132,0.4)':'var(--border)'};border-top:3px solid ${isBearish?'var(--red)':'var(--green)'};padding:12px 14px;position:relative;${isBearish?'opacity:0.6;':''}">
+        ${isBearish?'<div class="tag" style="background:rgba(255,71,87,0.15);color:var(--red);border:1px solid rgba(255,71,87,0.3);font-size:9px">⚠ WRONG WAY</div>':!useIC&&!useCall?'<div class="tag" style="background:rgba(0,208,132,0.15);color:var(--green);border:1px solid rgba(0,208,132,0.3);font-size:9px">\u2605 REC</div>':''}
         <div style="font-size:11px;color:var(--green);letter-spacing:2px;margin-bottom:${pB.html?4:8}px;font-weight:700">\u25BC PUT CREDIT SPREAD</div>
         ${pB.html}
         ${mkRows([
@@ -1229,11 +1290,11 @@ function scan() {
           {l:'STOP SPX \u2264',v:`${recRow.putStop}`,big:1,color:'var(--red)'},
           {l:'CTRS',v:contracts,color:'var(--green)'},{l:'INCOME',v:fmt$(pF*contracts*100),color:'var(--green)'},
         ])}
-        ${!pB.live&&!recRow.putOK?'<div style="margin-top:6px;padding:5px 8px;background:rgba(255,71,87,0.08);border:1px solid rgba(255,71,87,0.25);font-size:10px;color:var(--red)">\u26A0 Below $0.80</div>':''}
+        ${isBearish?'<div style="margin-top:6px;padding:8px 10px;background:rgba(255,71,87,0.1);border:2px solid rgba(255,71,87,0.4);font-size:11px;color:var(--red);font-weight:700">🐻 BEARISH DAY — DO NOT ENTER</div>':!pB.live&&!recRow.putOK?'<div style="margin-top:6px;padding:5px 8px;background:rgba(255,71,87,0.08);border:1px solid rgba(255,71,87,0.25);font-size:10px;color:var(--red)">\u26A0 Below $0.80</div>':''}
       </div>
       <!-- CALL -->
-      <div class="panelAlt" style="border:1px solid ${useCall?'rgba(255,107,53,0.4)':'var(--border)'};border-top:3px solid var(--orange);padding:12px 14px;position:relative">
-        ${useCall?'<div class="tag" style="background:rgba(255,107,53,0.15);color:var(--orange);border:1px solid rgba(255,107,53,0.3);font-size:9px">\u2605 SEL</div>':''}
+      <div class="panelAlt" style="border:1px solid ${isBearish||useCall?'rgba(255,107,53,0.4)':'var(--border)'};border-top:3px solid var(--orange);padding:12px 14px;position:relative">
+        ${isBearish?'<div class="tag" style="background:rgba(255,107,53,0.15);color:var(--orange);border:1px solid rgba(255,107,53,0.3);font-size:9px">★ REC</div>':useCall?'<div class="tag" style="background:rgba(255,107,53,0.15);color:var(--orange);border:1px solid rgba(255,107,53,0.3);font-size:9px">\u2605 SEL</div>':''}
         <div style="font-size:11px;color:var(--orange);letter-spacing:2px;margin-bottom:${cB.html?4:8}px;font-weight:700">\u25B2 CALL CREDIT SPREAD</div>
         ${cB.html}
         ${mkRows([
@@ -1244,7 +1305,7 @@ function scan() {
           {l:'STOP SPX \u2265',v:`${recRow.callStop}`,big:1,color:'var(--red)'},
           {l:'CTRS',v:contracts,color:'var(--green)'},{l:'INCOME',v:fmt$(cF*contracts*100),color:'var(--green)'},
         ])}
-        <div style="margin-top:6px;padding:5px 8px;background:rgba(240,180,41,0.05);border:1px solid rgba(240,180,41,0.15);font-size:10px;color:var(--gold)">Use on confirmed bearish days only</div>
+        ${isBearish?'<div style="margin-top:6px;padding:5px 8px;background:rgba(0,208,132,0.08);border:1px solid rgba(0,208,132,0.25);font-size:10px;color:var(--green)">✓ Correct direction for bearish bias</div>':'<div style="margin-top:6px;padding:5px 8px;background:rgba(240,180,41,0.05);border:1px solid rgba(240,180,41,0.15);font-size:10px;color:var(--gold)">Use on confirmed bearish days only</div>'}
       </div>
       <!-- IC -->
       <div class="panelAlt" style="border:1px solid ${useIC?'rgba(0,229,255,0.4)':'var(--border)'};border-top:3px solid var(--cyan);padding:12px 14px;position:relative">
@@ -2593,6 +2654,7 @@ updateClock();
 // ══════════════════════════════════════════════════════════════════════════════
 const savedUrl = localStorage.getItem('ibkr_url');
 if (savedUrl) document.getElementById('urlInput').value = savedUrl;
+if (state.dma200 > 0) document.getElementById('dma200Input').value = state.dma200;
 renderDashboard();
 renderProjections();
 renderEconHeadline();
