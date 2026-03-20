@@ -1238,23 +1238,26 @@ function scan() {
       { l:'BIAS', v: isBearish ? '↓ BEAR' : isBullish ? '↑ BULL' : '→ NEUT', c: isBearish ? 'var(--red)' : isBullish ? 'var(--green)' : 'var(--cyan)' },
     ].map(s => `<div class="panel" style="padding:12px 16px"><div style="font-size:10px;color:var(--textDim);letter-spacing:1px;margin-bottom:3px">${s.l}</div><div class="chakra" style="font-size:22px;font-weight:700;color:${s.c}">${s.v}</div></div>`).join('')}
     ${dma200 > 0 ? `<div class="panel" style="padding:12px 16px"><div style="font-size:10px;color:var(--textDim);letter-spacing:1px;margin-bottom:3px">200DMA</div><div class="chakra" style="font-size:18px;font-weight:700;color:${dmaAbove?'var(--green)':'var(--red)'}">${dmaAbove?'↑':'↓'} ${Math.abs(dmaDist)}pts ${dmaAbove?'ABOVE':'BELOW'}</div></div>` : ''}`;
-    // 200DMA warning banner
+    // Remove old banners before re-render
+    document.querySelectorAll('.bias-banner').forEach(el => el.remove());
+    // Warning banners — rendered AFTER the regime grid as separate block elements
+    let bannerHtml = '';
     if (dma200 > 0 && !dmaAbove && state.bias !== 'bear') {
-      document.getElementById('regimeRow').innerHTML += `
-        <div class="panel" style="grid-column:1/-1;border:2px solid var(--gold);border-left:4px solid var(--gold);padding:10px 16px;display:flex;align-items:center;gap:12px;background:rgba(240,180,41,0.06)">
+      bannerHtml += `
+        <div class="bias-banner panel" style="border:2px solid var(--gold);border-left:4px solid var(--gold);padding:10px 16px;display:flex;align-items:center;gap:12px;background:rgba(240,180,41,0.06);margin-bottom:8px">
           <span style="font-size:20px">⚠️</span>
           <div style="flex:1"><div style="font-size:12px;color:var(--gold);font-weight:700">SPX IS BELOW 200DMA — BEARISH STRUCTURE</div><div style="font-size:11px;color:var(--textMid);margin-top:2px">Consider setting bias to BEAR to avoid selling put spreads into downtrend</div></div>
           <button class="btn" style="border-color:var(--red);color:var(--red);font-size:11px;padding:6px 14px;cursor:pointer" onclick="setBias('bear')">SET ↓ BEAR</button>
         </div>`;
     }
-    // Bearish day top banner
     if (isBearish) {
-      document.getElementById('regimeRow').innerHTML += `
-        <div class="panel" style="grid-column:1/-1;border:2px solid var(--red);border-left:4px solid var(--red);padding:10px 16px;display:flex;align-items:center;gap:12px;background:rgba(255,71,87,0.06)">
+      bannerHtml += `
+        <div class="bias-banner panel" style="border:2px solid var(--red);border-left:4px solid var(--red);padding:10px 16px;display:flex;align-items:center;gap:12px;background:rgba(255,71,87,0.06);margin-bottom:8px">
           <span style="font-size:20px">🐻</span>
           <div><div style="font-size:13px;color:var(--red);font-weight:700;letter-spacing:1px">▲ USE CALL SPREAD TODAY</div><div style="font-size:11px;color:var(--textMid);margin-top:2px">Bearish bias active — put spreads are wrong-way trades</div></div>
         </div>`;
     }
+    if (bannerHtml) document.getElementById('regimeRow').insertAdjacentHTML('afterend', bannerHtml);
 
   // MAIN AREA: 3 Tickets + Rules
   function liveBanner(key, color) {
