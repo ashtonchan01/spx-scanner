@@ -1872,8 +1872,9 @@ function drawProjectionChart() {
   const W = canvas.clientWidth, H = canvas.clientHeight;
   ctx.clearRect(0, 0, W, H);
 
-  const data80 = projectGrowth(10000, 160, 320, 0.80, 9);
-  const data85 = projectGrowth(10000, 160, 320, 0.85, 9);
+  const currentCap = traderData.currentCapital || 10000;
+  const data80 = projectGrowth(currentCap, 160, 320, 0.80, 9);
+  const data85 = projectGrowth(currentCap, 160, 320, 0.85, 9);
 
   const allCaps = [...data80.map(d=>d.capital), ...data85.map(d=>d.capital)];
   const maxCap = Math.max(...allCaps, 1000000);
@@ -1955,6 +1956,33 @@ function drawProjectionChart() {
   ctx.lineWidth = 2;
   ctx.stroke();
 
+  // "YOU ARE HERE" marker at week 0 (current capital)
+  const youX = x(0);
+  const youY = y(currentCap);
+
+  // Horizontal line from marker to right edge
+  ctx.strokeStyle = '#FF6B35';
+  ctx.lineWidth = 1;
+  ctx.setLineDash([3, 3]);
+  ctx.beginPath(); ctx.moveTo(youX, youY); ctx.lineTo(W - pad.right, youY); ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Pulsing dot
+  ctx.beginPath();
+  ctx.arc(youX, youY, 7, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(255,107,53,0.25)';
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(youX, youY, 4, 0, Math.PI * 2);
+  ctx.fillStyle = '#FF6B35';
+  ctx.fill();
+
+  // Label
+  ctx.font = 'bold 11px IBM Plex Mono';
+  ctx.fillStyle = '#FF6B35';
+  ctx.textAlign = 'left';
+  ctx.fillText(`YOU ARE HERE — ${fmt$(currentCap)}`, youX + 12, youY - 8);
+
   // Legend
   ctx.font = '11px JetBrains Mono';
   ctx.fillStyle = '#3B9EFF';
@@ -1963,6 +1991,9 @@ function drawProjectionChart() {
   ctx.fillStyle = '#00D084';
   ctx.fillRect(W - 200, 26, 14, 3);
   ctx.fillText('85% Win Rate', W - 180, 31);
+  ctx.fillStyle = '#FF6B35';
+  ctx.fillRect(W - 200, 42, 14, 3);
+  ctx.fillText(`Current: ${fmt$(currentCap)}`, W - 180, 47);
 }
 
 function renderMilestones() {
