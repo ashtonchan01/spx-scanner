@@ -2002,13 +2002,11 @@ function drawProjectionChart() {
   ctx.fillStyle = '#FF6B35';
   ctx.fill();
 
-  // Label — position to the right, or left if near edge
+  // Label — always on the left side of the vertical line
   ctx.font = 'bold 11px IBM Plex Mono';
   ctx.fillStyle = '#FF6B35';
-  const labelText = `YOU ARE HERE — ${fmt$(currentCap)}`;
-  const labelRight = youX > W * 0.6;
-  ctx.textAlign = labelRight ? 'right' : 'left';
-  ctx.fillText(labelText, labelRight ? youX - 12 : youX + 12, youY - 8);
+  ctx.textAlign = 'right';
+  ctx.fillText(`YOU ARE HERE — ${fmt$(currentCap)}`, youX - 12, youY - 8);
 
   // Legend
   ctx.font = '11px JetBrains Mono';
