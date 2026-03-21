@@ -1277,6 +1277,28 @@ function scan() {
   const orderCredit = useIC ? recRow.icFill : useCall ? cF : pF;
   const orderIncome = orderCredit * contracts * 100;
   const profitTgt = orderCredit * 0.5;
+
+  // TIME-BASED STOP LEVEL (must be before order panel template)
+  function getStopLevel(credit) {
+    const now = new Date();
+    const aedtH = parseInt(now.toLocaleString('en-AU', { hour: '2-digit', hour12: false, timeZone: 'Australia/Sydney' }));
+    const aedtM = parseInt(now.toLocaleString('en-AU', { minute: '2-digit', timeZone: 'Australia/Sydney' }));
+    const t = aedtH + aedtM / 60;
+    let mult, window, windowColor;
+    if ((t >= 23.5) || (t < 1.5)) {
+      mult = 3.0; window = 'OPEN (wide stop)'; windowColor = 'var(--green)';
+    } else if (t < 3.5) {
+      mult = 2.5; window = 'MIDDAY (moderate)'; windowColor = 'var(--gold)';
+    } else if (t < 5.0) {
+      mult = 2.0; window = 'POWER HOUR (tight)'; windowColor = 'var(--orange)';
+    } else {
+      mult = 1.5; window = 'CLOSE ONLY (exit now)'; windowColor = 'var(--red)';
+    }
+    const stopSpreadVal = f2(credit * mult);
+    const maxLoss = f2((credit * mult) - credit);
+    return { mult, stopSpreadVal, maxLoss, window, windowColor };
+  }
+  const stopInfo = getStopLevel(orderCredit);
   // Conviction
   let conviction, convColor, convLabel, adjContracts;
   if (orderCredit >= 1.00 && regime.size >= 0.75) {
@@ -1391,29 +1413,6 @@ function scan() {
       </div>
 
     </div>`;
-
-  // TIME-BASED STOP LEVEL
-  function getStopLevel(credit) {
-    const now = new Date();
-    const aedtH = parseInt(now.toLocaleString('en-AU', { hour: '2-digit', hour12: false, timeZone: 'Australia/Sydney' }));
-    const aedtM = parseInt(now.toLocaleString('en-AU', { minute: '2-digit', timeZone: 'Australia/Sydney' }));
-    const t = aedtH + aedtM / 60;
-    let mult, window, windowColor;
-    if ((t >= 23.5) || (t < 1.5)) {
-      mult = 3.0; window = 'OPEN (wide stop)'; windowColor = 'var(--green)';
-    } else if (t < 3.5) {
-      mult = 2.5; window = 'MIDDAY (moderate)'; windowColor = 'var(--gold)';
-    } else if (t < 5.0) {
-      mult = 2.0; window = 'POWER HOUR (tight)'; windowColor = 'var(--orange)';
-    } else {
-      mult = 1.5; window = 'CLOSE ONLY (exit now)'; windowColor = 'var(--red)';
-    }
-    const stopSpreadVal = f2(credit * mult);
-    const maxLoss = f2((credit * mult) - credit);
-    return { mult, stopSpreadVal, maxLoss, window, windowColor };
-  }
-  const stopInfo = getStopLevel(orderCredit);
-
 
   // Remove old stop strip if still present
   const oldStop = document.getElementById('stopLevelStrip');
