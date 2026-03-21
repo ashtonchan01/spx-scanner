@@ -1259,6 +1259,64 @@ function scan() {
     }
     if (bannerHtml) document.getElementById('regimeRow').insertAdjacentHTML('afterend', bannerHtml);
 
+  // TIME-BASED STOP LEVEL
+  function getStopLevel(credit) {
+    const now = new Date();
+    const aedtH = parseInt(now.toLocaleString('en-AU', { hour: '2-digit', hour12: false, timeZone: 'Australia/Sydney' }));
+    const aedtM = parseInt(now.toLocaleString('en-AU', { minute: '2-digit', timeZone: 'Australia/Sydney' }));
+    const t = aedtH + aedtM / 60;
+    // Before market: 11:30 PM = 23.5, after midnight wraps to 0+
+    // AEDT windows: 23:30-1:30 (open), 1:30-3:30 (mid), 3:30-5:00 (power), 5:00+ (close)
+    let mult, window, windowColor;
+    if ((t >= 23.5) || (t < 1.5)) {
+      mult = 3.0; window = 'OPEN (wide stop)'; windowColor = 'var(--green)';
+    } else if (t < 3.5) {
+      mult = 2.5; window = 'MIDDAY (moderate)'; windowColor = 'var(--gold)';
+    } else if (t < 5.0) {
+      mult = 2.0; window = 'POWER HOUR (tight)'; windowColor = 'var(--orange)';
+    } else {
+      mult = 1.5; window = 'CLOSE ONLY (exit now)'; windowColor = 'var(--red)';
+    }
+    const stopSpreadVal = f2(credit * mult);
+    const maxLoss = f2((credit * mult) - credit);
+    return { mult, stopSpreadVal, maxLoss, window, windowColor };
+  }
+  const recCredit = useIC ? recRow.icFill : useCall ? recRow.callFill : recRow.putFill;
+  const stopInfo = getStopLevel(recCredit);
+
+  // STOP LEVEL STRIP
+  const stopLevelHtml = `
+    <div class="panel" style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1fr;gap:0;margin-bottom:8px;border:1px solid ${stopInfo.windowColor}40;overflow:hidden">
+      <div style="padding:10px 14px;background:${stopInfo.windowColor}0C;border-right:1px solid var(--border)">
+        <div style="font-size:9px;color:var(--textDim);letter-spacing:1px;margin-bottom:3px">STOP WINDOW</div>
+        <div class="chakra" style="font-size:14px;font-weight:700;color:${stopInfo.windowColor}">${stopInfo.window}</div>
+      </div>
+      <div style="padding:10px 14px;border-right:1px solid var(--border)">
+        <div style="font-size:9px;color:var(--textDim);letter-spacing:1px;margin-bottom:3px">CREDIT RECEIVED</div>
+        <div class="chakra" style="font-size:16px;font-weight:700;color:var(--green)">$${f2(recCredit)}</div>
+      </div>
+      <div style="padding:10px 14px;border-right:1px solid var(--border)">
+        <div style="font-size:9px;color:var(--textDim);letter-spacing:1px;margin-bottom:3px">STOP IF SPREAD HITS</div>
+        <div class="chakra" style="font-size:16px;font-weight:700;color:var(--red)">$${stopInfo.stopSpreadVal}</div>
+      </div>
+      <div style="padding:10px 14px;border-right:1px solid var(--border)">
+        <div style="font-size:9px;color:var(--textDim);letter-spacing:1px;margin-bottom:3px">MAX LOSS / CT</div>
+        <div class="chakra" style="font-size:16px;font-weight:700;color:var(--red)">-$${stopInfo.maxLoss}</div>
+      </div>
+      <div style="padding:10px 14px">
+        <div style="font-size:9px;color:var(--textDim);letter-spacing:1px;margin-bottom:3px">MAX LOSS ${contracts}CT</div>
+        <div class="chakra" style="font-size:16px;font-weight:700;color:var(--red)">-${fmt$(parseFloat(stopInfo.maxLoss) * contracts * 100)}</div>
+      </div>
+    </div>`;
+  document.getElementById('mainArea').insertAdjacentHTML('beforebegin', '');
+  // Remove old stop strip before re-render
+  const oldStop = document.getElementById('stopLevelStrip');
+  if (oldStop) oldStop.remove();
+  const stopDiv = document.createElement('div');
+  stopDiv.id = 'stopLevelStrip';
+  stopDiv.innerHTML = stopLevelHtml;
+  document.getElementById('mainArea').parentNode.insertBefore(stopDiv, document.getElementById('mainArea'));
+
   // MAIN AREA: 3 Tickets + Rules
   function liveBanner(key, color) {
     const live = state.liveQuotes[key];
@@ -1291,7 +1349,8 @@ function scan() {
           {l:pB.live?'LIVE FILL':'FILL EST.',v:`\$${f2(pF)}`,big:1,color:pF>=0.80?'var(--green)':'var(--red)',ls:pB.live?'color:var(--green)':''},
           {l:'WIN PROB',v:`${recRow.putProb}%`,color:'var(--gold)'},
           {l:'50% TGT',v:`\$${f2(pF*0.5)}`,color:'var(--green)'},
-          {l:'STOP SPX \u2264',v:`${recRow.putStop}`,big:1,color:'var(--red)'},
+          {l:'STOP SPREAD ≥',v:`\$${f2(pF * stopInfo.mult)}`,big:1,color:'var(--red)'},
+          {l:'STOP LOSS/CT',v:`-\$${f2(pF * stopInfo.mult - pF)}`,color:'var(--red)'},
           {l:'CTRS',v:contracts,color:'var(--green)'},{l:'INCOME',v:fmt$(pF*contracts*100),color:'var(--green)'},
         ])}
         ${isBearish?'<div style="margin-top:6px;padding:8px 10px;background:rgba(255,71,87,0.1);border:2px solid rgba(255,71,87,0.4);font-size:11px;color:var(--red);font-weight:700">🐻 BEARISH DAY — DO NOT ENTER</div>':!pB.live&&!recRow.putOK?'<div style="margin-top:6px;padding:5px 8px;background:rgba(255,71,87,0.08);border:1px solid rgba(255,71,87,0.25);font-size:10px;color:var(--red)">\u26A0 Below $0.80</div>':''}
@@ -1306,7 +1365,8 @@ function scan() {
           {l:cB.live?'LIVE FILL':'FILL EST.',v:`\$${f2(cF)}`,big:1,color:cF>=0.80?'var(--orange)':'var(--red)'},
           {l:'WIN PROB',v:`${recRow.callProb}%`,color:'var(--gold)'},
           {l:'50% TGT',v:`\$${f2(cF*0.5)}`,color:'var(--green)'},
-          {l:'STOP SPX \u2265',v:`${recRow.callStop}`,big:1,color:'var(--red)'},
+          {l:'STOP SPREAD ≥',v:`\$${f2(cF * stopInfo.mult)}`,big:1,color:'var(--red)'},
+          {l:'STOP LOSS/CT',v:`-\$${f2(cF * stopInfo.mult - cF)}`,color:'var(--red)'},
           {l:'CTRS',v:contracts,color:'var(--green)'},{l:'INCOME',v:fmt$(cF*contracts*100),color:'var(--green)'},
         ])}
         ${isBearish?'<div style="margin-top:6px;padding:5px 8px;background:rgba(0,208,132,0.08);border:1px solid rgba(0,208,132,0.25);font-size:10px;color:var(--green)">✓ Correct direction for bearish bias</div>':'<div style="margin-top:6px;padding:5px 8px;background:rgba(240,180,41,0.05);border:1px solid rgba(240,180,41,0.15);font-size:10px;color:var(--gold)">Use on confirmed bearish days only</div>'}
@@ -1340,7 +1400,7 @@ function scan() {
         <div style="font-size:10px;color:var(--gold);letter-spacing:2px;margin-bottom:10px;font-weight:700">HARD RULES \u00B7 ${useIC?'IC':'PUT SPREAD'}</div>
         ${[
           {rule:'MIN CREDIT',detail:useIC?'$0.80+ combined':'$0.80+ spread',c:'var(--gold)'},
-          {rule:useIC?'IC STOP':'STOP',detail:useIC?`Either strike \u00B1${stopBuffer}pts`:`Short -${stopBuffer}pts`,c:'var(--red)'},
+          {rule:'TIME STOP',detail:`Spread ≥ $${stopInfo.stopSpreadVal} (${stopInfo.mult}× credit)`,c:'var(--red)'},
           {rule:'50% PROFIT',detail:'Close at half credit',c:'var(--green)'},
           {rule:'VIX SPIKE',detail:'+20% intra \u2192 close all',c:'var(--red)'},
           {rule:'SIZE',detail:`${Math.round(regime.size*100)}% \u00B7 ${regime.level}`,c:regime.color},
