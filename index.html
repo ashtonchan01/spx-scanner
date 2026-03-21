@@ -1617,6 +1617,14 @@ function getPlaybook() {
   const wklyCtMap = { 1: 1, 2: 1, 3: Math.max(1, Math.round(contracts0DTE * 0.25)), 4: Math.max(2, Math.round(contracts0DTE * 0.25)) };
   const wklyCt = wklyCtMap[ph.id] || 1;
   const wklyLabel = wklyCt + 'ct';
+  const halfCt = Math.max(1, Math.floor(contracts0DTE / 2));
+  // Tiered arvo sizing rules (Phase 3+)
+  const tieredArvoRules = [
+    `Morning WIN → arvo at FULL size (${contracts0DTE}ct)`,
+    `Morning LOSS → arvo at HALF size (${halfCt}ct), only A+ setup (Δ≤0.12, credit ≥$1.00)`,
+    'Morning LOSS + VIX spiking → SKIP arvo entirely',
+    'Two losses in a row → done for the day, no more trades',
+  ];
 
   return {
     Mon: {
@@ -1629,7 +1637,7 @@ function getPlaybook() {
         `Open weekly put spread first (${wklyCt}ct)`,
         'Then enter morning 0DTE',
         ...(wklyCt > 1 ? ['FOMC week: skip weekly or halve size'] : []),
-        ...(dual ? ['Arvo session: only if morning session was a WIN', sizeNote].filter(Boolean) : ['Arvo is optional — skip if morning fills well']),
+        ...(dual ? [...tieredArvoRules, sizeNote].filter(Boolean) : ['Arvo is optional — skip if morning fills well']),
       ],
       hardClose: '6:00 AM AEDT',
     },
@@ -1642,7 +1650,7 @@ function getPlaybook() {
         ...(dual ? [
           'Morning session: put spread only, close before arvo',
           'Arvo session: put or IC depending on VIX regime',
-          'If morning LOSS → skip arvo, hard stop for the day',
+          ...tieredArvoRules,
           sizeNote,
         ].filter(Boolean) : ['Arvo session only', 'Wait for stable market']),
       ],
@@ -1657,7 +1665,7 @@ function getPlaybook() {
         'FOMC day = NO TRADE (both sessions)',
         ...(dual ? [
           'If no FOMC: morning put spread + arvo session',
-          'If morning LOSS → skip arvo',
+          ...tieredArvoRules,
           'FOMC week: 50% position size all week',
           sizeNote,
         ].filter(Boolean) : ['If no FOMC, arvo session only']),
@@ -1675,7 +1683,7 @@ function getPlaybook() {
         ...(dual ? [
           'Morning session: put spread, tighter stop (SPX ≤ short+10)',
           'Arvo session: higher min credit ($0.85)',
-          'If morning LOSS → skip arvo',
+          ...tieredArvoRules,
           sizeNote,
         ].filter(Boolean) : ['Then arvo 0DTE']),
       ],
@@ -1692,7 +1700,7 @@ function getPlaybook() {
         'Tighter delta for Friday — both sessions use \u0394 0.12',
         'Shorter window, earlier stop',
         ...(dual ? [
-          'If morning LOSS → NO arvo trade',
+          ...tieredArvoRules,
           'Max 1 loss on Fridays — protect the week\'s gains',
           sizeNote,
         ].filter(Boolean) : []),
