@@ -1454,14 +1454,17 @@ function scan() {
   const oldRules = document.getElementById('scannerRulesStrip');
   if (oldRules) oldRules.remove();
   const todayIdx2 = new Date().getDay();
-  const todayName2 = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][todayIdx2];
+  const dayNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
   const PB = getPlaybook();
-  const todayPB = PB[todayName2] || PB['Mon'];
+  const isWeekend = todayIdx2 === 0 || todayIdx2 === 6;
+  const rulesDay = isWeekend ? 'Mon' : dayNames[todayIdx2];
+  const rulesLabel = isWeekend ? 'NEXT: MON RULES' : rulesDay.toUpperCase() + ' RULES';
+  const todayPB = PB[rulesDay];
   if (todayPB && todayPB.rules && todayPB.rules.length > 0) {
     const rulesDiv = document.createElement('div');
     rulesDiv.id = 'scannerRulesStrip';
     rulesDiv.innerHTML = '<div class="panel" style="padding:10px 16px;margin-bottom:8px;border-left:3px solid var(--gold)">' +
-      '<div style="font-size:10px;color:var(--gold);letter-spacing:2px;margin-bottom:6px;font-weight:700">' + todayName2.toUpperCase() + ' RULES</div>' +
+      '<div style="font-size:10px;color:var(--gold);letter-spacing:2px;margin-bottom:6px;font-weight:700">' + rulesLabel + '</div>' +
       '<div style="display:flex;gap:12px;flex-wrap:wrap">' +
       todayPB.rules.map(function(r) {
         return '<div style="font-size:11px;color:var(--textMid);padding:3px 8px;background:var(--panelAlt);border:1px solid var(--border)">• ' + r + '</div>';
