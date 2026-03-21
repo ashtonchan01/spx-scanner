@@ -1239,25 +1239,18 @@ function scan() {
 
   document.getElementById('scanInfo').innerHTML = `${state.lastUpdated || ''} &middot; ${state.mode === 'arvo' ? 'ARVO \u0394 0.15' : 'MORN \u0394 0.12'} &middot; Fill = mid (live)`;
 
-  // REGIME STRIP
+  // REGIME STRIP (compact context row)
   document.getElementById('regimeRow').innerHTML = `
-    <div class="panel" style="border-left:4px solid ${regime.color};padding:10px 14px;display:flex;align-items:center;gap:14px">
-      <div>
-        <div class="chakra" style="font-size:22px;font-weight:700;color:${regime.color}">${regime.level}</div>
-        <div style="font-size:12px;color:${regime.color}">${regime.action}</div>
-      </div>
-      <div style="padding:4px 8px;background:${useIC?'rgba(0,229,255,0.1)':useCall?'rgba(255,107,53,0.1)':'rgba(0,208,132,0.1)'};border:1px solid ${useIC?'rgba(0,229,255,0.3)':useCall?'rgba(255,107,53,0.3)':'rgba(0,208,132,0.3)'};font-size:11px;color:${useIC?'var(--cyan)':useCall?'var(--orange)':'var(--green)'};font-weight:700;white-space:nowrap">
-        ${useIC ? '\u2B21 IC' : useCall ? '\u25B2 CALL' : '\u25BC PUT'}
-      </div>
+    <div class="panel" style="border-left:4px solid ${regime.color};padding:10px 14px">
+      <div class="chakra" style="font-size:18px;font-weight:700;color:${regime.color}">${regime.level}</div>
+      <div style="font-size:11px;color:${regime.color}">${regime.action} · ${Math.round(regime.size*100)}%</div>
     </div>
     ${[
       { l:'SPX', v:state.spx.toLocaleString(), c:'var(--white)' },
       { l:'VIX', v:f2(state.vix), c:regime.color },
       { l:'EXP MOVE', v:`\u00B1${dailyMove}`, c:'var(--gold)' },
-      { l:'CONTRACTS', v:`${contracts}`, c:'var(--green)' },
-      { l:'BIAS', v: isBearish ? '↓ BEAR' : isBullish ? '↑ BULL' : '→ NEUT', c: isBearish ? 'var(--red)' : isBullish ? 'var(--green)' : 'var(--cyan)' },
-    ].map(s => `<div class="panel" style="padding:12px 16px"><div style="font-size:10px;color:var(--textDim);letter-spacing:1px;margin-bottom:3px">${s.l}</div><div class="chakra" style="font-size:22px;font-weight:700;color:${s.c}">${s.v}</div></div>`).join('')}
-    ${dma200 > 0 ? `<div class="panel" style="padding:12px 16px"><div style="font-size:10px;color:var(--textDim);letter-spacing:1px;margin-bottom:3px">200DMA</div><div class="chakra" style="font-size:18px;font-weight:700;color:${dmaAbove?'var(--green)':'var(--red)'}">${dmaAbove?'↑':'↓'} ${Math.abs(dmaDist)}pts ${dmaAbove?'ABOVE':'BELOW'}</div></div>` : ''}`;
+    ].map(s => `<div class="panel" style="padding:10px 14px"><div style="font-size:10px;color:var(--textDim);letter-spacing:1px;margin-bottom:3px">${s.l}</div><div class="chakra" style="font-size:18px;font-weight:700;color:${s.c}">${s.v}</div></div>`).join('')}
+    ${dma200 > 0 ? `<div class="panel" style="padding:10px 14px"><div style="font-size:10px;color:var(--textDim);letter-spacing:1px;margin-bottom:3px">200DMA</div><div class="chakra" style="font-size:16px;font-weight:700;color:${dmaAbove?'var(--green)':'var(--red)'}">${dmaAbove?'↑':'↓'} ${Math.abs(dmaDist)}pts ${dmaAbove?'ABOVE':'BELOW'}</div></div>` : ''}`;
     // Remove old banners before re-render
     document.querySelectorAll('.bias-banner').forEach(el => el.remove());
     // Warning banners — rendered AFTER the regime grid as separate block elements
@@ -1337,7 +1330,7 @@ function scan() {
       </div>
 
       <!-- ORDER DETAILS GRID -->
-      <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:0;border-top:1px solid var(--border)">
+      <div style="display:grid;grid-template-columns:repeat(8,1fr);gap:0;border-top:1px solid var(--border)">
         ${useIC ? `
         <div style="padding:12px 16px;border-right:1px solid var(--border)">
           <div style="font-size:9px;color:var(--green);letter-spacing:1px;margin-bottom:4px">▼ SELL PUT</div>
@@ -1374,10 +1367,20 @@ function scan() {
           <div class="chakra" style="font-size:20px;font-weight:700;color:var(--green)">$${f2(profitTgt)}</div>
           <div style="font-size:10px;color:var(--green);margin-top:2px">+${fmt$(profitTgt * adjContracts * 100)}</div>
         </div>
-        <div style="padding:12px 16px">
+        <div style="padding:12px 16px;border-right:1px solid var(--border)">
           <div style="font-size:9px;color:var(--textDim);letter-spacing:1px;margin-bottom:4px">CONVICTION</div>
           <div class="chakra" style="font-size:20px;font-weight:700;color:${convColor}">${conviction}</div>
           <div style="font-size:10px;color:${convColor};margin-top:2px">${convLabel}</div>
+        </div>
+        <div style="padding:12px 16px;border-right:1px solid var(--border)">
+          <div style="font-size:9px;color:var(--red);letter-spacing:1px;margin-bottom:4px">STOP SPREAD ≥</div>
+          <div class="chakra" style="font-size:20px;font-weight:700;color:var(--red)">$${stopInfo.stopSpreadVal}</div>
+          <div style="font-size:10px;color:${stopInfo.windowColor};margin-top:2px">${stopInfo.window}</div>
+        </div>
+        <div style="padding:12px 16px">
+          <div style="font-size:9px;color:var(--textDim);letter-spacing:1px;margin-bottom:4px">MAX LOSS ${adjContracts}CT</div>
+          <div class="chakra" style="font-size:20px;font-weight:700;color:var(--red)">-${fmt$(parseFloat(stopInfo.maxLoss) * adjContracts * 100)}</div>
+          <div style="font-size:10px;color:var(--red);margin-top:2px">-$${stopInfo.maxLoss}/ct</div>
         </div>
       </div>
 
@@ -1411,53 +1414,10 @@ function scan() {
   }
   const stopInfo = getStopLevel(orderCredit);
 
-  // KEY RULES STRIP (appended to order panel)
-  const rulesData = [
-    {icon:'💰', rule:'Min credit $0.80+', c:'var(--gold)'},
-    {icon:'🎯', rule:'50% profit → close @ $' + f2(profitTgt), c:'var(--green)'},
-    {icon:'🛑', rule:'Stop spread ≥ $' + stopInfo.stopSpreadVal + ' (' + stopInfo.mult + '×)', c:'var(--red)'},
-    {icon:'📈', rule:'VIX +20% intra → close all', c:'var(--red)'},
-    {icon:'⏰', rule:'Hard close 6:00 AM AEDT', c:'var(--gold)'},
-    {icon:'📉', rule:'Size: ' + Math.round(regime.size*100) + '% · ' + regime.level, c:regime.color},
-  ];
-  const rulesHtml = rulesData.map(function(r) {
-    return '<div style="display:flex;align-items:center;gap:5px;font-size:10px"><span>' + r.icon + '</span><span style="color:' + r.c + '">' + r.rule + '</span></div>';
-  }).join('');
-  document.getElementById('orderPanel').querySelector('.panel').insertAdjacentHTML('beforeend',
-    '<div style="padding:8px 18px;border-top:1px solid var(--border);display:flex;gap:16px;flex-wrap:wrap;align-items:center">' + rulesHtml + '</div>');
 
-  // STOP LEVEL STRIP
-  const stopLevelHtml = `
-    <div class="panel" style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1fr;gap:0;margin-bottom:8px;border:1px solid ${stopInfo.windowColor}40;overflow:hidden">
-      <div style="padding:10px 14px;background:${stopInfo.windowColor}0C;border-right:1px solid var(--border)">
-        <div style="font-size:9px;color:var(--textDim);letter-spacing:1px;margin-bottom:3px">STOP WINDOW</div>
-        <div class="chakra" style="font-size:14px;font-weight:700;color:${stopInfo.windowColor}">${stopInfo.window}</div>
-      </div>
-      <div style="padding:10px 14px;border-right:1px solid var(--border)">
-        <div style="font-size:9px;color:var(--textDim);letter-spacing:1px;margin-bottom:3px">CREDIT RECEIVED</div>
-        <div class="chakra" style="font-size:16px;font-weight:700;color:var(--green)">$${f2(orderCredit)}</div>
-      </div>
-      <div style="padding:10px 14px;border-right:1px solid var(--border)">
-        <div style="font-size:9px;color:var(--textDim);letter-spacing:1px;margin-bottom:3px">STOP IF SPREAD HITS</div>
-        <div class="chakra" style="font-size:16px;font-weight:700;color:var(--red)">$${stopInfo.stopSpreadVal}</div>
-      </div>
-      <div style="padding:10px 14px;border-right:1px solid var(--border)">
-        <div style="font-size:9px;color:var(--textDim);letter-spacing:1px;margin-bottom:3px">MAX LOSS / CT</div>
-        <div class="chakra" style="font-size:16px;font-weight:700;color:var(--red)">-$${stopInfo.maxLoss}</div>
-      </div>
-      <div style="padding:10px 14px">
-        <div style="font-size:9px;color:var(--textDim);letter-spacing:1px;margin-bottom:3px">MAX LOSS ${adjContracts}CT</div>
-        <div class="chakra" style="font-size:16px;font-weight:700;color:var(--red)">-${fmt$(parseFloat(stopInfo.maxLoss) * adjContracts * 100)}</div>
-      </div>
-    </div>`;
-  document.getElementById('mainArea').insertAdjacentHTML('beforebegin', '');
-  // Remove old stop strip before re-render
+  // Remove old stop strip if still present
   const oldStop = document.getElementById('stopLevelStrip');
   if (oldStop) oldStop.remove();
-  const stopDiv = document.createElement('div');
-  stopDiv.id = 'stopLevelStrip';
-  stopDiv.innerHTML = stopLevelHtml;
-  document.getElementById('mainArea').parentNode.insertBefore(stopDiv, document.getElementById('mainArea'));
 
   // MAIN AREA: 3 Tickets + Rules
   function liveBanner(key, color) {
