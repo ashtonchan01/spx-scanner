@@ -392,6 +392,9 @@ input, select, button, textarea { font-family: 'IBM Plex Mono', monospace; outli
 <!-- REGIME STRIP -->
 <div id="regimeRow" class="regime-strip"></div>
 
+<!-- ORDER RECOMMENDATION -->
+<div id="orderPanel"></div>
+
 <!-- MAIN CONTENT: 3 Tickets + Rules -->
 <div id="mainArea"></div>
 
@@ -1259,6 +1262,123 @@ function scan() {
     }
     if (bannerHtml) document.getElementById('regimeRow').insertAdjacentHTML('afterend', bannerHtml);
 
+  // ── LIVE PRICE RESOLUTION (needed by order panel) ──
+  const liveP = state.liveQuotes[`${recRow.sP}_${recRow.lP}_P`];
+  const liveC = state.liveQuotes[`${recRow.sC}_${recRow.lC}_C`];
+  const pF = liveP && liveP.credit_bid !== undefined ? liveP.credit_bid : recRow.putFill;
+  const cF = liveC && liveC.credit_bid !== undefined ? liveC.credit_bid : recRow.callFill;
+
+  // ── ORDER RECOMMENDATION ──
+  const orderType = useIC ? 'IRON CONDOR' : useCall ? 'CALL CREDIT SPREAD' : 'PUT CREDIT SPREAD';
+  const orderIcon = useIC ? '⬡' : useCall ? '▲' : '▼';
+  const orderColor = useIC ? 'var(--cyan)' : useCall ? 'var(--orange)' : 'var(--green)';
+  const orderCredit = useIC ? recRow.icFill : useCall ? cF : pF;
+  const orderIncome = orderCredit * contracts * 100;
+  const profitTgt = orderCredit * 0.5;
+  // Conviction
+  let conviction, convColor, convLabel, adjContracts;
+  if (orderCredit >= 1.00 && regime.size >= 0.75) {
+    conviction = 'A+'; convColor = 'var(--green)'; convLabel = 'HIGH — Full size';
+    adjContracts = contracts;
+  } else if (orderCredit >= 0.80 && regime.size >= 0.5) {
+    conviction = 'B'; convColor = 'var(--gold)'; convLabel = 'MODERATE — 50% size';
+    adjContracts = Math.max(1, Math.round(contracts * 0.5));
+  } else {
+    conviction = 'C'; convColor = 'var(--red)'; convLabel = 'LOW — Skip or 1ct';
+    adjContracts = 1;
+  }
+  const adjIncome = orderCredit * adjContracts * 100;
+  // Session check
+  const nowAEDT = new Date();
+  const aedtStr = nowAEDT.toLocaleString('en-AU', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Australia/Sydney' });
+  const [aH, aM] = aedtStr.split(':').map(Number);
+  const aT = aH + aM / 60;
+  let sessionStatus, sessionColor, sessionNote;
+  if ((aT >= 23.5) || (aT >= 0 && aT < 1.25)) {
+    sessionStatus = 'MORNING ENTRY'; sessionColor = 'var(--gold)'; sessionNote = 'Morning session open — Δ0.12';
+  } else if (aT >= 1.25 && aT < 3.0) {
+    sessionStatus = 'BETWEEN SESSIONS'; sessionColor = 'var(--textDim)'; sessionNote = 'Wait for arvo session at 3:00 AM';
+  } else if (aT >= 3.0 && aT < 4.0) {
+    sessionStatus = 'ARVO ENTRY'; sessionColor = 'var(--green)'; sessionNote = 'Arvo session open — Δ0.15';
+  } else if (aT >= 4.0 && aT < 5.5) {
+    sessionStatus = 'CLOSE ONLY'; sessionColor = 'var(--orange)'; sessionNote = 'No new entries — manage existing positions';
+  } else if (aT >= 5.5 && aT < 7.0) {
+    sessionStatus = 'HARD CLOSE'; sessionColor = 'var(--red)'; sessionNote = 'Close all positions NOW';
+  } else {
+    sessionStatus = 'MARKET CLOSED'; sessionColor = 'var(--textDim)'; sessionNote = 'US market not open';
+  }
+  const canTrade = sessionStatus === 'MORNING ENTRY' || sessionStatus === 'ARVO ENTRY';
+  const noTrade = isBearish && !useCall && state.strategy !== 'auto';
+
+  document.getElementById('orderPanel').innerHTML = `
+    <div class="panel" style="border:2px solid ${canTrade ? orderColor : 'var(--border)'};margin-bottom:8px;overflow:hidden">
+      <!-- ORDER HEADER -->
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 18px;background:${canTrade ? orderColor+'0C' : 'var(--panelAlt)'}">
+        <div style="display:flex;align-items:center;gap:14px">
+          <div class="chakra" style="font-size:28px;font-weight:700;color:${orderColor}">${orderIcon}</div>
+          <div>
+            <div style="font-size:10px;color:var(--textDim);letter-spacing:2px;margin-bottom:2px">TODAY'S ORDER</div>
+            <div class="chakra" style="font-size:20px;font-weight:700;color:${orderColor}">${orderType}</div>
+          </div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:10px;color:var(--textDim);letter-spacing:1px;margin-bottom:2px">SESSION</div>
+          <div class="chakra" style="font-size:14px;font-weight:700;color:${sessionColor}">${sessionStatus}</div>
+        </div>
+      </div>
+
+      <!-- ORDER DETAILS GRID -->
+      <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:0;border-top:1px solid var(--border)">
+        ${useIC ? `
+        <div style="padding:12px 16px;border-right:1px solid var(--border)">
+          <div style="font-size:9px;color:var(--green);letter-spacing:1px;margin-bottom:4px">▼ SELL PUT</div>
+          <div class="mono" style="font-size:15px;font-weight:700;color:var(--white)">SPX ${recRow.sP}</div>
+          <div class="mono" style="font-size:11px;color:var(--textDim);margin-top:2px">BUY ${recRow.lP}</div>
+        </div>
+        <div style="padding:12px 16px;border-right:1px solid var(--border)">
+          <div style="font-size:9px;color:var(--orange);letter-spacing:1px;margin-bottom:4px">▲ SELL CALL</div>
+          <div class="mono" style="font-size:15px;font-weight:700;color:var(--white)">SPX ${recRow.sC}</div>
+          <div class="mono" style="font-size:11px;color:var(--textDim);margin-top:2px">BUY ${recRow.lC}</div>
+        </div>
+        ` : `
+        <div style="padding:12px 16px;border-right:1px solid var(--border)">
+          <div style="font-size:9px;color:${orderColor};letter-spacing:1px;margin-bottom:4px">SELL</div>
+          <div class="mono" style="font-size:15px;font-weight:700;color:var(--white)">SPX ${useCall ? recRow.sC : recRow.sP} ${useCall ? 'C' : 'P'}</div>
+        </div>
+        <div style="padding:12px 16px;border-right:1px solid var(--border)">
+          <div style="font-size:9px;color:var(--textDim);letter-spacing:1px;margin-bottom:4px">BUY</div>
+          <div class="mono" style="font-size:15px;font-weight:700;color:var(--white)">SPX ${useCall ? recRow.lC : recRow.lP} ${useCall ? 'C' : 'P'}</div>
+        </div>
+        `}
+        <div style="padding:12px 16px;border-right:1px solid var(--border)">
+          <div style="font-size:9px;color:var(--textDim);letter-spacing:1px;margin-bottom:4px">CONTRACTS</div>
+          <div class="chakra" style="font-size:20px;font-weight:700;color:var(--green)">${adjContracts}</div>
+          ${adjContracts !== contracts ? `<div style="font-size:10px;color:var(--gold);margin-top:2px">${conviction} setup → sized down</div>` : ''}
+        </div>
+        <div style="padding:12px 16px;border-right:1px solid var(--border)">
+          <div style="font-size:9px;color:var(--textDim);letter-spacing:1px;margin-bottom:4px">TARGET CREDIT</div>
+          <div class="chakra" style="font-size:20px;font-weight:700;color:${orderCredit >= 0.80 ? orderColor : 'var(--red)'}">$${f2(orderCredit)}</div>
+          <div style="font-size:10px;color:var(--textDim);margin-top:2px">${fmt$(adjIncome)} total</div>
+        </div>
+        <div style="padding:12px 16px;border-right:1px solid var(--border)">
+          <div style="font-size:9px;color:var(--green);letter-spacing:1px;margin-bottom:4px">50% PROFIT TARGET</div>
+          <div class="chakra" style="font-size:20px;font-weight:700;color:var(--green)">$${f2(profitTgt)}</div>
+          <div style="font-size:10px;color:var(--green);margin-top:2px">+${fmt$(profitTgt * adjContracts * 100)}</div>
+        </div>
+        <div style="padding:12px 16px">
+          <div style="font-size:9px;color:var(--textDim);letter-spacing:1px;margin-bottom:4px">CONVICTION</div>
+          <div class="chakra" style="font-size:20px;font-weight:700;color:${convColor}">${conviction}</div>
+          <div style="font-size:10px;color:${convColor};margin-top:2px">${convLabel}</div>
+        </div>
+      </div>
+
+      <!-- SESSION NOTE -->
+      <div style="padding:8px 18px;border-top:1px solid var(--border);background:var(--panelAlt);display:flex;justify-content:space-between;align-items:center">
+        <div style="font-size:11px;color:${sessionColor}">${sessionNote}</div>
+        <div style="font-size:11px;color:var(--textDim)">${state.mode === 'arvo' ? 'Δ0.15' : 'Δ0.12'} · ${state.width}pt wide · ${regime.level} regime</div>
+      </div>
+    </div>`;
+
   // TIME-BASED STOP LEVEL
   function getStopLevel(credit) {
     const now = new Date();
@@ -1281,8 +1401,7 @@ function scan() {
     const maxLoss = f2((credit * mult) - credit);
     return { mult, stopSpreadVal, maxLoss, window, windowColor };
   }
-  const recCredit = useIC ? recRow.icFill : useCall ? recRow.callFill : recRow.putFill;
-  const stopInfo = getStopLevel(recCredit);
+  const stopInfo = getStopLevel(orderCredit);
 
   // STOP LEVEL STRIP
   const stopLevelHtml = `
@@ -1304,8 +1423,8 @@ function scan() {
         <div class="chakra" style="font-size:16px;font-weight:700;color:var(--red)">-$${stopInfo.maxLoss}</div>
       </div>
       <div style="padding:10px 14px">
-        <div style="font-size:9px;color:var(--textDim);letter-spacing:1px;margin-bottom:3px">MAX LOSS ${contracts}CT</div>
-        <div class="chakra" style="font-size:16px;font-weight:700;color:var(--red)">-${fmt$(parseFloat(stopInfo.maxLoss) * contracts * 100)}</div>
+        <div style="font-size:9px;color:var(--textDim);letter-spacing:1px;margin-bottom:3px">MAX LOSS ${adjContracts}CT</div>
+        <div class="chakra" style="font-size:16px;font-weight:700;color:var(--red)">-${fmt$(parseFloat(stopInfo.maxLoss) * adjContracts * 100)}</div>
       </div>
     </div>`;
   document.getElementById('mainArea').insertAdjacentHTML('beforebegin', '');
@@ -1334,8 +1453,6 @@ function scan() {
 
   const pB = liveBanner(`${recRow.sP}_${recRow.lP}_P`, '#00D084');
   const cB = liveBanner(`${recRow.sC}_${recRow.lC}_C`, '#FF6B35');
-  const pF = pB.live ? pB.live.credit_bid : recRow.putFill;
-  const cF = cB.live ? cB.live.credit_bid : recRow.callFill;
 
   document.getElementById('mainArea').innerHTML = `
     <div class="tickets-grid" style="display:grid;grid-template-columns:1fr 1fr 1fr 320px;gap:8px;margin-bottom:8px">
