@@ -1469,7 +1469,7 @@ function scan() {
   const cB = liveBanner(`${recRow.sC}_${recRow.lC}_C`, '#FF6B35');
 
   document.getElementById('mainArea').innerHTML = `
-    <div class="tickets-grid" style="display:grid;grid-template-columns:1fr 1fr 1fr 320px;gap:8px;margin-bottom:8px">
+    <div class="tickets-grid" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:8px">
       <!-- PUT -->
       <div class="panelAlt" style="border:1px solid ${isBearish?'rgba(255,71,87,0.4)':!useIC&&!useCall?'rgba(0,208,132,0.4)':'var(--border)'};border-top:3px solid ${isBearish?'var(--red)':'var(--green)'};padding:12px 14px;position:relative;${isBearish?'opacity:0.6;':''}">
         ${isBearish?'<div class="tag" style="background:rgba(255,71,87,0.15);color:var(--red);border:1px solid rgba(255,71,87,0.3);font-size:9px">⚠ WRONG WAY</div>':!useIC&&!useCall?'<div class="tag" style="background:rgba(0,208,132,0.15);color:var(--green);border:1px solid rgba(0,208,132,0.3);font-size:9px">\u2605 REC</div>':''}
@@ -1525,26 +1525,6 @@ function scan() {
           {l:'CTRS',v:contracts,color:'var(--green)'},{l:'INCOME',v:fmt$(recRow.icFill*contracts*100),color:'var(--green)'},
         ])}
         <div style="margin-top:6px;padding:5px 8px;background:rgba(255,71,87,0.05);border:1px solid rgba(255,71,87,0.15);font-size:10px;color:var(--red)">Close all if SPX hits either strike \u00B1${stopBuffer}pts</div>
-      </div>
-      <!-- RULES SIDE PANEL -->
-      <div class="panel" style="padding:12px 14px;border-top:3px solid var(--gold)">
-        <div style="font-size:10px;color:var(--gold);letter-spacing:2px;margin-bottom:10px;font-weight:700">HARD RULES \u00B7 ${useIC?'IC':'PUT SPREAD'}</div>
-        ${[
-          {rule:'MIN CREDIT',detail:useIC?'$0.80+ combined':'$0.80+ spread',c:'var(--gold)'},
-          {rule:'TIME STOP',detail:`Spread ≥ $${stopInfo.stopSpreadVal} (${stopInfo.mult}× credit)`,c:'var(--red)'},
-          {rule:'50% PROFIT',detail:'Close at half credit',c:'var(--green)'},
-          {rule:'VIX SPIKE',detail:'+20% intra \u2192 close all',c:'var(--red)'},
-          {rule:'SIZE',detail:`${Math.round(regime.size*100)}% \u00B7 ${regime.level}`,c:regime.color},
-          {rule:'HARD CLOSE',detail:'6:00 AM AEDT',c:'var(--gold)'},
-        ].map(r => `<div style="margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid var(--border)"><div style="font-size:11px;color:${r.c};letter-spacing:1px;font-weight:700">${r.rule}</div><div style="font-size:11px;color:var(--textMid);margin-top:2px">${r.detail}</div></div>`).join('')}
-        <div style="font-size:10px;color:var(--textDim);letter-spacing:2px;margin:10px 0 6px;font-weight:700">ENTRY WINDOWS</div>
-        ${[
-          {t:'12:30\u201312:45',n:'Wait',c:'var(--gold)',a:false},
-          {t:'12:45\u20131:15',n:'MORN',c:'var(--gold)',a:state.mode==='morning'},
-          {t:'3:00\u20134:00',n:'ARVO',c:'var(--green)',a:state.mode==='arvo'},
-          {t:'4:00\u20135:30',n:'Close only',c:'var(--gold)',a:false},
-          {t:'5:30\u20136:00',n:'HARD CLOSE',c:'var(--red)',a:false},
-        ].map(t => `<div style="display:flex;justify-content:space-between;padding:4px 6px;border-left:${t.a?'3px solid '+t.c:'3px solid transparent'};background:${t.a?'rgba(0,208,132,0.06)':'transparent'};margin-bottom:2px"><span style="font-size:11px;color:${t.a?t.c:'var(--textDim)'};font-weight:${t.a?700:400}">${t.t}</span><span style="font-size:11px;color:${t.c}">${t.n}</span></div>`).join('')}
       </div>
     </div>`;
 
@@ -1623,6 +1603,30 @@ function scan() {
           {l:'BREAKEVEN WR',v:'67%',color:'var(--red)'},
           {l:'TARGET WR',v:'82\u201385%',color:'var(--green)'},
         ])}
+      </div>
+    </div>
+    <!-- RULES & ENTRY WINDOWS -->
+    <div class="panel" style="display:grid;grid-template-columns:1fr auto;gap:0;margin-top:8px;border-top:3px solid var(--gold);overflow:hidden">
+      <div style="padding:12px 16px;display:flex;gap:20px;flex-wrap:wrap;align-items:flex-start">
+        <div style="font-size:10px;color:var(--gold);letter-spacing:2px;font-weight:700;width:100%;margin-bottom:2px">HARD RULES · ${useIC?'IC':'PUT SPREAD'}</div>
+        ${[
+          {rule:'MIN CREDIT',detail:useIC?'$0.80+ combined':'$0.80+ spread',c:'var(--gold)'},
+          {rule:'TIME STOP',detail:'Spread ≥ $' + stopInfo.stopSpreadVal + ' (' + stopInfo.mult + '× credit)',c:'var(--red)'},
+          {rule:'50% PROFIT',detail:'Close at half credit',c:'var(--green)'},
+          {rule:'VIX SPIKE',detail:'+20% intra → close all',c:'var(--red)'},
+          {rule:'SIZE',detail:Math.round(regime.size*100) + '% · ' + regime.level,c:regime.color},
+          {rule:'HARD CLOSE',detail:'6:00 AM AEDT',c:'var(--gold)'},
+        ].map(r => '<div style="min-width:120px"><div style="font-size:11px;color:' + r.c + ';letter-spacing:1px;font-weight:700">' + r.rule + '</div><div style="font-size:11px;color:var(--textMid);margin-top:2px">' + r.detail + '</div></div>').join('')}
+      </div>
+      <div style="padding:12px 16px;border-left:1px solid var(--border);min-width:200px">
+        <div style="font-size:10px;color:var(--textDim);letter-spacing:2px;margin-bottom:6px;font-weight:700">ENTRY WINDOWS</div>
+        ${[
+          {t:'12:30–12:45',n:'Wait',c:'var(--gold)',a:false},
+          {t:'12:45–1:15',n:'MORN',c:'var(--gold)',a:state.mode==='morning'},
+          {t:'3:00–4:00',n:'ARVO',c:'var(--green)',a:state.mode==='arvo'},
+          {t:'4:00–5:30',n:'Close only',c:'var(--gold)',a:false},
+          {t:'5:30–6:00',n:'HARD CLOSE',c:'var(--red)',a:false},
+        ].map(t => '<div style="display:flex;justify-content:space-between;padding:4px 6px;border-left:' + (t.a?'3px solid '+t.c:'3px solid transparent') + ';background:' + (t.a?'rgba(0,208,132,0.06)':'transparent') + ';margin-bottom:2px"><span style="font-size:11px;color:' + (t.a?t.c:'var(--textDim)') + ';font-weight:' + (t.a?700:400) + '">' + t.t + '</span><span style="font-size:11px;color:' + t.c + '">' + t.n + '</span></div>').join('')}
       </div>
     </div>`;
 }
