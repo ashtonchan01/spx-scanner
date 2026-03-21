@@ -1377,7 +1377,23 @@ function scan() {
         <div style="font-size:11px;color:${sessionColor}">${sessionNote}</div>
         <div style="font-size:11px;color:var(--textDim)">${state.mode === 'arvo' ? 'Δ0.15' : 'Δ0.12'} · ${state.width}pt wide · ${regime.level} regime</div>
       </div>
+
     </div>`;
+
+  // KEY RULES STRIP (appended separately to avoid nested template issues)
+  const rulesData = [
+    {icon:'💰', rule:'Min credit $0.80+', c:'var(--gold)'},
+    {icon:'🎯', rule:'50% profit → close @ $' + f2(profitTgt), c:'var(--green)'},
+    {icon:'🛑', rule:'Stop spread ≥ $' + stopInfo.stopSpreadVal + ' (' + stopInfo.mult + '×)', c:'var(--red)'},
+    {icon:'📈', rule:'VIX +20% intra → close all', c:'var(--red)'},
+    {icon:'⏰', rule:'Hard close 6:00 AM AEDT', c:'var(--gold)'},
+    {icon:'📉', rule:'Size: ' + Math.round(regime.size*100) + '% · ' + regime.level, c:regime.color},
+  ];
+  const rulesHtml = rulesData.map(function(r) {
+    return '<div style="display:flex;align-items:center;gap:5px;font-size:10px"><span>' + r.icon + '</span><span style="color:' + r.c + '">' + r.rule + '</span></div>';
+  }).join('');
+  document.getElementById('orderPanel').querySelector('.panel').insertAdjacentHTML('beforeend',
+    '<div style="padding:8px 18px;border-top:1px solid var(--border);display:flex;gap:16px;flex-wrap:wrap;align-items:center">' + rulesHtml + '</div>');
 
   // TIME-BASED STOP LEVEL
   function getStopLevel(credit) {
