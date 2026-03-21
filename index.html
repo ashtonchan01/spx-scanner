@@ -2952,32 +2952,7 @@ function runBacktest() {
 
   document.getElementById('bt-dataRange').textContent = `${HIST_DATA[0][0]} to ${HIST_DATA[HIST_DATA.length-1][0]} · ${HIST_DATA.length} trading days`;
 
-  // BSM functions (reuse from scanner)
-  function nCDF(x) {
-    const t = 1/(1+0.2316419*Math.abs(x));
-    const d = 0.3989422820*Math.exp(-0.5*x*x);
-    const p = d*t*(0.3193815+t*(-0.3565638+t*(1.7814779+t*(-1.8212560+t*1.3302744))));
-    return x >= 0 ? 1-p : p;
-  }
-  function bsPrice(S,K,T,r,iv,type) {
-    if (T <= 0) T = 0.0001;
-    const d1 = (Math.log(S/K)+(r+iv*iv/2)*T)/(iv*Math.sqrt(T));
-    const d2 = d1 - iv*Math.sqrt(T);
-    if (type === 'put') return K*Math.exp(-r*T)*nCDF(-d2) - S*nCDF(-d1);
-    return S*nCDF(d1) - K*Math.exp(-r*T)*nCDF(d2);
-  }
-  function findStr(S,iv,T,tgtDelta,type) {
-    let lo = type==='put'? S*0.85 : S*1.0;
-    let hi = type==='put'? S*1.0 : S*1.15;
-    for (let i=0;i<50;i++) {
-      const mid = (lo+hi)/2;
-      const d1 = (Math.log(S/mid)+(0.045+iv*iv/2)*T)/(iv*Math.sqrt(T));
-      const d = type==='put'? nCDF(d1)-1 : nCDF(d1);
-      if (Math.abs(d) < tgtDelta) { if(type==='put') hi=mid; else lo=mid; }
-      else { if(type==='put') lo=mid; else hi=mid; }
-    }
-    return Math.round((lo+hi)/2);
-  }
+  // Reuse scanner's BSM functions (bsm, findStrike already defined globally)
 
   function getPhaseForCap(cap) {
     if (cap >= 300000) return { perK: 12000 };
@@ -3020,12 +2995,12 @@ function runBacktest() {
     }
 
     // Find strikes
-    const sP = findStr(open, iv, T, delta, 'put'), lP = sP - width;
-    const sC = findStr(open, iv, T, delta, 'call'), lC = sC + width;
+    const sP = findStrike(open, iv, T, delta, 'put'), lP = sP - width;
+    const sC = findStrike(open, iv, T, delta, 'call'), lC = sC + width;
 
     // Calculate credits
-    const putCredit = Math.max(bsPrice(open,sP,T,r,iv,'put') - bsPrice(open,lP,T,r,iv,'put') - SLIPPAGE, 0);
-    const callCredit = Math.max(bsPrice(open,sC,T,r,iv,'call') - bsPrice(open,lC,T,r,iv,'call') - SLIPPAGE, 0);
+    const putCredit = Math.max(bsm(open,sP,T,r,iv,'put').price - bsm(open,lP,T,r,iv,'put').price - SLIPPAGE, 0);
+    const callCredit = Math.max(bsm(open,sC,T,r,iv,'call').price - bsm(open,lC,T,r,iv,'call').price - SLIPPAGE, 0);
     const icCredit = putCredit + callCredit;
 
     let credit;
@@ -3037,8 +3012,17 @@ function runBacktest() {
     if (credit < minCredit) continue;
 
     // Determine win/loss using daily high/low
-    let putBreached = low <= sP;
-    let callBreached = high >= sC;
+    // Since we only have daily OHLC, approximate arvo session range:
+    // Arvo = last 3.5hrs of 6.5hr session ≈ 54% of daily range
+    // Use close as arvo midpoint, scale range accordingly
+    const dailyRange = high - low;
+    const arvoFraction = 0.54;
+    const arvoRange = dailyRange * arvoFraction;
+    // Estimate arvo low/high centered around close (arvo tends to end near close)
+    const arvoLow = Math.min(close, open) - arvoRange * 0.3;
+    const arvoHigh = Math.max(close, open) + arvoRange * 0.3;
+    let putBreached = arvoLow <= sP;
+    let callBreached = arvoHigh >= sC;
     let result, pnl;
 
     // Stop calculation
@@ -3052,7 +3036,7 @@ function runBacktest() {
     }
 
     if (strat === 'put') {
-      if (stopMode === 'points' && low <= (sP - stopVal)) {
+      if (stopMode === 'points' && arvoLow <= (sP - stopVal)) {
         // Points-based stop hit
         result = 'LOSS';
         pnl = -(stopVal / width) * (width - credit) * cts * 100; // approximate
@@ -3065,7 +3049,7 @@ function runBacktest() {
         pnl = credit * profitPct * cts * 100;
       }
     } else if (strat === 'call') {
-      if (stopMode === 'points' && high >= (sC + stopVal)) {
+      if (stopMode === 'points' && arvoHigh >= (sC + stopVal)) {
         result = 'LOSS';
         pnl = -(stopVal / width) * (width - credit) * cts * 100;
       } else if (callBreached && stopPrice) {
@@ -3076,7 +3060,7 @@ function runBacktest() {
         pnl = credit * profitPct * cts * 100;
       }
     } else { // IC
-      if (stopMode === 'points' && (low <= (sP - stopVal) || high >= (sC + stopVal))) {
+      if (stopMode === 'points' && (arvoLow <= (sP - stopVal) || arvoHigh >= (sC + stopVal))) {
         result = 'LOSS';
         pnl = -(stopVal / width) * (width - icCredit) * cts * 100;
       } else if ((putBreached || callBreached) && stopPrice) {
@@ -3214,8 +3198,8 @@ function runBacktest() {
           <div style="color:var(--text)">$${t.credit}</div>
           <div style="color:${t.vix>25?'var(--red)':t.vix>18?'var(--gold)':'var(--green)'}">$${t.vix.toFixed(0)}</div>
           <div style="color:var(--text)">${t.cts}</div>
-          <div style="color:${t.result==='WIN'?'var(--green)':'var(--red)';font-weight:700}">${t.result}</div>
-          <div class="mono" style="color:${t.pnl>=0?'var(--green)':'var(--red)';font-weight:700}">${t.pnl>=0?'+':''}$${t.pnl.toLocaleString()}</div>
+          <div style="color:${t.result==='WIN'?'var(--green)':'var(--red)'};font-weight:700">${t.result}</div>
+          <div class="mono" style="color:${t.pnl>=0?'var(--green)':'var(--red)'};font-weight:700">${t.pnl>=0?'+':''}$${t.pnl.toLocaleString()}</div>
         </div>
       `).join('')}
     </div>`;
