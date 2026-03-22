@@ -3215,15 +3215,22 @@ function resetAllData() {
 // ══════════════════════════════════════════════════════════════════════════════
 // CLOCK
 // ══════════════════════════════════════════════════════════════════════════════
+function monoTime(str, fontSize) {
+  // Wrap each character in a fixed-width container so Chakra Petch doesn't jitter
+  const digitW = fontSize * 0.65;
+  const colonW = fontSize * 0.35;
+  return str.split('').map(ch => {
+    const w = ch === ':' ? colonW : digitW;
+    return '<span style="display:inline-block;width:'+w+'px;text-align:center">'+ch+'</span>';
+  }).join('');
+}
 function updateClock() {
   const now = new Date();
-  // AEDT clock — 24hr format, always 8 chars (HH:MM:SS)
-  document.getElementById('clock').textContent = now.toLocaleTimeString('en-AU', { hour:'2-digit', minute:'2-digit', second:'2-digit', hour12:false, timeZone:'Australia/Sydney' });
+  const aedtTime = now.toLocaleTimeString('en-AU', { hour:'2-digit', minute:'2-digit', second:'2-digit', hour12:false, timeZone:'Australia/Sydney' });
+  document.getElementById('clock').innerHTML = monoTime(aedtTime, 22);
   const etEl = document.getElementById('clockET');
   if (etEl) {
-    // ET clock — 24hr format for fixed width
     const etTime = now.toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit', second:'2-digit', hour12:false, timeZone:'America/New_York' });
-    // Market status — update separate element to avoid width changes
     const etH = parseInt(now.toLocaleString('en-US', { timeZone:'America/New_York', hour:'numeric', hour12:false }));
     const etM = parseInt(now.toLocaleString('en-US', { timeZone:'America/New_York', minute:'numeric' }));
     const etDec = etH + etM / 60;
@@ -3232,7 +3239,7 @@ function updateClock() {
     let mktStatus = 'CLOSED', mktColor = 'var(--red)';
     if (isWeekday && etDec >= 9.5 && etDec < 16) { mktStatus = 'OPEN'; mktColor = 'var(--green)'; }
     else if (isWeekday && etDec < 9.5) { mktStatus = 'PRE-MKT'; mktColor = 'var(--gold)'; }
-    etEl.textContent = etTime;
+    etEl.innerHTML = monoTime(etTime, 15);
     const mktEl = document.getElementById('clockMkt');
     if (mktEl) { mktEl.textContent = mktStatus; mktEl.style.color = mktColor; }
   }
