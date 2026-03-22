@@ -1776,7 +1776,7 @@ function scan() {
           {l:'50% TGT',v:`\$${f2(pF*0.5)}`,color:'var(--green)'},
           {l:'STOP SPREAD ≥',v:`\$${f2(pF * stopInfo.mult)}`,big:1,color:'var(--red)'},
           {l:'STOP LOSS/CT',v:`-\$${f2(pF * stopInfo.mult - pF)}`,color:'var(--red)'},
-          {l:'CTRS',v:contracts,color:'var(--green)'},{l:'INCOME',v:fmt$(pF*contracts*100),color:'var(--green)'},
+          {l:'CTRS',v:adjContracts,color:'var(--green)'},{l:'INCOME',v:fmt$(pF*adjContracts*100),color:'var(--green)'},
         ])}
         ${isBearish?'<div style="margin-top:6px;padding:8px 10px;background:rgba(255,71,87,0.1);border:2px solid rgba(255,71,87,0.4);font-size:11px;color:var(--red);font-weight:700">🐻 BEARISH DAY — DO NOT ENTER</div>':!pB.live&&!recRow.putOK?'<div style="margin-top:6px;padding:5px 8px;background:rgba(255,71,87,0.08);border:1px solid rgba(255,71,87,0.25);font-size:10px;color:var(--red)">\u26A0 Below $0.80</div>':''}
       </div>
@@ -1792,7 +1792,7 @@ function scan() {
           {l:'50% TGT',v:`\$${f2(cF*0.5)}`,color:'var(--green)'},
           {l:'STOP SPREAD ≥',v:`\$${f2(cF * stopInfo.mult)}`,big:1,color:'var(--red)'},
           {l:'STOP LOSS/CT',v:`-\$${f2(cF * stopInfo.mult - cF)}`,color:'var(--red)'},
-          {l:'CTRS',v:contracts,color:'var(--green)'},{l:'INCOME',v:fmt$(cF*contracts*100),color:'var(--green)'},
+          {l:'CTRS',v:adjContracts,color:'var(--green)'},{l:'INCOME',v:fmt$(cF*adjContracts*100),color:'var(--green)'},
         ])}
         ${isBearish?'<div style="margin-top:6px;padding:5px 8px;background:rgba(0,208,132,0.08);border:1px solid rgba(0,208,132,0.25);font-size:10px;color:var(--green)">✓ Correct direction for bearish bias</div>':'<div style="margin-top:6px;padding:5px 8px;background:rgba(240,180,41,0.05);border:1px solid rgba(240,180,41,0.15);font-size:10px;color:var(--gold)">Use on confirmed bearish days only</div>'}
       </div>
@@ -1816,7 +1816,7 @@ function scan() {
           {l:'COMBINED',v:`\$${f2(recRow.icFill)}`,big:1,color:recRow.icOK?'var(--cyan)':'var(--red)'},
           {l:'ZONE',v:recRow.profitZone},
           {l:'50% TGT',v:`\$${f2(recRow.icFill*0.5)}`,color:'var(--green)'},
-          {l:'CTRS',v:contracts,color:'var(--green)'},{l:'INCOME',v:fmt$(recRow.icFill*contracts*100),color:'var(--green)'},
+          {l:'CTRS',v:adjContracts,color:'var(--green)'},{l:'INCOME',v:fmt$(recRow.icFill*adjContracts*100),color:'var(--green)'},
         ])}
         <div style="margin-top:6px;padding:5px 8px;background:rgba(255,71,87,0.05);border:1px solid rgba(255,71,87,0.15);font-size:10px;color:var(--red)">Close all if SPX hits either strike \u00B1${stopBuffer}pts</div>
       </div>
@@ -1881,8 +1881,8 @@ function scan() {
   const isMon = dow==='Mon', isFri = dow==='Fri', isThu = dow==='Thu';
   const wc = isMon?'var(--blue)':isFri?'var(--red)':isThu?'var(--orange)':'var(--gold)';
   const wt = isMon?'WEEKLY \u2014 OPEN':isFri?'WEEKLY \u2014 CLOSE':isThu?'WEEKLY \u2014 CHECK':'WEEKLY \u2014 HOLD';
-  const putW=recRow.putFill*contracts*100, calW=recRow.callFill*contracts*100;
-  const icW=recRow.icFill*contracts*100, icL=recRow.icFill*2*contracts*100;
+  const putW=recRow.putFill*adjContracts*100, calW=recRow.callFill*adjContracts*100;
+  const icW=recRow.icFill*adjContracts*100, icL=recRow.icFill*2*adjContracts*100;
   const wkD=wklyFill*100/5;
 
   document.getElementById('bottomArea').innerHTML = `
