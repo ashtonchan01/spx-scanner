@@ -297,10 +297,10 @@ input, select, button, textarea { font-family: 'IBM Plex Mono', monospace; outli
       <input id="urlInput" type="text" placeholder="https://xxxx.ngrok-free.app" style="width:320px;background:var(--panelAlt);border:1px solid var(--borderBright);color:var(--white);padding:8px 12px;font-size:13px" onkeydown="if(event.key==='Enter')connect()">
       <button class="btn" style="border:1px solid var(--green);color:var(--green);font-size:11px;padding:7px 16px;font-weight:700" onclick="connect()">CONNECT</button>
     </div>
-    <div style="text-align:right;width:160px;flex-shrink:0">
-      <div id="clock" style="font-family:'Chakra Petch',sans-serif;font-size:22px;font-weight:300;color:var(--gold);letter-spacing:2px"></div>
+    <div style="text-align:right;flex-shrink:0">
+      <div id="clock" style="font-family:'IBM Plex Mono',monospace;font-size:22px;font-weight:300;color:var(--gold);letter-spacing:2px;font-feature-settings:'zero' 0"></div>
       <div style="font-size:9px;color:var(--textDim);letter-spacing:1px">SYDNEY</div>
-      <div id="clockET" style="font-family:'Chakra Petch',sans-serif;font-size:15px;font-weight:300;color:var(--textMid);margin-top:4px;letter-spacing:2px"></div>
+      <div id="clockET" style="font-family:'IBM Plex Mono',monospace;font-size:15px;font-weight:300;color:var(--textMid);margin-top:4px;letter-spacing:2px;font-feature-settings:'zero' 0"></div>
       <div style="font-size:9px;color:var(--textDim);letter-spacing:1px">NEW YORK · <span id="clockMkt" style="font-weight:600">CLOSED</span></div>
     </div>
   </div>
@@ -3215,22 +3215,12 @@ function resetAllData() {
 // ══════════════════════════════════════════════════════════════════════════════
 // CLOCK
 // ══════════════════════════════════════════════════════════════════════════════
-function monoTime(str, fontSize) {
-  // Wrap each character in a fixed-width container so Chakra Petch doesn't jitter
-  const digitW = fontSize * 0.65;
-  const colonW = fontSize * 0.35;
-  return str.split('').map(ch => {
-    const w = ch === ':' ? colonW : digitW;
-    return '<span style="display:inline-block;width:'+w+'px;text-align:center">'+ch+'</span>';
-  }).join('');
-}
 function updateClock() {
   const now = new Date();
-  const aedtTime = now.toLocaleTimeString('en-AU', { hour:'2-digit', minute:'2-digit', second:'2-digit', hour12:false, timeZone:'Australia/Sydney' });
-  document.getElementById('clock').innerHTML = monoTime(aedtTime, 22);
+  document.getElementById('clock').textContent = now.toLocaleTimeString('en-AU', { hour:'2-digit', minute:'2-digit', second:'2-digit', hour12:false, timeZone:'Australia/Sydney' });
   const etEl = document.getElementById('clockET');
   if (etEl) {
-    const etTime = now.toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit', second:'2-digit', hour12:false, timeZone:'America/New_York' });
+    etEl.textContent = now.toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit', second:'2-digit', hour12:false, timeZone:'America/New_York' });
     const etH = parseInt(now.toLocaleString('en-US', { timeZone:'America/New_York', hour:'numeric', hour12:false }));
     const etM = parseInt(now.toLocaleString('en-US', { timeZone:'America/New_York', minute:'numeric' }));
     const etDec = etH + etM / 60;
@@ -3239,7 +3229,6 @@ function updateClock() {
     let mktStatus = 'CLOSED', mktColor = 'var(--red)';
     if (isWeekday && etDec >= 9.5 && etDec < 16) { mktStatus = 'OPEN'; mktColor = 'var(--green)'; }
     else if (isWeekday && etDec < 9.5) { mktStatus = 'PRE-MKT'; mktColor = 'var(--gold)'; }
-    etEl.innerHTML = monoTime(etTime, 15);
     const mktEl = document.getElementById('clockMkt');
     if (mktEl) { mktEl.textContent = mktStatus; mktEl.style.color = mktColor; }
   }
