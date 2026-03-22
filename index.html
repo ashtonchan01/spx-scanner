@@ -3373,7 +3373,7 @@ function runBacktest() {
     else if (strat === 'call') credit = callCredit;
     else credit = putCredit;
 
-    if (credit < minCredit) continue;
+    if (!(credit >= minCredit)) continue; // NaN-safe: skips NaN credits
 
     // ── Breach detection with proximity model ──
     const dailyRange = high - low;
