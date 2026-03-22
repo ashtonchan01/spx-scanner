@@ -1854,8 +1854,8 @@ function scan() {
       <div class="panel" style="padding:12px 14px;border-top:3px solid var(--gold)">
         <div style="font-size:10px;color:var(--gold);letter-spacing:2px;margin-bottom:10px;font-weight:700">HARD RULES \u00B7 ${useIC?'IC':'PUT SPREAD'}</div>
         ${[
-          {rule:'MIN CREDIT',detail:useIC?'$0.80+ combined':'$0.80+ spread',c:'var(--gold)'},
-          {rule:'2\u00D7 STOP',detail:'Close if spread \u2265 $'+stopInfo.stopSpreadVal+' (2\u00D7 credit)',c:'var(--red)'},
+          {rule:'MIN CREDIT',detail:useIC?'$0.60+ combined':'$0.60+ spread',c:'var(--gold)'},
+          {rule:'1.5\u00D7 TIME-GATED',detail:stopInfo.mult>0?'Close if spread \u2265 $'+stopInfo.stopSpreadVal+' (1.5\u00D7 credit)':stopInfo.window,c:'var(--red)'},
           {rule:'HOLD EXPIRY',detail:'Let full credit expire worthless',c:'var(--green)'},
           {rule:'VIX SPIKE',detail:'+20% intra \u2192 close all',c:'var(--red)'},
           {rule:'SIZE',detail:Math.round(regime.size*100)+'% \u00B7 '+regime.level,c:regime.color},
@@ -1889,7 +1889,7 @@ function scan() {
       const lC = state.liveQuotes[`${row.sC}_${row.lC}_C`];
       const pf = lP ? lP.credit_bid : row.putFill;
       const cf = lC ? lC.credit_bid : row.callFill;
-      const pOK = pf >= 0.80, cOK = cf >= 0.80;
+      const pOK = pf >= 0.60, cOK = cf >= 0.60;
       return `<div style="display:grid;grid-template-columns:${cols};padding:9px 16px;background:${isRec?`color-mix(in srgb, ${activeColor} 5%, transparent)`:i%2===0?'var(--panelAlt)':'var(--panel)'};border-left:${isRec?`3px solid ${activeColor}`:'3px solid transparent'};border-bottom:1px solid var(--border);align-items:center">
         <div style="font-size:13px;color:${isRec?activeColor:'var(--textMid)'};font-weight:${isRec?700:400}">\u0394${row.label}</div>
         <div style="font-size:10px;color:${isRec?activeColor:'var(--textDim)'}">${isRec?'\u25C0 REC':row.tag}</div>
