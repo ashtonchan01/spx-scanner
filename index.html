@@ -578,7 +578,7 @@ input, select, button, textarea { font-family: 'IBM Plex Mono', monospace; outli
         <input type="number" id="bt-capital" value="10000" step="1000" style="font-size:14px;font-weight:700">
       </div>
     </div>
-    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px">
+    <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:14px">
       <div class="form-group">
         <label>PROFIT TARGET</label>
         <select id="bt-profitTgt" style="font-size:12px">
@@ -597,6 +597,11 @@ input, select, button, textarea { font-family: 'IBM Plex Mono', monospace; outli
       <div class="form-group">
         <label>MIN CREDIT</label>
         <input type="number" id="bt-minCredit" value="0.80" step="0.05" min="0.50" style="font-size:14px;font-weight:700">
+      </div>
+      <div class="form-group">
+        <label>STOP PROXIMITY %</label>
+        <input type="number" id="bt-proximity" value="35" step="5" min="0" max="100" style="font-size:14px;font-weight:700">
+        <div style="font-size:9px;color:var(--textDim);margin-top:2px">% of buffer remaining<br><span style="color:var(--gold)">35% = stop triggers when SPX is 65% of the way to strike</span></div>
       </div>
       <div style="display:flex;align-items:flex-end">
         <button class="btn" style="width:100%;padding:12px;font-size:14px;font-weight:700;color:var(--green);border-color:var(--green);cursor:pointer;letter-spacing:2px" onclick="runBacktest()">RUN BACKTEST</button>
@@ -2934,6 +2939,7 @@ function runBacktest() {
   const profitPct = parseFloat(document.getElementById('bt-profitTgt').value);
   const contractMode = document.getElementById('bt-contracts').value;
   const minCredit = parseFloat(document.getElementById('bt-minCredit').value);
+  const proximity = parseFloat(document.getElementById('bt-proximity').value) / 100; // e.g. 0.35
   const SLIPPAGE = 0.05;
 
   document.getElementById('bt-dataRange').textContent = `${HIST_DATA[0][0]} to ${HIST_DATA[HIST_DATA.length-1][0]} · ${HIST_DATA.length} trading days`;
@@ -3007,8 +3013,14 @@ function runBacktest() {
     // Estimate arvo low/high centered around close (arvo tends to end near close)
     const arvoLow = Math.min(close, open) - arvoRange * 0.3;
     const arvoHigh = Math.max(close, open) + arvoRange * 0.3;
-    let putBreached = arvoLow <= sP;
-    let callBreached = arvoHigh >= sC;
+    // Proximity-based breach: stop triggers when SPX gets within proximity% of buffer to strike
+    // e.g. 35% proximity with buffer of 25pts → stop when SPX is within 8.75pts of strike (moved 65% of the way)
+    const putBuffer = open - sP; // distance from entry to short put
+    const callBuffer = sC - open; // distance from entry to short call
+    const putStopLevel = sP + putBuffer * proximity; // trigger level above the strike
+    const callStopLevel = sC - callBuffer * proximity; // trigger level below the strike
+    let putBreached = arvoLow <= putStopLevel;
+    let callBreached = arvoHigh >= callStopLevel;
     let result, pnl;
 
     // Stop calculation
