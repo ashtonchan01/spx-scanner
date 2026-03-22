@@ -536,6 +536,7 @@ input, select, button, textarea { font-family: 'IBM Plex Mono', monospace; outli
         <label>STOP LOSS MODE</label>
         <select id="bt-stopMode" style="font-size:12px" onchange="updateStopDesc()">
           <option value="premium" selected>Premium Multiple</option>
+          <option value="timegated">Time-Gated (2hr delay)</option>
           <option value="points">SPX Points</option>
           <option value="time">Time-Based %</option>
         </select>
@@ -570,7 +571,7 @@ input, select, button, textarea { font-family: 'IBM Plex Mono', monospace; outli
           <option value="put" selected>Put Spread</option>
           <option value="call">Call Spread</option>
           <option value="ic">Iron Condor</option>
-          <option value="auto">Auto (SMA+EMA+VIX)</option>
+          <option value="auto">Auto (200 SMA + VIX/GEX)</option>
         </select>
       </div>
       <div class="form-group">
@@ -1593,10 +1594,39 @@ function scan() {
 
   // FIXED 2× PREMIUM STOP (backtested optimal: 2× stop + hold to expiry)
   function getStopLevel(credit) {
-    const mult = 2.0;
-    const stopSpreadVal = f2(credit * mult);
-    const maxLoss = f2((credit * mult) - credit);
-    return { mult, stopSpreadVal, maxLoss, window: '2× PREMIUM STOP', windowColor: 'var(--red)' };
+    // Time-gated stop: no stop first 2 hours, then 2× kicks in
+    const now = new Date();
+    const etHour = parseInt(now.toLocaleString('en-US', { timeZone: 'America/New_York', hour: 'numeric', hour12: false }));
+    const etMin = parseInt(now.toLocaleString('en-US', { timeZone: 'America/New_York', minute: 'numeric' }));
+    const etTime = etHour + etMin / 60;
+
+    // Arvo session starts ~11:30 ET, morning ~9:30 ET
+    const isArvo = state.mode === 'arvo';
+    const sessionStart = isArvo ? 11.5 : 9.5;
+    const gateEnd = sessionStart + 2; // 2-hour delay
+
+    let mult, window, windowColor;
+    if (etTime < sessionStart) {
+      // Pre-session
+      mult = 2.0;
+      window = '2× STOP (pre-session)';
+      windowColor = 'var(--textDim)';
+    } else if (etTime < gateEnd) {
+      // First 2 hours: no stop, ride out noise
+      mult = 0;
+      const minsLeft = Math.round((gateEnd - etTime) * 60);
+      window = 'NO STOP — ' + minsLeft + 'min until gate';
+      windowColor = 'var(--green)';
+    } else {
+      // After 2 hours: 2× stop active
+      mult = 2.0;
+      window = '2× STOP ACTIVE (theta decayed)';
+      windowColor = 'var(--red)';
+    }
+
+    const stopSpreadVal = mult > 0 ? f2(credit * mult) : '—';
+    const maxLoss = mult > 0 ? f2((credit * mult) - credit) : '—';
+    return { mult, stopSpreadVal, maxLoss, window, windowColor };
   }
   const stopInfo = getStopLevel(orderCredit);
   // Conviction — factors: credit quality, VIX regime size, GEX, macro risk
@@ -3351,7 +3381,7 @@ function runBacktest() {
 
     // Stop calculation
     let stopPrice;
-    if (stopMode === 'premium') {
+    if (stopMode === 'premium' || stopMode === 'timegated') {
       stopPrice = credit * stopVal;
     } else if (stopMode === 'points') {
       stopPrice = null;
@@ -3359,13 +3389,36 @@ function runBacktest() {
       stopPrice = credit * 2.5;
     }
 
+    // Time-gated stop: approximate whether breach was early (noise) vs late (sustained)
+    // Recovery ratio: how much price recovered from its extreme
+    // High recovery = early noise (would survive time-gated), low recovery = sustained move
+    const closePos = (high !== low) ? (close - low) / (high - low) : 0.5;
+    // For puts: closePos > 0.5 means close recovered well above the low → early noise
+    // For calls: closePos < 0.5 means close recovered well below the high → early noise
+    // Time-gated threshold: if recovery > 50%, assume it was first-half noise → skip the stop
+    const timeGateThreshold = 0.50;
+
+    let putStopped = putBreached;
+    let callStopped = callBreached;
+
+    if (stopMode === 'timegated') {
+      // If price recovered from the extreme, the breach was likely early session noise
+      // The 2× stop wouldn't have been active yet (first 2 hours = no stop)
+      if (putBreached && closePos > timeGateThreshold) putStopped = false;
+      if (callBreached && closePos < (1 - timeGateThreshold)) callStopped = false;
+    }
+
     if (strat === 'put') {
       if (stopMode === 'points' && arvoLow <= (sP - stopVal)) {
         result = 'LOSS';
         pnl = -(stopVal / width) * (width - credit) * cts * 100;
-      } else if (putBreached && stopPrice) {
+      } else if (putStopped && stopPrice) {
         result = 'LOSS';
         pnl = -(stopPrice - credit) * cts * 100;
+      } else if (putBreached && !putStopped) {
+        // Time-gated: breach was early noise, price recovered → still a win
+        result = 'WIN';
+        pnl = credit * profitPct * cts * 100;
       } else {
         result = 'WIN';
         pnl = credit * profitPct * cts * 100;
@@ -3374,9 +3427,12 @@ function runBacktest() {
       if (stopMode === 'points' && arvoHigh >= (sC + stopVal)) {
         result = 'LOSS';
         pnl = -(stopVal / width) * (width - credit) * cts * 100;
-      } else if (callBreached && stopPrice) {
+      } else if (callStopped && stopPrice) {
         result = 'LOSS';
         pnl = -(stopPrice - credit) * cts * 100;
+      } else if (callBreached && !callStopped) {
+        result = 'WIN';
+        pnl = credit * profitPct * cts * 100;
       } else {
         result = 'WIN';
         pnl = credit * profitPct * cts * 100;
@@ -3385,9 +3441,12 @@ function runBacktest() {
       if (stopMode === 'points' && (arvoLow <= (sP - stopVal) || arvoHigh >= (sC + stopVal))) {
         result = 'LOSS';
         pnl = -(stopVal / width) * (width - icCredit) * cts * 100;
-      } else if ((putBreached || callBreached) && stopPrice) {
+      } else if ((putStopped || callStopped) && stopPrice) {
         result = 'LOSS';
         pnl = -(stopPrice - icCredit) * cts * 100;
+      } else if ((putBreached || callBreached) && !(putStopped || callStopped)) {
+        result = 'WIN';
+        pnl = icCredit * profitPct * cts * 100;
       } else {
         result = 'WIN';
         pnl = icCredit * profitPct * cts * 100;
@@ -3519,7 +3578,7 @@ function runBacktest() {
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
       <!-- BIAS FILTER STATS -->
       <div class="panel" style="padding:14px">
-        <div style="font-size:11px;color:var(--textDim);letter-spacing:2px;margin-bottom:10px">📊 BIAS FILTER (200 SMA + 8 EMA)</div>
+        <div style="font-size:11px;color:var(--textDim);letter-spacing:2px;margin-bottom:10px">BIAS FILTER (200 SMA + VIX/GEX)</div>
         ${Object.entries(biasStats).map(([label,s])=>{
           const t=s.w+s.l; const wr=t>0?(s.w/t*100).toFixed(0):'–';
           const c = parseInt(wr)>=80?'var(--green)':parseInt(wr)>=65?'var(--gold)':'var(--red)';
@@ -3728,6 +3787,7 @@ function updateStopDesc() {
   const desc = document.getElementById('bt-stopDesc');
   const valInput = document.getElementById('bt-stopVal');
   if (mode === 'premium') { desc.innerHTML = '× credit received<br><span style="color:var(--gold)">e.g. 2× = close if spread hits 2× your credit ($1.00 → stop at $2.00)</span>'; valInput.value = '2'; valInput.step = '0.5'; }
+  else if (mode === 'timegated') { desc.innerHTML = '× credit (after 2hr delay)<br><span style="color:var(--green)">No stop first 2hrs (ride out noise). Then 2× stop kicks in when theta has decayed ~50%.</span>'; valInput.value = '2'; valInput.step = '0.5'; }
   else if (mode === 'points') { desc.innerHTML = 'SPX points past short strike<br><span style="color:var(--gold)">e.g. 10 = close if SPX moves 10pts through your short strike</span>'; valInput.value = '10'; valInput.step = '5'; }
   else { desc.innerHTML = '× credit (time-weighted avg)<br><span style="color:var(--gold)">Simulates tighter stops later in session (avg 2.5× across day)</span>'; valInput.value = '2.5'; valInput.step = '0.5'; }
 }
