@@ -300,6 +300,8 @@ input, select, button, textarea { font-family: 'IBM Plex Mono', monospace; outli
     <div style="text-align:right">
       <div id="clock" class="chakra" style="font-size:20px;color:var(--gold)"></div>
       <div style="font-size:10px;color:var(--textDim)">AEDT</div>
+      <div id="clockET" class="chakra" style="font-size:14px;color:var(--textMid);margin-top:2px"></div>
+      <div style="font-size:9px;color:var(--textDim)">US EASTERN</div>
     </div>
   </div>
 </div>
@@ -1592,41 +1594,45 @@ function scan() {
   const orderIncome = orderCredit * contracts * 100;
   const profitTgt = orderCredit; // hold to expiry — full credit
 
-  // FIXED 2× PREMIUM STOP (backtested optimal: 2× stop + hold to expiry)
+  // TWO-TIER STOP: 2× first 2hrs (noise protection), 1.5× after (theta decayed)
+  // Emergency stops always active: 3× or strike breach
   function getStopLevel(credit) {
-    // Time-gated stop: no stop first 2 hours, then 1.5× kicks in
     const now = new Date();
     const etHour = parseInt(now.toLocaleString('en-US', { timeZone: 'America/New_York', hour: 'numeric', hour12: false }));
     const etMin = parseInt(now.toLocaleString('en-US', { timeZone: 'America/New_York', minute: 'numeric' }));
     const etTime = etHour + etMin / 60;
 
-    // Arvo session starts ~11:30 ET, morning ~9:30 ET
+    // Arvo session starts ~12:00 ET, morning ~9:45 ET
     const isArvo = state.mode === 'arvo';
-    const sessionStart = isArvo ? 11.5 : 9.5;
-    const gateEnd = sessionStart + 2; // 2-hour delay
+    const sessionStart = isArvo ? 12.0 : 9.75;
+    const gateEnd = sessionStart + 2; // 2-hour gate
 
-    let mult, window, windowColor;
+    let mult, window, windowColor, tier;
     if (etTime < sessionStart) {
-      // Pre-session
-      mult = 1.5;
-      window = '1.5× STOP (pre-session)';
+      // Pre-session — show what will happen
+      mult = 2;
+      tier = 'PRE';
+      window = '2× STOP (pre-session — waiting for entry)';
       windowColor = 'var(--textDim)';
     } else if (etTime < gateEnd) {
-      // First 2 hours: no stop, ride out noise
-      mult = 0;
+      // First 2 hours: wide 2× stop to survive noise
+      mult = 2;
+      tier = 'EARLY';
       const minsLeft = Math.round((gateEnd - etTime) * 60);
-      window = 'NO STOP — ' + minsLeft + 'min until gate';
-      windowColor = 'var(--green)';
+      window = '2× WIDE STOP — ' + minsLeft + 'min until tighten to 1.5×';
+      windowColor = 'var(--gold)';
     } else {
-      // After 2 hours: 1.5× stop active
+      // After 2 hours: tighten to 1.5× — theta has decayed
       mult = 1.5;
-      window = '1.5× STOP ACTIVE (theta decayed)';
+      tier = 'LATE';
+      window = '1.5× TIGHT STOP (theta decayed)';
       windowColor = 'var(--red)';
     }
 
-    const stopSpreadVal = mult > 0 ? f2(credit * mult) : '—';
-    const maxLoss = mult > 0 ? f2((credit * mult) - credit) : '—';
-    return { mult, stopSpreadVal, maxLoss, window, windowColor };
+    const stopSpreadVal = f2(credit * mult);
+    const maxLoss = f2((credit * mult) - credit);
+    const emergencyStop = f2(credit * 3);
+    return { mult, stopSpreadVal, maxLoss, window, windowColor, tier, emergencyStop };
   }
   const stopInfo = getStopLevel(orderCredit);
   // Conviction — factors: credit quality, VIX regime size, GEX, macro risk
@@ -1751,9 +1757,12 @@ function scan() {
           <div style="font-size:10px;color:${convColor};margin-top:2px">${convLabel}</div>
         </div>
         <div style="padding:12px 16px;border-right:1px solid var(--border)">
-          <div style="font-size:9px;color:var(--red);letter-spacing:1px;margin-bottom:4px">STOP SPREAD ≥</div>
-          <div class="chakra" style="font-size:20px;font-weight:700;color:var(--red)">$${stopInfo.stopSpreadVal}</div>
+          <div style="font-size:9px;color:var(--textDim);letter-spacing:1px;margin-bottom:4px">CURRENT STOP</div>
+          <div class="chakra" style="font-size:20px;font-weight:700;color:${stopInfo.windowColor}">$${stopInfo.stopSpreadVal}</div>
           <div style="font-size:10px;color:${stopInfo.windowColor};margin-top:2px">${stopInfo.window}</div>
+          <div style="font-size:9px;color:var(--textDim);margin-top:6px;line-height:1.4">
+            <span style="color:var(--gold)">2×</span> $${f2(orderCredit*2)} first 2hrs · <span style="color:var(--red)">1.5×</span> $${f2(orderCredit*1.5)} after · <span style="color:var(--red)">3×</span> $${stopInfo.emergencyStop} emergency
+          </div>
         </div>
         <div style="padding:12px 16px">
           <div style="font-size:9px;color:var(--textDim);letter-spacing:1px;margin-bottom:4px">MAX LOSS ${adjContracts}CT</div>
@@ -1801,11 +1810,12 @@ function scan() {
         ${pB.html}
         ${mkRows([
           {l:'SELL',v:`SPX ${recRow.sP} P`,big:1},{l:'BUY',v:`SPX ${recRow.lP} P`},
-          {l:pB.live?'LIVE FILL':'FILL EST.',v:`\$${f2(pF)}`,big:1,color:pF>=0.80?'var(--green)':'var(--red)',ls:pB.live?'color:var(--green)':''},
+          {l:pB.live?'LIVE FILL':'FILL EST.',v:`\$${f2(pF)}`,big:1,color:pF>=0.60?'var(--green)':'var(--red)',ls:pB.live?'color:var(--green)':''},
           {l:'WIN PROB',v:`${recRow.putProb}%`,color:'var(--gold)'},
           {l:'50% TGT',v:`\$${f2(pF*0.5)}`,color:'var(--green)'},
-          {l:'STOP SPREAD ≥',v:`\$${f2(pF * stopInfo.mult)}`,big:1,color:'var(--red)'},
-          {l:'STOP LOSS/CT',v:`-\$${f2(pF * stopInfo.mult - pF)}`,color:'var(--red)'},
+          {l:'STOP 2× (0-2hr)',v:`\$${f2(pF * 2)}`,color:'var(--gold)'},
+          {l:'STOP 1.5× (2hr+)',v:`\$${f2(pF * 1.5)}`,big:1,color:'var(--red)'},
+          {l:'EMERGENCY 3×',v:`\$${f2(pF * 3)}`,color:'var(--red)'},
           {l:'CTRS',v:adjContracts,color:'var(--green)'},{l:'INCOME',v:fmt$(pF*adjContracts*100),color:'var(--green)'},
         ])}
         ${isBearish?'<div style="margin-top:6px;padding:8px 10px;background:rgba(255,71,87,0.1);border:2px solid rgba(255,71,87,0.4);font-size:11px;color:var(--red);font-weight:700">🐻 BEARISH DAY — DO NOT ENTER</div>':!pB.live&&!recRow.putOK?'<div style="margin-top:6px;padding:5px 8px;background:rgba(255,71,87,0.08);border:1px solid rgba(255,71,87,0.25);font-size:10px;color:var(--red)">\u26A0 Below $0.80</div>':''}
@@ -1817,11 +1827,12 @@ function scan() {
         ${cB.html}
         ${mkRows([
           {l:'SELL',v:`SPX ${recRow.sC} C`,big:1},{l:'BUY',v:`SPX ${recRow.lC} C`},
-          {l:cB.live?'LIVE FILL':'FILL EST.',v:`\$${f2(cF)}`,big:1,color:cF>=0.80?'var(--orange)':'var(--red)'},
+          {l:cB.live?'LIVE FILL':'FILL EST.',v:`\$${f2(cF)}`,big:1,color:cF>=0.60?'var(--orange)':'var(--red)'},
           {l:'WIN PROB',v:`${recRow.callProb}%`,color:'var(--gold)'},
           {l:'50% TGT',v:`\$${f2(cF*0.5)}`,color:'var(--green)'},
-          {l:'STOP SPREAD ≥',v:`\$${f2(cF * stopInfo.mult)}`,big:1,color:'var(--red)'},
-          {l:'STOP LOSS/CT',v:`-\$${f2(cF * stopInfo.mult - cF)}`,color:'var(--red)'},
+          {l:'STOP 2× (0-2hr)',v:`\$${f2(cF * 2)}`,color:'var(--gold)'},
+          {l:'STOP 1.5× (2hr+)',v:`\$${f2(cF * 1.5)}`,big:1,color:'var(--red)'},
+          {l:'EMERGENCY 3×',v:`\$${f2(cF * 3)}`,color:'var(--red)'},
           {l:'CTRS',v:adjContracts,color:'var(--green)'},{l:'INCOME',v:fmt$(cF*adjContracts*100),color:'var(--green)'},
         ])}
         ${isBearish?'<div style="margin-top:6px;padding:5px 8px;background:rgba(0,208,132,0.08);border:1px solid rgba(0,208,132,0.25);font-size:10px;color:var(--green)">✓ Correct direction for bearish bias</div>':'<div style="margin-top:6px;padding:5px 8px;background:rgba(240,180,41,0.05);border:1px solid rgba(240,180,41,0.15);font-size:10px;color:var(--gold)">Use on confirmed bearish days only</div>'}
@@ -1855,11 +1866,13 @@ function scan() {
         <div style="font-size:10px;color:var(--gold);letter-spacing:2px;margin-bottom:10px;font-weight:700">HARD RULES \u00B7 ${useIC?'IC':'PUT SPREAD'}</div>
         ${[
           {rule:'MIN CREDIT',detail:useIC?'$0.60+ combined':'$0.60+ spread',c:'var(--gold)'},
-          {rule:'1.5\u00D7 TIME-GATED',detail:stopInfo.mult>0?'Close if spread \u2265 $'+stopInfo.stopSpreadVal+' (1.5\u00D7 credit)':stopInfo.window,c:'var(--red)'},
+          {rule:'STOP \u00B7 FIRST 2HRS',detail:'2\u00D7 wide stop \u2014 Close if spread \u2265 $'+f2(orderCredit*2),c:'var(--gold)'},
+          {rule:'STOP \u00B7 AFTER 2HRS',detail:'1.5\u00D7 tight stop \u2014 Close if spread \u2265 $'+f2(orderCredit*1.5),c:'var(--red)'},
+          {rule:'EMERGENCY',detail:'3\u00D7 ($'+stopInfo.emergencyStop+') or strike breach \u2192 close immediately',c:'var(--red)'},
           {rule:'HOLD EXPIRY',detail:'Let full credit expire worthless',c:'var(--green)'},
           {rule:'VIX SPIKE',detail:'+20% intra \u2192 close all',c:'var(--red)'},
           {rule:'SIZE',detail:Math.round(regime.size*100)+'% \u00B7 '+regime.level,c:regime.color},
-          {rule:'HARD CLOSE',detail:'6:00 AM AEDT',c:'var(--gold)'},
+          {rule:'HARD CLOSE',detail:'6:00 AM AEDT / 3:00 PM ET',c:'var(--gold)'},
         ].map(r => '<div style="margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid var(--border)"><div style="font-size:11px;color:'+r.c+';letter-spacing:1px;font-weight:700">'+r.rule+'</div><div style="font-size:11px;color:var(--textMid);margin-top:2px">'+r.detail+'</div></div>').join('')}
         <div style="font-size:10px;color:var(--textDim);letter-spacing:2px;margin:10px 0 6px;font-weight:700">ENTRY WINDOWS</div>
         ${[
@@ -3181,7 +3194,24 @@ function resetAllData() {
 // CLOCK
 // ══════════════════════════════════════════════════════════════════════════════
 function updateClock() {
-  document.getElementById('clock').textContent = new Date().toLocaleTimeString('en-AU', { hour:'2-digit', minute:'2-digit', second:'2-digit', timeZone:'Australia/Sydney' });
+  const now = new Date();
+  document.getElementById('clock').textContent = now.toLocaleTimeString('en-AU', { hour:'2-digit', minute:'2-digit', second:'2-digit', timeZone:'Australia/Sydney' });
+  const etEl = document.getElementById('clockET');
+  if (etEl) {
+    const etTime = now.toLocaleTimeString('en-US', { hour:'2-digit', minute:'2-digit', second:'2-digit', hour12:true, timeZone:'America/New_York' });
+    // Determine market status
+    const etH = parseInt(now.toLocaleString('en-US', { timeZone:'America/New_York', hour:'numeric', hour12:false }));
+    const etM = parseInt(now.toLocaleString('en-US', { timeZone:'America/New_York', minute:'numeric' }));
+    const etDec = etH + etM / 60;
+    const day = now.toLocaleString('en-US', { timeZone:'America/New_York', weekday:'short' });
+    const isWeekday = !['Sat','Sun'].includes(day);
+    let mktStatus = '', mktColor = 'var(--textDim)';
+    if (!isWeekday) { mktStatus = ' · CLOSED'; mktColor = 'var(--red)'; }
+    else if (etDec < 9.5) { mktStatus = ' · PRE-MKT'; mktColor = 'var(--gold)'; }
+    else if (etDec < 16) { mktStatus = ' · OPEN'; mktColor = 'var(--green)'; }
+    else { mktStatus = ' · CLOSED'; mktColor = 'var(--red)'; }
+    etEl.innerHTML = etTime + '<span style="font-size:10px;color:'+mktColor+';margin-left:6px">'+mktStatus+'</span>';
+  }
 }
 setInterval(updateClock, 1000);
 updateClock();
