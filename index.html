@@ -535,15 +535,15 @@ input, select, button, textarea { font-family: 'IBM Plex Mono', monospace; outli
       <div class="form-group">
         <label>STOP LOSS MODE</label>
         <select id="bt-stopMode" style="font-size:12px" onchange="updateStopDesc()">
-          <option value="premium" selected>Premium Multiple</option>
-          <option value="timegated">Time-Gated (2hr delay)</option>
+          <option value="premium">Premium Multiple</option>
+          <option value="timegated" selected>Time-Gated (2hr delay)</option>
           <option value="points">SPX Points</option>
           <option value="time">Time-Based %</option>
         </select>
       </div>
       <div class="form-group">
         <label>STOP VALUE</label>
-        <input type="number" id="bt-stopVal" value="2" step="0.5" min="1" style="font-size:14px;font-weight:700">
+        <input type="number" id="bt-stopVal" value="1.5" step="0.5" min="1" style="font-size:14px;font-weight:700">
         <div style="font-size:9px;color:var(--textDim);margin-top:2px" id="bt-stopDesc">× credit received<br><span style="color:var(--gold)">e.g. 2× = close if spread hits 2× your credit ($1.00 credit → stop at $2.00)</span></div>
       </div>
       <div class="form-group">
@@ -597,12 +597,12 @@ input, select, button, textarea { font-family: 'IBM Plex Mono', monospace; outli
       </div>
       <div class="form-group">
         <label>MIN CREDIT</label>
-        <input type="number" id="bt-minCredit" value="0.80" step="0.05" min="0.50" style="font-size:14px;font-weight:700">
+        <input type="number" id="bt-minCredit" value="0.60" step="0.05" min="0.50" style="font-size:14px;font-weight:700">
       </div>
       <div class="form-group">
         <label>STOP PROXIMITY %</label>
-        <input type="number" id="bt-proximity" value="35" step="5" min="0" max="100" style="font-size:14px;font-weight:700">
-        <div style="font-size:9px;color:var(--textDim);margin-top:2px">% of buffer remaining<br><span style="color:var(--gold)">35% = stop triggers when SPX is 65% of the way to strike</span></div>
+        <input type="number" id="bt-proximity" value="25" step="5" min="0" max="100" style="font-size:14px;font-weight:700">
+        <div style="font-size:9px;color:var(--textDim);margin-top:2px">% of buffer remaining<br><span style="color:var(--gold)">25% = stop triggers when SPX is 75% of the way to strike</span></div>
       </div>
       <div style="display:flex;align-items:flex-end">
         <button class="btn" style="width:100%;padding:12px;font-size:14px;font-weight:700;color:var(--green);border-color:var(--green);cursor:pointer;letter-spacing:2px" onclick="runBacktest()">RUN BACKTEST</button>
@@ -1594,7 +1594,7 @@ function scan() {
 
   // FIXED 2× PREMIUM STOP (backtested optimal: 2× stop + hold to expiry)
   function getStopLevel(credit) {
-    // Time-gated stop: no stop first 2 hours, then 2× kicks in
+    // Time-gated stop: no stop first 2 hours, then 1.5× kicks in
     const now = new Date();
     const etHour = parseInt(now.toLocaleString('en-US', { timeZone: 'America/New_York', hour: 'numeric', hour12: false }));
     const etMin = parseInt(now.toLocaleString('en-US', { timeZone: 'America/New_York', minute: 'numeric' }));
@@ -1608,8 +1608,8 @@ function scan() {
     let mult, window, windowColor;
     if (etTime < sessionStart) {
       // Pre-session
-      mult = 2.0;
-      window = '2× STOP (pre-session)';
+      mult = 1.5;
+      window = '1.5× STOP (pre-session)';
       windowColor = 'var(--textDim)';
     } else if (etTime < gateEnd) {
       // First 2 hours: no stop, ride out noise
@@ -1618,9 +1618,9 @@ function scan() {
       window = 'NO STOP — ' + minsLeft + 'min until gate';
       windowColor = 'var(--green)';
     } else {
-      // After 2 hours: 2× stop active
-      mult = 2.0;
-      window = '2× STOP ACTIVE (theta decayed)';
+      // After 2 hours: 1.5× stop active
+      mult = 1.5;
+      window = '1.5× STOP ACTIVE (theta decayed)';
       windowColor = 'var(--red)';
     }
 
@@ -1635,7 +1635,7 @@ function scan() {
   // Base conviction from credit quality
   if (orderCredit >= 1.00) {
     conviction = 'A+'; convColor = 'var(--green)'; convLabel = 'HIGH';
-  } else if (orderCredit >= 0.80) {
+  } else if (orderCredit >= 0.60) {
     conviction = 'B'; convColor = 'var(--gold)'; convLabel = 'MODERATE';
   } else {
     conviction = 'C'; convColor = 'var(--red)'; convLabel = 'LOW — Skip or 1ct';
@@ -1737,7 +1737,7 @@ function scan() {
         </div>
         <div style="padding:12px 16px;border-right:1px solid var(--border)">
           <div style="font-size:9px;color:var(--textDim);letter-spacing:1px;margin-bottom:4px">TARGET CREDIT</div>
-          <div class="chakra" style="font-size:20px;font-weight:700;color:${orderCredit >= 0.80 ? orderColor : 'var(--red)'}">$${f2(orderCredit)}</div>
+          <div class="chakra" style="font-size:20px;font-weight:700;color:${orderCredit >= 0.60 ? orderColor : 'var(--red)'}">$${f2(orderCredit)}</div>
           <div style="font-size:10px;color:var(--textDim);margin-top:2px">${fmt$(adjIncome)} total</div>
         </div>
         <div style="padding:12px 16px;border-right:1px solid var(--border)">
@@ -2148,8 +2148,8 @@ function getPlaybook() {
     Mon: {
       trades: [
         { name: 'Weekly Spread', time: '12:45-1:00', dte: '5DTE', delta: '\u0394 0.10', credit: '$1.00 min', contracts: wklyLabel, type: 'put' },
-        { name: '0DTE Morning', time: '1:00-1:15', dte: '0DTE', delta: mornDelta, credit: '$0.80 min', contracts: 'phase', type: 'put' },
-        ...(dual ? [{ name: '0DTE Arvo', time: '3:00-4:00', dte: '0DTE', delta: arvoDelta, credit: '$0.80 min', contracts: 'phase', type: 'put' }] : []),
+        { name: '0DTE Morning', time: '1:00-1:15', dte: '0DTE', delta: mornDelta, credit: '$0.60 min', contracts: 'phase', type: 'put' },
+        ...(dual ? [{ name: '0DTE Arvo', time: '3:00-4:00', dte: '0DTE', delta: arvoDelta, credit: '$0.60 min', contracts: 'phase', type: 'put' }] : []),
       ],
       rules: [
         `Open weekly put spread first (${wklyCt}ct)`,
@@ -2161,8 +2161,8 @@ function getPlaybook() {
     },
     Tue: {
       trades: [
-        { name: '0DTE Morning', time: '1:00-1:15', dte: '0DTE', delta: mornDelta, credit: '$0.80 min', contracts: 'phase', type: 'put' },
-        ...(dual ? [{ name: '0DTE Arvo', time: '3:00-4:00', dte: '0DTE', delta: arvoDelta, credit: '$0.80 min', contracts: 'phase', type: 'put' }] : []),
+        { name: '0DTE Morning', time: '1:00-1:15', dte: '0DTE', delta: mornDelta, credit: '$0.60 min', contracts: 'phase', type: 'put' },
+        ...(dual ? [{ name: '0DTE Arvo', time: '3:00-4:00', dte: '0DTE', delta: arvoDelta, credit: '$0.60 min', contracts: 'phase', type: 'put' }] : []),
       ],
       rules: [
         'Morning session primary — Δ0.12 put spread, hold to expiry',
@@ -2176,8 +2176,8 @@ function getPlaybook() {
     },
     Wed: {
       trades: [
-        { name: '0DTE Morning', time: '1:00-1:15', dte: '0DTE', delta: mornDelta, credit: '$0.80 min', contracts: 'phase', type: 'put' },
-        ...(dual ? [{ name: '0DTE Arvo', time: '3:00-4:00', dte: '0DTE', delta: arvoDelta, credit: '$0.80 min', contracts: 'phase', type: 'put' }] : []),
+        { name: '0DTE Morning', time: '1:00-1:15', dte: '0DTE', delta: mornDelta, credit: '$0.60 min', contracts: 'phase', type: 'put' },
+        ...(dual ? [{ name: '0DTE Arvo', time: '3:00-4:00', dte: '0DTE', delta: arvoDelta, credit: '$0.60 min', contracts: 'phase', type: 'put' }] : []),
       ],
       rules: [
         'FOMC day = NO TRADE (both sessions)',
@@ -2193,7 +2193,7 @@ function getPlaybook() {
     Thu: {
       trades: [
         { name: 'Weekly Check', time: '-', dte: '5DTE', delta: '-', credit: '-', contracts: wklyLabel, type: 'check' },
-        { name: '0DTE Morning', time: '1:00-1:15', dte: '0DTE', delta: mornDelta, credit: '$0.80 min', contracts: 'phase', type: 'put' },
+        { name: '0DTE Morning', time: '1:00-1:15', dte: '0DTE', delta: mornDelta, credit: '$0.60 min', contracts: 'phase', type: 'put' },
         ...(dual ? [{ name: '0DTE Arvo', time: '3:00-4:00', dte: '0DTE', delta: arvoDelta, credit: '$0.85 min', contracts: 'phase', type: 'put' }] : []),
       ],
       rules: [
