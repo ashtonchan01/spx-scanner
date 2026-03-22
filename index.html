@@ -2092,7 +2092,10 @@ function drawPnLChart(trades) {
 // Phase-aware playbook: All phases get morning session (primary), Phase 3+ adds arvo
 function getPlaybook() {
   const ph = getPhase(traderData.currentCapital);
-  const contracts0DTE = ph.perK ? Math.max(1, Math.floor(traderData.currentCapital / ph.perK)) : 2;
+  const rawContracts = ph.perK ? Math.max(1, Math.floor(traderData.currentCapital / ph.perK)) : 2;
+  // Apply regime size adjustment so playbook matches order panel
+  const pbRegime = getRegime(state.vix);
+  const contracts0DTE = Math.max(1, Math.round(rawContracts * pbRegime.size));
   const dual = ph.id >= 3; // Phase 3+ gets morning + arvo
   const stagger = ph.id >= 3;
   const sizeNote = stagger ? (ph.id >= 4 ? 'Scale in 3 batches' : 'Scale in 2 batches (50/50)') : '';
@@ -2213,14 +2216,18 @@ function renderPlaybook() {
 
   const day = PLAYBOOK[selectedPlaybookDay];
   const pbPhase = getPhase(traderData.currentCapital);
-  const pbContracts = pbPhase.perK ? Math.max(1, Math.floor(traderData.currentCapital / pbPhase.perK)) : 2;
+  const pbContractsRaw = pbPhase.perK ? Math.max(1, Math.floor(traderData.currentCapital / pbPhase.perK)) : 2;
+  // Apply regime size adjustment (same as order panel)
+  const pbRegime = getRegime(state.vix);
+  const pbContracts = Math.max(1, Math.round(pbContractsRaw * pbRegime.size));
+  const pbSizeNote = pbRegime.size < 1 ? ` (${Math.round(pbRegime.size*100)}% — ${pbRegime.level} VIX)` : '';
 
   document.getElementById('playbook-day-content').innerHTML = `
     <div class="day-card ${selectedPlaybookDay===todayName?'today':''}">
       <div class="day-header" style="color:var(--white)">${selectedPlaybookDay.toUpperCase()} PLAYBOOK</div>
       <div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap">
         <span style="font-size:10px;padding:4px 8px;background:rgba(255,71,87,0.1);border:1px solid rgba(255,71,87,0.3);color:var(--red)">HARD CLOSE: ${day.hardClose}</span>
-        <span style="font-size:10px;padding:4px 8px;background:rgba(0,208,132,0.1);border:1px solid rgba(0,208,132,0.3);color:var(--green)">PHASE ${pbPhase.id}: ${pbContracts} CONTRACTS</span>
+        <span style="font-size:10px;padding:4px 8px;background:rgba(0,208,132,0.1);border:1px solid rgba(0,208,132,0.3);color:var(--green)">PHASE ${pbPhase.id}: ${pbContracts} CONTRACTS${pbSizeNote}</span>
         <span style="font-size:10px;padding:4px 8px;background:${dual?'rgba(0,229,255,0.1)':'rgba(255,215,0,0.1)'};border:1px solid ${dual?'rgba(0,229,255,0.3)':'rgba(255,215,0,0.3)'};color:${dual?'var(--cyan)':'var(--gold)'}">${dual?'DUAL SESSION: MORN + ARVO':'MORNING PRIMARY'}</span>
       </div>
 
