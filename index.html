@@ -570,7 +570,7 @@ input, select, button, textarea { font-family: 'IBM Plex Mono', monospace; outli
           <option value="put" selected>Put Spread</option>
           <option value="call">Call Spread</option>
           <option value="ic">Iron Condor</option>
-          <option value="auto">Auto (VIX-based)</option>
+          <option value="auto">Auto (SMA+EMA+VIX)</option>
         </select>
       </div>
       <div class="form-group">
@@ -2939,18 +2939,53 @@ function runBacktest() {
   const profitPct = parseFloat(document.getElementById('bt-profitTgt').value);
   const contractMode = document.getElementById('bt-contracts').value;
   const minCredit = parseFloat(document.getElementById('bt-minCredit').value);
-  const proximity = parseFloat(document.getElementById('bt-proximity').value) / 100; // e.g. 0.35
+  const proximity = parseFloat(document.getElementById('bt-proximity').value) / 100;
   const SLIPPAGE = 0.05;
 
   document.getElementById('bt-dataRange').textContent = `${HIST_DATA[0][0]} to ${HIST_DATA[HIST_DATA.length-1][0]} · ${HIST_DATA.length} trading days`;
 
-  // Reuse scanner's BSM functions (bsm, findStrike already defined globally)
+  // ── Pre-calculate rolling indicators ──
+  const closes = HIST_DATA.map(d => d[4]);
+
+  // 200 SMA
+  const sma200 = [];
+  for (let i = 0; i < closes.length; i++) {
+    if (i < 199) { sma200.push(null); continue; }
+    let sum = 0;
+    for (let j = i - 199; j <= i; j++) sum += closes[j];
+    sma200.push(sum / 200);
+  }
+
+  // 8 EMA (on daily closes as proxy for 10-min 8 EMA momentum)
+  const ema8 = [];
+  const emaK = 2 / (8 + 1); // multiplier
+  for (let i = 0; i < closes.length; i++) {
+    if (i === 0) { ema8.push(closes[0]); continue; }
+    ema8.push(closes[i] * emaK + ema8[i-1] * (1 - emaK));
+  }
+
+  // VIX regime classification for market mechanics
+  // Approximate GEX using VIX change rate + level:
+  // - Falling VIX + low VIX = positive GEX (dealer hedging supports, mean-reversion)
+  // - Rising VIX + high VIX = negative GEX (dealer hedging amplifies moves, trend)
+  const vixArr = HIST_DATA.map(d => d[5]);
+  const gexProxy = [];
+  for (let i = 0; i < vixArr.length; i++) {
+    if (i < 5) { gexProxy.push('neutral'); continue; }
+    // 5-day VIX change
+    const vixChg = vixArr[i] - vixArr[i-5];
+    const vixLevel = vixArr[i];
+    if (vixLevel < 18 && vixChg <= 0) gexProxy.push('positive');      // Low & falling VIX = +GEX, mean-revert
+    else if (vixLevel > 25 && vixChg > 2) gexProxy.push('negative');   // High & spiking VIX = -GEX, trending
+    else if (vixLevel > 22 && vixChg > 0) gexProxy.push('cautious');   // Elevated & rising = reduce size
+    else gexProxy.push('neutral');
+  }
 
   function getPhaseForCap(cap) {
     if (cap >= 300000) return { perK: 12000 };
     if (cap >= 75000) return { perK: 8000 };
     if (cap >= 25000) return { perK: 6000 };
-    return { perK: 0 }; // fixed 2
+    return { perK: 0 };
   }
 
   const trades = [];
@@ -2961,29 +2996,102 @@ function runBacktest() {
   let monthlyPnL = {};
   let dayOfWeekStats = { Mon:{ w:0,l:0 }, Tue:{ w:0,l:0 }, Wed:{ w:0,l:0 }, Thu:{ w:0,l:0 }, Fri:{ w:0,l:0 } };
   let vixBuckets = { 'VIX<15':{ w:0,l:0 }, '15-20':{ w:0,l:0 }, '20-25':{ w:0,l:0 }, '25-30':{ w:0,l:0 }, 'VIX>30':{ w:0,l:0 } };
+  let biasStats = { 'BULL→Put':{ w:0,l:0 }, 'BEAR→Call':{ w:0,l:0 }, 'NEUT→IC':{ w:0,l:0 }, 'CAUTION→Skip':{ w:0,l:0,skipped:0 }, 'No200SMA':{ w:0,l:0 } };
+  let gexStats = { 'positive':{ w:0,l:0 }, 'neutral':{ w:0,l:0 }, 'cautious':{ w:0,l:0 }, 'negative':{ w:0,l:0 } };
   const dayNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 
   for (let i = 0; i < HIST_DATA.length; i++) {
     const [date, open, high, low, close, vix] = HIST_DATA[i];
     const dow = new Date(date).getDay();
     const dayName = dayNames[dow];
-    if (dow === 0 || dow === 6) continue; // skip weekends
+    if (dow === 0 || dow === 6) continue;
 
     const iv = vix / 100;
-    const T = (3.5/24)/365; // arvo session
+    const T = (3.5/24)/365;
     const r = 0.045;
 
-    // Determine strategy for this day
+    // ── Determine strategy ──
     let strat = strategy;
-    if (strategy === 'auto') strat = vix < 22 ? 'ic' : 'put';
+    let biasLabel = '';
+    let skipDay = false;
 
-    // Calculate contracts
+    if (strategy === 'auto') {
+      const s200 = sma200[i];
+      const e8 = ema8[i];
+      const gex = gexProxy[i];
+
+      if (s200 === null) {
+        // Not enough data for 200 SMA yet — use simple VIX logic
+        strat = vix < 22 ? 'put' : 'put';
+        biasLabel = 'No200SMA';
+      } else {
+        // Dual filter: 200 SMA (structural) + 8 EMA (momentum)
+        const aboveSMA = close > s200;
+        const aboveEMA = close > e8;
+
+        if (aboveSMA && aboveEMA) {
+          // Strong BULL: price above both → sell puts
+          strat = 'put';
+          biasLabel = 'BULL→Put';
+        } else if (!aboveSMA && !aboveEMA) {
+          // Strong BEAR: price below both → sell calls
+          strat = 'call';
+          biasLabel = 'BEAR→Call';
+        } else if (aboveSMA && !aboveEMA) {
+          // Above 200 SMA but below 8 EMA → pullback in uptrend
+          // Cautious: smaller position or skip based on GEX
+          if (gex === 'negative') {
+            skipDay = true;
+            biasLabel = 'CAUTION→Skip';
+          } else {
+            strat = 'put'; // still bullish structure, just weaker
+            biasLabel = 'BULL→Put';
+          }
+        } else { // below SMA, above EMA
+          // Below 200 SMA but above 8 EMA → bounce in downtrend
+          if (gex === 'negative') {
+            skipDay = true;
+            biasLabel = 'CAUTION→Skip';
+          } else {
+            strat = 'call'; // still bearish structure
+            biasLabel = 'BEAR→Call';
+          }
+        }
+
+        // Market mechanics override: negative GEX + high VIX = skip entirely
+        if (gex === 'negative' && vix > 28) {
+          skipDay = true;
+          biasLabel = 'CAUTION→Skip';
+        }
+
+        // Neutral zone: when EMA and SMA are within 0.5% of each other → IC opportunity
+        if (!skipDay && s200 && Math.abs(close - s200) / s200 < 0.005 && gex !== 'negative') {
+          strat = 'ic';
+          biasLabel = 'NEUT→IC';
+        }
+      }
+    }
+
+    if (skipDay) {
+      if (biasStats[biasLabel]) biasStats[biasLabel].skipped = (biasStats[biasLabel].skipped || 0) + 1;
+      continue;
+    }
+
+    // ── Calculate contracts ──
     let cts;
     if (contractMode === 'phase') {
       const ph = getPhaseForCap(capital);
       cts = ph.perK > 0 ? Math.max(1, Math.floor(capital / ph.perK)) : 2;
     } else {
-      cts = Math.max(1, Math.floor(capital / 6000)); // default 1 per $6k
+      cts = Math.max(1, Math.floor(capital / 6000));
+    }
+
+    // GEX-based size adjustment: reduce on cautious/negative GEX
+    const gex = gexProxy[i];
+    if (strategy === 'auto') {
+      if (gex === 'cautious') cts = Math.max(1, Math.round(cts * 0.5));
+      // negative GEX days that weren't skipped: minimum size
+      if (gex === 'negative') cts = 1;
     }
 
     // Find strikes
@@ -3000,25 +3108,18 @@ function runBacktest() {
     else if (strat === 'call') credit = callCredit;
     else credit = putCredit;
 
-    // Skip if below min credit
     if (credit < minCredit) continue;
 
-    // Determine win/loss using daily high/low
-    // Since we only have daily OHLC, approximate arvo session range:
-    // Arvo = last 3.5hrs of 6.5hr session ≈ 54% of daily range
-    // Use close as arvo midpoint, scale range accordingly
+    // ── Breach detection with proximity model ──
     const dailyRange = high - low;
     const arvoFraction = 0.54;
     const arvoRange = dailyRange * arvoFraction;
-    // Estimate arvo low/high centered around close (arvo tends to end near close)
     const arvoLow = Math.min(close, open) - arvoRange * 0.3;
     const arvoHigh = Math.max(close, open) + arvoRange * 0.3;
-    // Proximity-based breach: stop triggers when SPX gets within proximity% of buffer to strike
-    // e.g. 35% proximity with buffer of 25pts → stop when SPX is within 8.75pts of strike (moved 65% of the way)
-    const putBuffer = open - sP; // distance from entry to short put
-    const callBuffer = sC - open; // distance from entry to short call
-    const putStopLevel = sP + putBuffer * proximity; // trigger level above the strike
-    const callStopLevel = sC - callBuffer * proximity; // trigger level below the strike
+    const putBuffer = open - sP;
+    const callBuffer = sC - open;
+    const putStopLevel = sP + putBuffer * proximity;
+    const callStopLevel = sC - callBuffer * proximity;
     let putBreached = arvoLow <= putStopLevel;
     let callBreached = arvoHigh >= callStopLevel;
     let result, pnl;
@@ -3026,20 +3127,18 @@ function runBacktest() {
     // Stop calculation
     let stopPrice;
     if (stopMode === 'premium') {
-      stopPrice = credit * stopVal; // e.g. 2× credit
+      stopPrice = credit * stopVal;
     } else if (stopMode === 'points') {
-      stopPrice = null; // use point-based logic
-    } else { // time-based - approximate with 2.5× average
+      stopPrice = null;
+    } else {
       stopPrice = credit * 2.5;
     }
 
     if (strat === 'put') {
       if (stopMode === 'points' && arvoLow <= (sP - stopVal)) {
-        // Points-based stop hit
         result = 'LOSS';
-        pnl = -(stopVal / width) * (width - credit) * cts * 100; // approximate
+        pnl = -(stopVal / width) * (width - credit) * cts * 100;
       } else if (putBreached && stopPrice) {
-        // Premium stop hit - estimate loss as stopPrice - credit
         result = 'LOSS';
         pnl = -(stopPrice - credit) * cts * 100;
       } else {
@@ -3073,26 +3172,22 @@ function runBacktest() {
     capital += pnl;
     if (capital < 0) capital = 0;
 
-    trades.push({ date, strat, credit: credit.toFixed(2), cts, result, pnl: Math.round(pnl), capital: Math.round(capital), vix, dayName });
+    trades.push({ date, strat, credit: credit.toFixed(2), cts, result, pnl: Math.round(pnl), capital: Math.round(capital), vix, dayName, bias: biasLabel, gex });
     equity.push({ date, value: Math.round(capital) });
 
-    // Track max drawdown
     if (capital > maxEquity) maxEquity = capital;
     const dd = (maxEquity - capital) / maxEquity;
     if (dd > maxDrawdown) maxDrawdown = dd;
 
-    // Monthly P&L
     const month = date.slice(0,7);
     if (!monthlyPnL[month]) monthlyPnL[month] = 0;
     monthlyPnL[month] += pnl;
 
-    // Day of week stats
     if (dayOfWeekStats[dayName]) {
       if (result === 'WIN') dayOfWeekStats[dayName].w++;
       else dayOfWeekStats[dayName].l++;
     }
 
-    // VIX bucket stats
     let bucket;
     if (vix < 15) bucket = 'VIX<15';
     else if (vix < 20) bucket = '15-20';
@@ -3101,6 +3196,18 @@ function runBacktest() {
     else bucket = 'VIX>30';
     if (result === 'WIN') vixBuckets[bucket].w++;
     else vixBuckets[bucket].l++;
+
+    // Track bias stats (auto mode)
+    if (biasLabel && biasStats[biasLabel]) {
+      if (result === 'WIN') biasStats[biasLabel].w++;
+      else biasStats[biasLabel].l++;
+    }
+
+    // Track GEX stats
+    if (gexStats[gex]) {
+      if (result === 'WIN') gexStats[gex].w++;
+      else gexStats[gex].l++;
+    }
   }
 
   // Calculate summary stats
@@ -3141,7 +3248,7 @@ function runBacktest() {
       <canvas id="bt-equity" width="1200" height="300" style="width:100%;height:300px"></canvas>
     </div>
 
-    <!-- BREAKDOWNS -->
+    <!-- BREAKDOWNS ROW 1 -->
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:12px">
       <!-- DAY OF WEEK -->
       <div class="panel" style="padding:14px">
@@ -3182,6 +3289,47 @@ function runBacktest() {
       </div>
     </div>
 
+    <!-- BREAKDOWNS ROW 2: BIAS + GEX (only shown in Auto mode) -->
+    ${strategy === 'auto' ? `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+      <!-- BIAS FILTER STATS -->
+      <div class="panel" style="padding:14px">
+        <div style="font-size:11px;color:var(--textDim);letter-spacing:2px;margin-bottom:10px">📊 BIAS FILTER (200 SMA + 8 EMA)</div>
+        ${Object.entries(biasStats).map(([label,s])=>{
+          const t=s.w+s.l; const wr=t>0?(s.w/t*100).toFixed(0):'–';
+          const c = parseInt(wr)>=80?'var(--green)':parseInt(wr)>=65?'var(--gold)':'var(--red)';
+          const skipped = s.skipped || 0;
+          const labelColor = label.includes('BULL')?'var(--green)':label.includes('BEAR')?'var(--red)':label.includes('NEUT')?'var(--cyan)':'var(--gold)';
+          return '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border)">' +
+            '<span style="font-size:11px;color:' + labelColor + ';font-weight:700">' + label + '</span>' +
+            '<span style="font-size:11px;color:var(--textDim)">' + (t > 0 ? s.w + 'W ' + s.l + 'L' : '') + (skipped > 0 ? ' · ' + skipped + ' skipped' : '') + '</span>' +
+            '<span class="chakra" style="font-size:14px;font-weight:700;color:' + (t > 0 ? c : 'var(--textDim)') + '">' + (t > 0 ? wr + '%' : '–') + '</span>' +
+          '</div>';
+        }).join('')}
+        <div style="margin-top:8px;font-size:10px;color:var(--textDim)">
+          Auto strategy uses close vs 200 SMA (structural trend) + 8 EMA (momentum). Skips days with conflicting signals + negative GEX.
+        </div>
+      </div>
+      <!-- GEX PROXY STATS -->
+      <div class="panel" style="padding:14px">
+        <div style="font-size:11px;color:var(--textDim);letter-spacing:2px;margin-bottom:10px">⚡ MARKET MECHANICS (GEX PROXY)</div>
+        ${Object.entries(gexStats).map(([gex,s])=>{
+          const t=s.w+s.l; const wr=t>0?(s.w/t*100).toFixed(0):'–';
+          const c = parseInt(wr)>=80?'var(--green)':parseInt(wr)>=65?'var(--gold)':'var(--red)';
+          const gexLabels = { positive: '+GEX (Low VIX, Falling)', neutral: 'Neutral GEX', cautious: 'Cautious (Elevated VIX)', negative: '-GEX (High VIX, Spiking)' };
+          const gexColors = { positive: 'var(--green)', neutral: 'var(--cyan)', cautious: 'var(--gold)', negative: 'var(--red)' };
+          return '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border)">' +
+            '<span style="font-size:11px;color:' + gexColors[gex] + ';font-weight:700">' + gexLabels[gex] + '</span>' +
+            '<span style="font-size:11px;color:var(--textDim)">' + s.w + 'W ' + s.l + 'L</span>' +
+            '<span class="chakra" style="font-size:14px;font-weight:700;color:' + c + '">' + (t > 0 ? wr + '%' : '–') + '</span>' +
+          '</div>';
+        }).join('')}
+        <div style="margin-top:8px;font-size:10px;color:var(--textDim)">
+          GEX approximated from VIX level + 5-day VIX change. +GEX = mean-reversion (good for credit spreads). -GEX = trending (skip or reduce size).
+        </div>
+      </div>
+    </div>` : ''}
+
     <!-- COMPOUNDING MILESTONES -->
     <div class="panel" style="padding:16px;margin-bottom:12px">
       <div style="font-size:12px;color:var(--textDim);letter-spacing:2px;margin-bottom:12px">COMPOUNDING GROWTH — CAPITAL MILESTONES</div>
@@ -3213,21 +3361,24 @@ function runBacktest() {
     <!-- TRADE LOG (last 50) -->
     <div class="panel" style="padding:14px;max-height:400px;overflow-y:auto">
       <div style="font-size:11px;color:var(--textDim);letter-spacing:2px;margin-bottom:10px">RECENT TRADES (last 50)</div>
-      <div style="display:grid;grid-template-columns:90px 50px 60px 60px 50px 50px 70px 80px;gap:0;font-size:10px;color:var(--textDim);letter-spacing:1px;padding:4px 0;border-bottom:1px solid var(--border)">
-        <div>DATE</div><div>DAY</div><div>STRAT</div><div>CREDIT</div><div>VIX</div><div>CTS</div><div>RESULT</div><div>P&L</div>
+      <div style="display:grid;grid-template-columns:${strategy==='auto'?'85px 40px 55px 55px 45px 40px 85px 55px 55px 75px':'90px 50px 60px 60px 50px 50px 70px 80px'};gap:0;font-size:10px;color:var(--textDim);letter-spacing:1px;padding:4px 0;border-bottom:1px solid var(--border)">
+        <div>DATE</div><div>DAY</div><div>STRAT</div><div>CREDIT</div><div>VIX</div><div>CTS</div>${strategy==='auto'?'<div>BIAS</div><div>GEX</div>':''}<div>RESULT</div><div>P&L</div>
       </div>
-      ${trades.slice(-50).reverse().map(t=>`
-        <div style="display:grid;grid-template-columns:90px 50px 60px 60px 50px 50px 70px 80px;gap:0;padding:4px 0;border-bottom:1px solid var(--border);font-size:11px">
+      ${trades.slice(-50).reverse().map(t=>{
+        const gexColors = { positive:'var(--green)', neutral:'var(--cyan)', cautious:'var(--gold)', negative:'var(--red)' };
+        const gexLabels = { positive:'+GEX', neutral:'NEUT', cautious:'CAUT', negative:'-GEX' };
+        return `<div style="display:grid;grid-template-columns:${strategy==='auto'?'85px 40px 55px 55px 45px 40px 85px 55px 55px 75px':'90px 50px 60px 60px 50px 50px 70px 80px'};gap:0;padding:4px 0;border-bottom:1px solid var(--border);font-size:11px">
           <div style="color:var(--text)">${t.date}</div>
           <div style="color:var(--textDim)">${t.dayName}</div>
           <div style="color:${t.strat==='put'?'var(--green)':t.strat==='call'?'var(--orange)':'var(--cyan)'}">${t.strat.toUpperCase()}</div>
           <div style="color:var(--text)">$${t.credit}</div>
-          <div style="color:${t.vix>25?'var(--red)':t.vix>18?'var(--gold)':'var(--green)'}">$${t.vix.toFixed(0)}</div>
+          <div style="color:${t.vix>25?'var(--red)':t.vix>18?'var(--gold)':'var(--green)'}">${t.vix.toFixed(0)}</div>
           <div style="color:var(--text)">${t.cts}</div>
+          ${strategy==='auto'?'<div style="font-size:9px;color:'+(t.bias.includes('BULL')?'var(--green)':t.bias.includes('BEAR')?'var(--red)':'var(--cyan)')+'">'+t.bias+'</div><div style="font-size:9px;color:'+(gexColors[t.gex]||'var(--textDim)')+'">'+( gexLabels[t.gex]||'')+'</div>':''}
           <div style="color:${t.result==='WIN'?'var(--green)':'var(--red)'};font-weight:700">${t.result}</div>
           <div class="mono" style="color:${t.pnl>=0?'var(--green)':'var(--red)'};font-weight:700">${t.pnl>=0?'+':''}$${t.pnl.toLocaleString()}</div>
-        </div>
-      `).join('')}
+        </div>`;
+      }).join('')}
     </div>`;
 
   // Draw equity curve
