@@ -700,10 +700,10 @@ const PHASE_DETAILS = {
     weeklyPlan: {
       target: '$576/week (avg)',
       Mon: '1× Weekly Put Spread (5DTE, Δ0.10) + 1× 0DTE Morning (Δ0.12)',
-      Tue: '1× 0DTE Arvo (Δ0.18–0.20)',
-      Wed: '1× 0DTE Arvo (skip FOMC days)',
-      Thu: 'Check weekly + 1× 0DTE Arvo',
-      Fri: 'Close weekly + 1× 0DTE Arvo (tight Δ0.15)',
+      Tue: '1× 0DTE Morning (Δ0.12)',
+      Wed: '1× 0DTE Morning (skip FOMC days)',
+      Thu: 'Check weekly + 1× 0DTE Morning (Δ0.12)',
+      Fri: 'Close weekly + 1× 0DTE Morning (careful, Δ0.12)',
     },
     rules: [
       'Min credit: $0.80 per contract',
@@ -734,14 +734,14 @@ const PHASE_DETAILS = {
     weeklyPlan: {
       target: '$1,500/week (avg)',
       Mon: '1× Weekly Put Spread (5DTE) + 0DTE Morning (scale contracts)',
-      Tue: '0DTE Arvo — primary income day',
-      Wed: '0DTE Arvo (skip FOMC)',
-      Thu: 'Weekly check + 0DTE Arvo',
-      Fri: 'Close weekly + conservative 0DTE',
+      Tue: '0DTE Morning (Δ0.12) — primary income day',
+      Wed: '0DTE Morning (skip FOMC)',
+      Thu: 'Weekly check + 0DTE Morning (Δ0.12)',
+      Fri: 'Close weekly + conservative 0DTE Morning',
     },
     rules: [
       'Scale contracts: 1 per $6k capital (e.g. $30k = 5 contracts)',
-      'Same min credit, structure stop, 50% target rules',
+      'Same min credit, 2× stop, hold to expiry rules',
       'Start adding call spreads on green days (VIX < 18)',
       'Begin iron condors when comfortable (Tue–Thu only)',
       'Max 2 trades per session',
@@ -1842,16 +1842,15 @@ function drawPnLChart(trades) {
 // ══════════════════════════════════════════════════════════════════════════════
 // PLAYBOOK TAB
 // ══════════════════════════════════════════════════════════════════════════════
-// Phase-aware playbook: Phase 1-2 = arvo only Tue-Fri, Phase 3-4 = dual session Tue-Fri
+// Phase-aware playbook: All phases get morning session (primary), Phase 3+ adds arvo
 function getPlaybook() {
   const ph = getPhase(traderData.currentCapital);
   const contracts0DTE = ph.perK ? Math.max(1, Math.floor(traderData.currentCapital / ph.perK)) : 2;
   const dual = ph.id >= 3; // Phase 3+ gets morning + arvo
-  const stagger = ph.id >= 3; // Phase 3+ staggers entries
+  const stagger = ph.id >= 3;
   const sizeNote = stagger ? (ph.id >= 4 ? 'Scale in 3 batches' : 'Scale in 2 batches (50/50)') : '';
   const arvoDelta = '\u0394 0.15';
   const mornDelta = '\u0394 0.12';
-  // Weekly contracts: ~25% of 0DTE size, min 1
   const wklyCtMap = { 1: 1, 2: 1, 3: Math.max(1, Math.round(contracts0DTE * 0.25)), 4: Math.max(2, Math.round(contracts0DTE * 0.25)) };
   const wklyCt = wklyCtMap[ph.id] || 1;
   const wklyLabel = wklyCt + 'ct';
@@ -1881,23 +1880,23 @@ function getPlaybook() {
     },
     Tue: {
       trades: [
-        ...(dual ? [{ name: '0DTE Morning', time: '1:00-1:15', dte: '0DTE', delta: mornDelta, credit: '$0.80 min', contracts: 'phase', type: 'put' }] : []),
-        { name: '0DTE Arvo', time: '3:00-4:00', dte: '0DTE', delta: arvoDelta, credit: '$0.80 min', contracts: 'phase', type: 'put' },
+        { name: '0DTE Morning', time: '1:00-1:15', dte: '0DTE', delta: mornDelta, credit: '$0.80 min', contracts: 'phase', type: 'put' },
+        ...(dual ? [{ name: '0DTE Arvo', time: '3:00-4:00', dte: '0DTE', delta: arvoDelta, credit: '$0.80 min', contracts: 'phase', type: 'put' }] : []),
       ],
       rules: [
+        'Morning session primary — Δ0.12 put spread, hold to expiry',
         ...(dual ? [
-          'Morning session: put spread only, close before arvo',
           'Arvo session: put or IC depending on VIX regime',
           ...tieredArvoRules,
           sizeNote,
-        ].filter(Boolean) : ['Arvo session only', 'Wait for stable market']),
+        ].filter(Boolean) : ['Arvo optional if morning wins and A+ setup available']),
       ],
       hardClose: '6:00 AM AEDT',
     },
     Wed: {
       trades: [
-        ...(dual ? [{ name: '0DTE Morning', time: '1:00-1:15', dte: '0DTE', delta: mornDelta, credit: '$0.80 min', contracts: 'phase', type: 'put' }] : []),
-        { name: '0DTE Arvo', time: '3:00-4:00', dte: '0DTE', delta: arvoDelta, credit: '$0.80 min', contracts: 'phase', type: 'put' },
+        { name: '0DTE Morning', time: '1:00-1:15', dte: '0DTE', delta: mornDelta, credit: '$0.80 min', contracts: 'phase', type: 'put' },
+        ...(dual ? [{ name: '0DTE Arvo', time: '3:00-4:00', dte: '0DTE', delta: arvoDelta, credit: '$0.80 min', contracts: 'phase', type: 'put' }] : []),
       ],
       rules: [
         'FOMC day = NO TRADE (both sessions)',
@@ -1906,42 +1905,42 @@ function getPlaybook() {
           ...tieredArvoRules,
           'FOMC week: 50% position size all week',
           sizeNote,
-        ].filter(Boolean) : ['If no FOMC, arvo session only']),
+        ].filter(Boolean) : ['If no FOMC: morning session only']),
       ],
       hardClose: '5:30 AM AEDT',
     },
     Thu: {
       trades: [
         { name: 'Weekly Check', time: '-', dte: '5DTE', delta: '-', credit: '-', contracts: wklyLabel, type: 'check' },
-        ...(dual ? [{ name: '0DTE Morning', time: '1:00-1:15', dte: '0DTE', delta: mornDelta, credit: '$0.80 min', contracts: 'phase', type: 'put' }] : []),
-        { name: '0DTE Arvo', time: '3:00-4:00', dte: '0DTE', delta: arvoDelta, credit: '$0.85 min', contracts: 'phase', type: 'put' },
+        { name: '0DTE Morning', time: '1:00-1:15', dte: '0DTE', delta: mornDelta, credit: '$0.80 min', contracts: 'phase', type: 'put' },
+        ...(dual ? [{ name: '0DTE Arvo', time: '3:00-4:00', dte: '0DTE', delta: arvoDelta, credit: '$0.85 min', contracts: 'phase', type: 'put' }] : []),
       ],
       rules: [
         'Check weekly spread health — roll or close if tested',
+        'Morning session: put spread Δ0.12',
         ...(dual ? [
-          'Morning session: put spread, tighter stop (SPX ≤ short+10)',
           'Arvo session: higher min credit ($0.85)',
           ...tieredArvoRules,
           sizeNote,
-        ].filter(Boolean) : ['Then arvo 0DTE']),
+        ].filter(Boolean) : []),
       ],
       hardClose: '5:45 AM AEDT',
     },
     Fri: {
       trades: [
         { name: 'Close Weekly', time: '-', dte: '5DTE', delta: '-', credit: '-', contracts: wklyLabel, type: 'close' },
-        ...(dual ? [{ name: '0DTE Morning (careful)', time: '1:00-1:10', dte: '0DTE', delta: mornDelta, credit: '$0.90 min', contracts: 'phase', type: 'put' }] : []),
-        { name: '0DTE Arvo (careful)', time: '3:00-3:45', dte: '0DTE', delta: '\u0394 0.12', credit: '$0.90 min', contracts: 'phase', type: 'put' },
+        { name: '0DTE Morning (careful)', time: '1:00-1:10', dte: '0DTE', delta: mornDelta, credit: '$0.90 min', contracts: 'phase', type: 'put' },
+        ...(dual ? [{ name: '0DTE Arvo (careful)', time: '3:00-3:45', dte: '0DTE', delta: '\u0394 0.12', credit: '$0.90 min', contracts: 'phase', type: 'put' }] : []),
       ],
       rules: [
         'Close weekly first',
-        'Tighter delta for Friday — both sessions use \u0394 0.12',
+        'Tighter delta for Friday — Δ0.12 both sessions',
         'Shorter window, earlier stop',
         ...(dual ? [
           ...tieredArvoRules,
           'Max 1 loss on Fridays — protect the week\'s gains',
           sizeNote,
-        ].filter(Boolean) : []),
+        ].filter(Boolean) : ['Max 1 loss on Fridays — protect the week\'s gains']),
       ],
       hardClose: '5:30 AM AEDT',
     },
@@ -1975,7 +1974,7 @@ function renderPlaybook() {
       <div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap">
         <span style="font-size:10px;padding:4px 8px;background:rgba(255,71,87,0.1);border:1px solid rgba(255,71,87,0.3);color:var(--red)">HARD CLOSE: ${day.hardClose}</span>
         <span style="font-size:10px;padding:4px 8px;background:rgba(0,208,132,0.1);border:1px solid rgba(0,208,132,0.3);color:var(--green)">PHASE ${pbPhase.id}: ${pbContracts} CONTRACTS</span>
-        <span style="font-size:10px;padding:4px 8px;background:${dual?'rgba(0,229,255,0.1)':'rgba(255,215,0,0.1)'};border:1px solid ${dual?'rgba(0,229,255,0.3)':'rgba(255,215,0,0.3)'};color:${dual?'var(--cyan)':'var(--gold)'}">${dual?'DUAL SESSION: MORN + ARVO':'SINGLE SESSION: ARVO ONLY'}</span>
+        <span style="font-size:10px;padding:4px 8px;background:${dual?'rgba(0,229,255,0.1)':'rgba(255,215,0,0.1)'};border:1px solid ${dual?'rgba(0,229,255,0.3)':'rgba(255,215,0,0.3)'};color:${dual?'var(--cyan)':'var(--gold)'}">${dual?'DUAL SESSION: MORN + ARVO':'MORNING PRIMARY'}</span>
       </div>
 
       <!-- Trades + Rules side by side -->
@@ -3171,6 +3170,34 @@ function runBacktest() {
       </div>
     </div>
 
+    <!-- COMPOUNDING MILESTONES -->
+    <div class="panel" style="padding:16px;margin-bottom:12px">
+      <div style="font-size:12px;color:var(--textDim);letter-spacing:2px;margin-bottom:12px">COMPOUNDING GROWTH — CAPITAL MILESTONES</div>
+      <canvas id="bt-compound" width="1200" height="280" style="width:100%;height:280px"></canvas>
+      <div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:14px">
+        ${(() => {
+          const milestones = [25000, 50000, 75000, 100000, 250000, 500000, 1000000];
+          return milestones.map(m => {
+            const hit = equity.find(e => e.value >= m);
+            const label = m >= 1000000 ? '$' + (m/1000000) + 'M' : '$' + (m/1000).toFixed(0) + 'K';
+            if (hit) {
+              const startDate = new Date(equity[0].date);
+              const hitDate = new Date(hit.date);
+              const days = Math.round((hitDate - startDate) / (1000*60*60*24));
+              return '<div class="panel" style="padding:10px 14px;flex:1;min-width:120px;border-left:3px solid var(--green)">' +
+                '<div style="font-size:9px;color:var(--textDim);letter-spacing:1px;margin-bottom:3px">' + label + '</div>' +
+                '<div class="chakra" style="font-size:14px;font-weight:700;color:var(--green)">' + hit.date + '</div>' +
+                '<div style="font-size:10px;color:var(--textMid);margin-top:2px">' + days + ' trading days</div></div>';
+            } else {
+              return '<div class="panel" style="padding:10px 14px;flex:1;min-width:120px;border-left:3px solid var(--border)">' +
+                '<div style="font-size:9px;color:var(--textDim);letter-spacing:1px;margin-bottom:3px">' + label + '</div>' +
+                '<div class="chakra" style="font-size:14px;font-weight:700;color:var(--textDim)">Not reached</div></div>';
+            }
+          }).join('');
+        })()}
+      </div>
+    </div>
+
     <!-- TRADE LOG (last 50) -->
     <div class="panel" style="padding:14px;max-height:400px;overflow-y:auto">
       <div style="font-size:11px;color:var(--textDim);letter-spacing:2px;margin-bottom:10px">RECENT TRADES (last 50)</div>
@@ -3238,6 +3265,72 @@ function runBacktest() {
     ctx.lineTo(lastX, H); ctx.lineTo(0, H); ctx.closePath();
     ctx.fillStyle = capital >= startCap ? 'rgba(0,208,132,0.08)' : 'rgba(255,71,87,0.08)';
     ctx.fill();
+
+    // Draw compounding growth chart (log scale)
+    const cCanvas = document.getElementById('bt-compound');
+    if (cCanvas && equity.length > 1) {
+      const cCtx = cCanvas.getContext('2d');
+      const cW = cCanvas.width, cH = cCanvas.height;
+      cCtx.clearRect(0, 0, cW, cH);
+
+      const cVals = equity.map(e => Math.max(1, e.value));
+      const logMin = Math.log10(Math.min(...cVals) * 0.9);
+      const logMax = Math.log10(Math.max(...cVals) * 1.1);
+      const logRange = logMax - logMin || 1;
+
+      // Milestone lines
+      const milestones = [10000, 25000, 50000, 75000, 100000, 250000, 500000, 1000000];
+      const mColors = { 10000: '#555', 25000: '#F0B429', 50000: '#3B9EFF', 75000: '#A855F7', 100000: '#00D084', 250000: '#00E5FF', 500000: '#FF6B35', 1000000: '#FF4757' };
+      milestones.forEach(m => {
+        const logM = Math.log10(m);
+        if (logM >= logMin && logM <= logMax) {
+          const y = cH - ((logM - logMin) / logRange) * cH;
+          cCtx.strokeStyle = mColors[m] || '#444';
+          cCtx.lineWidth = 0.5;
+          cCtx.setLineDash([4, 4]);
+          cCtx.beginPath(); cCtx.moveTo(0, y); cCtx.lineTo(cW, y); cCtx.stroke();
+          cCtx.setLineDash([]);
+          const label = m >= 1000000 ? '$' + (m / 1000000) + 'M' : '$' + (m / 1000) + 'K';
+          cCtx.fillStyle = mColors[m] || '#666';
+          cCtx.font = '11px monospace';
+          cCtx.fillText(label, 4, y - 4);
+        }
+      });
+
+      // Equity line (log scale)
+      cCtx.beginPath();
+      cCtx.strokeStyle = '#00D084';
+      cCtx.lineWidth = 2;
+      equity.forEach((e, i) => {
+        const x = (i / (equity.length - 1)) * cW;
+        const y = cH - ((Math.log10(Math.max(1, e.value)) - logMin) / logRange) * cH;
+        if (i === 0) cCtx.moveTo(x, y); else cCtx.lineTo(x, y);
+      });
+      cCtx.stroke();
+
+      // Fill under
+      const cLastX = cW;
+      cCtx.lineTo(cLastX, cH); cCtx.lineTo(0, cH); cCtx.closePath();
+      cCtx.fillStyle = 'rgba(0,208,132,0.06)';
+      cCtx.fill();
+
+      // Phase markers
+      const phases = [{ cap: 25000, label: 'P2', color: '#F0B429' }, { cap: 75000, label: 'P3', color: '#A855F7' }, { cap: 300000, label: 'P4', color: '#00E5FF' }];
+      phases.forEach(p => {
+        const idx = equity.findIndex(e => e.value >= p.cap);
+        if (idx > 0) {
+          const x = (idx / (equity.length - 1)) * cW;
+          cCtx.strokeStyle = p.color;
+          cCtx.lineWidth = 1;
+          cCtx.setLineDash([3, 3]);
+          cCtx.beginPath(); cCtx.moveTo(x, 0); cCtx.lineTo(x, cH); cCtx.stroke();
+          cCtx.setLineDash([]);
+          cCtx.fillStyle = p.color;
+          cCtx.font = 'bold 12px sans-serif';
+          cCtx.fillText(p.label, x + 4, 14);
+        }
+      });
+    }
   }, 100);
 }
 
