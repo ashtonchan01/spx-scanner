@@ -363,8 +363,8 @@ input, select, button, textarea { font-family: 'IBM Plex Mono', monospace; outli
     <div>
       <div class="label" style="margin-bottom:4px">MODE / STRATEGY</div>
       <div style="display:flex;height:42px" id="modeStratRow">
-        <button class="mode-btn" data-mode="morning" style="flex:1;border:none;cursor:pointer;font-size:11px;font-family:'IBM Plex Mono',monospace;background:var(--panelAlt);color:var(--textDim);border-top:1px solid var(--borderBright);border-left:1px solid var(--borderBright);border-right:1px solid var(--borderBright);border-bottom:3px solid var(--border)" onclick="setMode('morning')">MORN</button>
-        <button class="mode-btn active" data-mode="arvo" style="flex:1;border:none;cursor:pointer;font-size:11px;font-family:'IBM Plex Mono',monospace;background:rgba(0,208,132,0.15);color:var(--green);border-top:1px solid var(--borderBright);border-left:1px solid var(--borderBright);border-right:1px solid var(--borderBright);border-bottom:3px solid var(--green)" onclick="setMode('arvo')">ARVO</button>
+        <button class="mode-btn active" data-mode="morning" style="flex:1;border:none;cursor:pointer;font-size:11px;font-family:'IBM Plex Mono',monospace;background:rgba(240,180,41,0.15);color:var(--gold);border-top:1px solid var(--borderBright);border-left:1px solid var(--borderBright);border-right:1px solid var(--borderBright);border-bottom:3px solid var(--gold)" onclick="setMode('morning')">MORN</button>
+        <button class="mode-btn" data-mode="arvo" style="flex:1;border:none;cursor:pointer;font-size:11px;font-family:'IBM Plex Mono',monospace;background:var(--panelAlt);color:var(--textDim);border-top:1px solid var(--borderBright);border-left:1px solid var(--borderBright);border-right:1px solid var(--borderBright);border-bottom:3px solid var(--border)" onclick="setMode('arvo')">ARVO</button>
         <div style="width:1px;background:var(--borderBright)"></div>
         <button class="strat-btn active" data-strat="auto" onclick="setStrategy('auto')" style="flex:1;border:none;cursor:pointer;font-size:10px;font-family:'IBM Plex Mono',monospace;background:rgba(0,229,255,0.15);color:var(--cyan);border-bottom:3px solid var(--cyan);border-top:1px solid var(--borderBright);border-right:1px solid var(--borderBright)">AUTO</button>
         <button class="strat-btn" data-strat="put" onclick="setStrategy('put')" style="flex:1;border:none;cursor:pointer;font-size:10px;font-family:'IBM Plex Mono',monospace;background:var(--panelAlt);color:var(--textDim);border-bottom:3px solid var(--border);border-top:1px solid var(--borderBright);border-right:1px solid var(--borderBright)">PUT</button>
@@ -1051,7 +1051,7 @@ function switchTab(tab) {
 // SCANNER STATE (original)
 // ══════════════════════════════════════════════════════════════════════════════
 let state = {
-  spx: 5800, vix: 22, width: 10, mode: 'arvo', strategy: 'auto',
+  spx: 5800, vix: 22, width: 10, mode: 'morning', strategy: 'auto',
   bias: 'neutral', dma200: parseFloat(localStorage.getItem('spx_dma200')) || 0,
   ibkrUrl: '', connected: false, fetching: false,
   liveSpx: null, liveVix: null, liveQuotes: {},
@@ -1599,20 +1599,23 @@ function scan() {
     return { mult, stopSpreadVal, maxLoss, window: '2× PREMIUM STOP', windowColor: 'var(--red)' };
   }
   const stopInfo = getStopLevel(orderCredit);
-  // Conviction — factors: credit quality, VIX regime, GEX, macro risk
+  // Conviction — factors: credit quality, VIX regime size, GEX, macro risk
   let conviction, convColor, convLabel, adjContracts;
 
-  // Base conviction from credit + regime
-  if (orderCredit >= 1.00 && regime.size >= 0.75) {
-    conviction = 'A+'; convColor = 'var(--green)'; convLabel = 'HIGH — Full size';
-    adjContracts = contracts;
-  } else if (orderCredit >= 0.80 && regime.size >= 0.5) {
-    conviction = 'B'; convColor = 'var(--gold)'; convLabel = 'MODERATE — 50% size';
-    adjContracts = Math.max(1, Math.round(contracts * 0.5));
+  // Base conviction from credit quality
+  if (orderCredit >= 1.00) {
+    conviction = 'A+'; convColor = 'var(--green)'; convLabel = 'HIGH';
+  } else if (orderCredit >= 0.80) {
+    conviction = 'B'; convColor = 'var(--gold)'; convLabel = 'MODERATE';
   } else {
     conviction = 'C'; convColor = 'var(--red)'; convLabel = 'LOW — Skip or 1ct';
-    adjContracts = 1;
   }
+
+  // Apply regime.size as a MULTIPLIER (e.g. 0.75 = 75% of full contracts)
+  adjContracts = Math.max(1, Math.round(contracts * regime.size));
+  if (conviction === 'C') adjContracts = 1;
+  const sizeNote = regime.size < 1 ? ' · ' + Math.round(regime.size * 100) + '% size (VIX)' : '';
+  convLabel += sizeNote;
 
   // Downgrade for adverse conditions
   if (state.macroRisk === 'blackout') {
@@ -1732,7 +1735,7 @@ function scan() {
       <!-- SESSION NOTE -->
       <div style="padding:8px 18px;border-top:1px solid var(--border);background:var(--panelAlt);display:flex;justify-content:space-between;align-items:center">
         <div style="font-size:11px;color:${sessionColor}">${sessionNote}</div>
-        <div style="font-size:11px;color:var(--textDim)">${state.mode === 'arvo' ? 'Δ0.15' : 'Δ0.12'} · ${state.width}pt wide · ${regime.level} regime</div>
+        <div style="font-size:11px;color:var(--textDim)">Δ${recDelta} ${recDelta !== (state.mode === 'arvo' ? 0.15 : 0.12) ? '(auto-widened)' : ''} · ${state.width}pt wide · ${regime.level} regime</div>
       </div>
 
     </div>`;
