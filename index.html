@@ -3332,13 +3332,22 @@ function runBacktest() {
       continue;
     }
 
-    // ── Calculate contracts ──
+    // ── Calculate contracts (margin-aware) ──
+    // Margin per contract = (width - estimated credit) × 100
+    // Use conservative credit estimate for margin calc (before exact BSM)
+    const estCredit = Math.min(width * 0.08, 1.50); // rough estimate
+    const marginPerCt = (width - estCredit) * 100;
     let cts;
     if (contractMode === 'phase') {
       const ph = getPhaseForCap(capital);
-      cts = ph.perK > 0 ? Math.max(1, Math.floor(capital / ph.perK)) : 2;
+      // Scale perK by actual margin: base phases assume ~15pt ($1,400 margin)
+      // Adjust proportionally for different widths
+      const baseMargin = 1400; // 15pt - $1.00 credit
+      const marginRatio = marginPerCt / baseMargin;
+      const adjPerK = ph.perK > 0 ? ph.perK * marginRatio : 0;
+      cts = adjPerK > 0 ? Math.max(1, Math.floor(capital / adjPerK)) : 2;
     } else {
-      cts = Math.max(1, Math.floor(capital / 6000));
+      cts = Math.max(1, Math.floor(capital / (marginPerCt * 6)));
     }
 
     // GEX-based size adjustment: reduce on cautious/negative GEX
