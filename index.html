@@ -347,8 +347,8 @@ input, select, button, textarea { font-family: 'IBM Plex Mono', monospace; outli
     <div>
       <div class="label" style="margin-bottom:4px">WIDTH</div>
       <select id="widthSelect" style="width:100%;background:var(--panelAlt);border:1px solid var(--borderBright);color:var(--white);padding:0 10px;font-size:14px;font-weight:700;height:42px;cursor:pointer;box-sizing:border-box" onchange="scan()">
-        <option value="10" selected>10 pts &#9733;</option>
-        <option value="15">15 pts</option>
+        <option value="10">10 pts</option>
+        <option value="15" selected>15 pts &#9733;</option>
         <option value="20">20 pts</option>
         <option value="25">25 pts</option>
       </select>
@@ -1052,7 +1052,7 @@ function switchTab(tab) {
 // SCANNER STATE (original)
 // ══════════════════════════════════════════════════════════════════════════════
 let state = {
-  spx: 5800, vix: 22, width: 10, mode: 'morning', strategy: 'auto',
+  spx: 5800, vix: 22, width: 15, mode: 'morning', strategy: 'auto',
   bias: 'neutral', dma200: parseFloat(localStorage.getItem('spx_dma200')) || 0,
   ibkrUrl: '', connected: false, fetching: false,
   liveSpx: null, liveVix: null, liveQuotes: {},
@@ -2137,10 +2137,11 @@ function getPlaybook() {
   const halfCt = Math.max(1, Math.floor(contracts0DTE / 2));
   // Tiered arvo sizing rules (Phase 3+)
   const tieredArvoRules = [
-    `Morning WIN → arvo at FULL size (${contracts0DTE}ct)`,
-    `Morning LOSS → arvo at HALF size (${halfCt}ct), only A+ setup (Δ≤0.12, credit ≥$1.00)`,
-    'Morning LOSS + VIX spiking → SKIP arvo entirely',
-    'Two losses in a row → done for the day, no more trades',
+    'Hold morning trade to expiry (do NOT close early)',
+    `Morning profitable → enter arvo at FULL size (${contracts0DTE}ct)`,
+    `Morning underwater → arvo at HALF size (${halfCt}ct), only A+ setup`,
+    'Morning stopped out + VIX spiking → SKIP arvo entirely',
+    'Two stops in a row → done for the day, no more trades',
   ];
 
   return {
