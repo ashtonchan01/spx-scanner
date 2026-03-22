@@ -297,11 +297,11 @@ input, select, button, textarea { font-family: 'IBM Plex Mono', monospace; outli
       <input id="urlInput" type="text" placeholder="https://xxxx.ngrok-free.app" style="width:320px;background:var(--panelAlt);border:1px solid var(--borderBright);color:var(--white);padding:8px 12px;font-size:13px" onkeydown="if(event.key==='Enter')connect()">
       <button class="btn" style="border:1px solid var(--green);color:var(--green);font-size:11px;padding:7px 16px;font-weight:700" onclick="connect()">CONNECT</button>
     </div>
-    <div style="text-align:right;width:220px;flex-shrink:0">
-      <div id="clock" style="font-family:'IBM Plex Mono',monospace;font-size:20px;color:var(--gold)"></div>
+    <div style="text-align:right;width:160px;flex-shrink:0">
+      <div id="clock" style="font-family:'IBM Plex Mono',monospace;font-size:20px;color:var(--gold);letter-spacing:1px"></div>
       <div style="font-size:10px;color:var(--textDim)">AEDT</div>
-      <div id="clockET" style="font-family:'IBM Plex Mono',monospace;font-size:14px;color:var(--textMid);margin-top:2px"></div>
-      <div style="font-size:9px;color:var(--textDim)">US EASTERN</div>
+      <div id="clockET" style="font-family:'IBM Plex Mono',monospace;font-size:14px;color:var(--textMid);margin-top:4px;letter-spacing:1px"></div>
+      <div style="font-size:9px;color:var(--textDim)">ET · <span id="clockMkt" style="font-weight:700">CLOSED</span></div>
     </div>
   </div>
 </div>
@@ -3217,22 +3217,24 @@ function resetAllData() {
 // ══════════════════════════════════════════════════════════════════════════════
 function updateClock() {
   const now = new Date();
-  document.getElementById('clock').textContent = now.toLocaleTimeString('en-AU', { hour:'2-digit', minute:'2-digit', second:'2-digit', timeZone:'Australia/Sydney' });
+  // AEDT clock — 24hr format, always 8 chars (HH:MM:SS)
+  document.getElementById('clock').textContent = now.toLocaleTimeString('en-AU', { hour:'2-digit', minute:'2-digit', second:'2-digit', hour12:false, timeZone:'Australia/Sydney' });
   const etEl = document.getElementById('clockET');
   if (etEl) {
-    const etTime = now.toLocaleTimeString('en-US', { hour:'2-digit', minute:'2-digit', second:'2-digit', hour12:true, timeZone:'America/New_York' });
-    // Determine market status
+    // ET clock — 24hr format for fixed width
+    const etTime = now.toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit', second:'2-digit', hour12:false, timeZone:'America/New_York' });
+    // Market status — update separate element to avoid width changes
     const etH = parseInt(now.toLocaleString('en-US', { timeZone:'America/New_York', hour:'numeric', hour12:false }));
     const etM = parseInt(now.toLocaleString('en-US', { timeZone:'America/New_York', minute:'numeric' }));
     const etDec = etH + etM / 60;
     const day = now.toLocaleString('en-US', { timeZone:'America/New_York', weekday:'short' });
     const isWeekday = !['Sat','Sun'].includes(day);
-    let mktStatus = '', mktColor = 'var(--textDim)';
-    if (!isWeekday) { mktStatus = ' · CLOSED'; mktColor = 'var(--red)'; }
-    else if (etDec < 9.5) { mktStatus = ' · PRE-MKT'; mktColor = 'var(--gold)'; }
-    else if (etDec < 16) { mktStatus = ' · OPEN'; mktColor = 'var(--green)'; }
-    else { mktStatus = ' · CLOSED'; mktColor = 'var(--red)'; }
-    etEl.innerHTML = etTime + '<span style="font-size:10px;color:'+mktColor+';margin-left:6px">'+mktStatus+'</span>';
+    let mktStatus = 'CLOSED', mktColor = 'var(--red)';
+    if (isWeekday && etDec >= 9.5 && etDec < 16) { mktStatus = 'OPEN'; mktColor = 'var(--green)'; }
+    else if (isWeekday && etDec < 9.5) { mktStatus = 'PRE-MKT'; mktColor = 'var(--gold)'; }
+    etEl.textContent = etTime;
+    const mktEl = document.getElementById('clockMkt');
+    if (mktEl) { mktEl.textContent = mktStatus; mktEl.style.color = mktColor; }
   }
 }
 setInterval(updateClock, 1000);
