@@ -582,9 +582,9 @@ input, select, button, textarea { font-family: 'IBM Plex Mono', monospace; outli
       <div class="form-group">
         <label>PROFIT TARGET</label>
         <select id="bt-profitTgt" style="font-size:12px">
-          <option value="0.5" selected>50% credit</option>
+          <option value="0.5">50% credit</option>
           <option value="0.75">75% credit</option>
-          <option value="1.0">100% (hold to expiry)</option>
+          <option value="1.0" selected>100% (hold to expiry)</option>
         </select>
       </div>
       <div class="form-group">
@@ -708,7 +708,7 @@ const PHASE_DETAILS = {
     rules: [
       'Min credit: $0.80 per contract',
       'Structure stop: close at 2× credit received',
-      '50% profit target: close at 50% of max profit',
+      'Hold to expiry: let time decay work, collect full credit',
       'No trading first 15 min after open',
       'No revenge trades — 1 loss = done for the day',
       'Paper trade first 2 weeks before going live',
@@ -1368,27 +1368,14 @@ function scan() {
   const orderColor = useIC ? 'var(--cyan)' : useCall ? 'var(--orange)' : 'var(--green)';
   const orderCredit = useIC ? recRow.icFill : useCall ? cF : pF;
   const orderIncome = orderCredit * contracts * 100;
-  const profitTgt = orderCredit * 0.5;
+  const profitTgt = orderCredit; // hold to expiry — full credit
 
-  // TIME-BASED STOP LEVEL (must be before order panel template)
+  // FIXED 2× PREMIUM STOP (backtested optimal: 2× stop + hold to expiry)
   function getStopLevel(credit) {
-    const now = new Date();
-    const aedtH = parseInt(now.toLocaleString('en-AU', { hour: '2-digit', hour12: false, timeZone: 'Australia/Sydney' }));
-    const aedtM = parseInt(now.toLocaleString('en-AU', { minute: '2-digit', timeZone: 'Australia/Sydney' }));
-    const t = aedtH + aedtM / 60;
-    let mult, window, windowColor;
-    if ((t >= 23.5) || (t < 1.5)) {
-      mult = 3.0; window = 'OPEN (wide stop)'; windowColor = 'var(--green)';
-    } else if (t < 3.5) {
-      mult = 2.5; window = 'MIDDAY (moderate)'; windowColor = 'var(--gold)';
-    } else if (t < 5.0) {
-      mult = 2.0; window = 'POWER HOUR (tight)'; windowColor = 'var(--orange)';
-    } else {
-      mult = 1.5; window = 'CLOSE ONLY (exit now)'; windowColor = 'var(--red)';
-    }
+    const mult = 2.0;
     const stopSpreadVal = f2(credit * mult);
     const maxLoss = f2((credit * mult) - credit);
-    return { mult, stopSpreadVal, maxLoss, window, windowColor };
+    return { mult, stopSpreadVal, maxLoss, window: '2× PREMIUM STOP', windowColor: 'var(--red)' };
   }
   const stopInfo = getStopLevel(orderCredit);
   // Conviction
@@ -1477,9 +1464,9 @@ function scan() {
           <div style="font-size:10px;color:var(--textDim);margin-top:2px">${fmt$(adjIncome)} total</div>
         </div>
         <div style="padding:12px 16px;border-right:1px solid var(--border)">
-          <div style="font-size:9px;color:var(--green);letter-spacing:1px;margin-bottom:4px">50% PROFIT TARGET</div>
+          <div style="font-size:9px;color:var(--green);letter-spacing:1px;margin-bottom:4px">HOLD TO EXPIRY</div>
           <div class="chakra" style="font-size:20px;font-weight:700;color:var(--green)">$${f2(profitTgt)}</div>
-          <div style="font-size:10px;color:var(--green);margin-top:2px">+${fmt$(profitTgt * adjContracts * 100)}</div>
+          <div style="font-size:10px;color:var(--green);margin-top:2px">+${fmt$(profitTgt * adjContracts * 100)} full credit</div>
         </div>
         <div style="padding:12px 16px;border-right:1px solid var(--border)">
           <div style="font-size:9px;color:var(--textDim);letter-spacing:1px;margin-bottom:4px">CONVICTION</div>
@@ -1591,8 +1578,8 @@ function scan() {
         <div style="font-size:10px;color:var(--gold);letter-spacing:2px;margin-bottom:10px;font-weight:700">HARD RULES \u00B7 ${useIC?'IC':'PUT SPREAD'}</div>
         ${[
           {rule:'MIN CREDIT',detail:useIC?'$0.80+ combined':'$0.80+ spread',c:'var(--gold)'},
-          {rule:'TIME STOP',detail:'Spread \u2265 $'+stopInfo.stopSpreadVal+' ('+stopInfo.mult+'\u00D7 credit)',c:'var(--red)'},
-          {rule:'50% PROFIT',detail:'Close at half credit',c:'var(--green)'},
+          {rule:'2\u00D7 STOP',detail:'Close if spread \u2265 $'+stopInfo.stopSpreadVal+' (2\u00D7 credit)',c:'var(--red)'},
+          {rule:'HOLD EXPIRY',detail:'Let full credit expire worthless',c:'var(--green)'},
           {rule:'VIX SPIKE',detail:'+20% intra \u2192 close all',c:'var(--red)'},
           {rule:'SIZE',detail:Math.round(regime.size*100)+'% \u00B7 '+regime.level,c:regime.color},
           {rule:'HARD CLOSE',detail:'6:00 AM AEDT',c:'var(--gold)'},
