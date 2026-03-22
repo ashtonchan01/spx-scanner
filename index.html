@@ -534,7 +534,7 @@ input, select, button, textarea { font-family: 'IBM Plex Mono', monospace; outli
     <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-bottom:14px">
       <div class="form-group">
         <label>STOP LOSS MODE</label>
-        <select id="bt-stopMode" style="font-size:12px">
+        <select id="bt-stopMode" style="font-size:12px" onchange="updateStopDesc()">
           <option value="premium" selected>Premium Multiple</option>
           <option value="points">SPX Points</option>
           <option value="time">Time-Based %</option>
@@ -3255,13 +3255,14 @@ function runBacktest() {
 }
 
 // Update stop description on mode change
-document.getElementById('bt-stopMode')?.addEventListener('change', function() {
+function updateStopDesc() {
+  const mode = document.getElementById('bt-stopMode').value;
   const desc = document.getElementById('bt-stopDesc');
   const valInput = document.getElementById('bt-stopVal');
-  if (this.value === 'premium') { desc.innerHTML = '× credit received<br><span style="color:var(--gold)">e.g. 2× = close if spread hits 2× your credit ($1.00 credit → stop at $2.00)</span>'; valInput.value = '2'; valInput.step = '0.5'; }
-  else if (this.value === 'points') { desc.innerHTML = 'SPX points past short strike<br><span style="color:var(--gold)">e.g. 10 = close if SPX moves 10pts through your short strike</span>'; valInput.value = '10'; valInput.step = '5'; }
+  if (mode === 'premium') { desc.innerHTML = '× credit received<br><span style="color:var(--gold)">e.g. 2× = close if spread hits 2× your credit ($1.00 → stop at $2.00)</span>'; valInput.value = '2'; valInput.step = '0.5'; }
+  else if (mode === 'points') { desc.innerHTML = 'SPX points past short strike<br><span style="color:var(--gold)">e.g. 10 = close if SPX moves 10pts through your short strike</span>'; valInput.value = '10'; valInput.step = '5'; }
   else { desc.innerHTML = '× credit (time-weighted avg)<br><span style="color:var(--gold)">Simulates tighter stops later in session (avg 2.5× across day)</span>'; valInput.value = '2.5'; valInput.step = '0.5'; }
-});
+}
 </script>
 </body>
 </html>
