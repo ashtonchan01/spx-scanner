@@ -1056,6 +1056,17 @@ let state = {
   ibkrUrl: '', connected: false, fetching: false,
   liveSpx: null, liveVix: null, liveQuotes: {},
   lastUpdated: null,
+  // Enhanced market data
+  vix9d: null, vwap: null, aboveVwap: null,
+  spxOpen: null, spxHigh: null, spxLow: null,
+  prevHigh: null, prevLow: null, prevClose: null,
+  weeklyHigh: null, weeklyLow: null,
+  pivot: null, r1: null, r2: null, s1: null, s2: null,
+  avgVolume: null, relVolume: null,
+  vixTermStructure: null, // 'contango' or 'backwardation'
+  gexProxy: null, // 'positive', 'neutral', 'cautious', 'negative'
+  macroRisk: 'clear', // 'clear', 'caution', 'high', 'blackout'
+  reasoning: [],
 };
 const SLIPPAGE = 0;
 const DELTA_ROWS = [
@@ -1156,16 +1167,182 @@ function disconnect() {
 
 async function fetchPrices() {
   if (!state.connected) return;
-  document.getElementById('btnRefresh').textContent = '...';
+  document.getElementById('btnRefresh').textContent = '⏳ LOADING...';
   try {
-    const d = await ibkrFetch('/market/snapshot');
-    if (d.spx) { state.liveSpx = d.spx; document.getElementById('spxInput').value = d.spx; state.spx = d.spx; }
-    if (d.vix) { state.liveVix = d.vix; document.getElementById('vixInput').value = d.vix; state.vix = d.vix; }
+    // Fetch all data in parallel
+    const [snapshot, vwapData, levelsData] = await Promise.all([
+      ibkrFetch('/market/snapshot').catch(e => { console.warn('snapshot err:', e); return {}; }),
+      ibkrFetch('/market/vwap').catch(e => { console.warn('vwap err:', e); return {}; }),
+      ibkrFetch('/market/levels').catch(e => { console.warn('levels err:', e); return {}; }),
+    ]);
+
+    // Core prices
+    if (snapshot.spx) { state.liveSpx = snapshot.spx; document.getElementById('spxInput').value = snapshot.spx; state.spx = snapshot.spx; }
+    if (snapshot.vix) { state.liveVix = snapshot.vix; document.getElementById('vixInput').value = snapshot.vix; state.vix = snapshot.vix; }
+    if (snapshot.spx_open) state.spxOpen = snapshot.spx_open;
+    if (snapshot.spx_high) state.spxHigh = snapshot.spx_high;
+    if (snapshot.spx_low) state.spxLow = snapshot.spx_low;
+
+    // VIX9D + term structure
+    if (snapshot.vix9d) {
+      state.vix9d = snapshot.vix9d;
+      if (snapshot.vix && snapshot.vix9d) {
+        state.vixTermStructure = snapshot.vix9d < snapshot.vix ? 'backwardation' : 'contango';
+        // GEX proxy from term structure + VIX level
+        if (state.vixTermStructure === 'contango' && snapshot.vix < 18) state.gexProxy = 'positive';
+        else if (state.vixTermStructure === 'backwardation' && snapshot.vix > 25) state.gexProxy = 'negative';
+        else if (snapshot.vix > 22) state.gexProxy = 'cautious';
+        else state.gexProxy = 'neutral';
+      }
+    }
+
+    // VWAP
+    if (vwapData.vwap) {
+      state.vwap = vwapData.vwap;
+      state.aboveVwap = vwapData.above_vwap;
+    }
+
+    // Key levels
+    if (levelsData.prev_high) {
+      state.prevHigh = levelsData.prev_high;
+      state.prevLow = levelsData.prev_low;
+      state.prevClose = levelsData.prev_close;
+      state.weeklyHigh = levelsData.weekly_high;
+      state.weeklyLow = levelsData.weekly_low;
+      state.pivot = levelsData.pivot;
+      state.r1 = levelsData.r1; state.r2 = levelsData.r2;
+      state.s1 = levelsData.s1; state.s2 = levelsData.s2;
+      state.avgVolume = levelsData.avg_volume_5d;
+    }
+
+    // Auto-calculate 200 DMA from HIST_DATA
+    if (HIST_DATA.length >= 200 && !state.dma200) {
+      const last200 = HIST_DATA.slice(-200);
+      const dma = last200.reduce((s, d) => s + d[4], 0) / 200;
+      state.dma200 = Math.round(dma * 100) / 100;
+      document.getElementById('dma200Input').value = state.dma200;
+      localStorage.setItem('spx_dma200', state.dma200);
+    }
+
+    // Determine macro risk for today
+    state.macroRisk = getMacroRisk();
+
+    // Build reasoning
+    state.reasoning = buildReasoning();
+
     state.lastUpdated = new Date().toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: 'Australia/Sydney' }) + ' AEDT';
     flashPanel('inputPanel');
     scan();
-  } catch (e) { showError(`Snapshot: ${e.message}`); }
+  } catch (e) { showError(`Fetch: ${e.message}`); }
   finally { document.getElementById('btnRefresh').textContent = '\u21BB PRICES'; }
+}
+
+// ── MACRO RISK from economic calendar ──
+function getMacroRisk() {
+  const now = new Date();
+  const dow = now.getDay();
+  const dom = now.getDate();
+  const month = now.getMonth();
+
+  // Check FOMC days — BLACKOUT
+  for (const [m, d] of (typeof FOMC_DATES_2026 !== 'undefined' ? FOMC_DATES_2026 : [])) {
+    if (month === m && dom === d) return 'blackout';
+  }
+
+  // Check fixed holidays
+  for (const evt of (typeof FIXED_EVENTS_2026 !== 'undefined' ? FIXED_EVENTS_2026 : [])) {
+    if (month === evt.date[0] && dom === evt.date[1]) return 'blackout';
+  }
+
+  // High impact days: CPI (around 13th), NFP (1st Friday), PCE (last Friday)
+  const isFirstFriday = dow === 5 && dom <= 7;
+  const isCPIWeek = dom >= 12 && dom <= 14;
+  const isPCEWeek = dom >= 26 && dom <= 31 && dow === 5;
+
+  if (isFirstFriday || isCPIWeek) return 'high';
+  if (isPCEWeek) return 'caution';
+
+  // Elevated VIX
+  if (state.vix > 30) return 'high';
+  if (state.vix > 25) return 'caution';
+
+  return 'clear';
+}
+
+// ── REASONING ENGINE ──
+function buildReasoning() {
+  const reasons = [];
+  const spx = state.spx;
+  const vix = state.vix;
+
+  // 1. 200 DMA structural trend
+  if (state.dma200 > 0) {
+    const dist = Math.round(spx - state.dma200);
+    const pct = ((spx - state.dma200) / state.dma200 * 100).toFixed(1);
+    if (spx > state.dma200) {
+      reasons.push({ icon: '✅', text: `Above 200 DMA (${Math.round(state.dma200)}) by ${dist}pts (+${pct}%) — structural uptrend`, bullish: true });
+    } else {
+      reasons.push({ icon: '❌', text: `Below 200 DMA (${Math.round(state.dma200)}) by ${Math.abs(dist)}pts (${pct}%) — structural downtrend`, bullish: false });
+    }
+  }
+
+  // 2. VWAP
+  if (state.vwap) {
+    if (state.aboveVwap) {
+      reasons.push({ icon: '✅', text: `Above VWAP (${state.vwap}) — buyers in control today`, bullish: true });
+    } else {
+      reasons.push({ icon: '❌', text: `Below VWAP (${state.vwap}) — sellers in control today`, bullish: false });
+    }
+  }
+
+  // 3. VIX term structure / GEX
+  if (state.vix9d) {
+    if (state.vixTermStructure === 'contango') {
+      reasons.push({ icon: '✅', text: `VIX contango (VIX9D ${state.vix9d.toFixed(1)} < VIX ${vix.toFixed(1)}) — +GEX, mean-reversion favours credit spreads`, bullish: true });
+    } else {
+      reasons.push({ icon: '⚠️', text: `VIX backwardation (VIX9D ${state.vix9d.toFixed(1)} > VIX ${vix.toFixed(1)}) — -GEX, trending/fear environment`, bullish: false });
+    }
+  }
+
+  // 4. VIX regime
+  if (vix < 15) {
+    reasons.push({ icon: '✅', text: `VIX ${vix.toFixed(1)} (LOW) — compressed vol, ideal for selling premium`, bullish: true });
+  } else if (vix < 20) {
+    reasons.push({ icon: '✅', text: `VIX ${vix.toFixed(1)} (NORMAL) — healthy premium, good conditions`, bullish: true });
+  } else if (vix < 25) {
+    reasons.push({ icon: '⚠️', text: `VIX ${vix.toFixed(1)} (ELEVATED) — wider strikes, reduce size to 75%`, bullish: null });
+  } else if (vix < 30) {
+    reasons.push({ icon: '❌', text: `VIX ${vix.toFixed(1)} (HIGH) — directional only, 50% size`, bullish: false });
+  } else {
+    reasons.push({ icon: '🚫', text: `VIX ${vix.toFixed(1)} (CRISIS) — consider skipping today`, bullish: false });
+  }
+
+  // 5. Key levels / supply-demand
+  if (state.prevHigh && state.prevLow) {
+    const nearResist = state.weeklyHigh && (state.weeklyHigh - spx) < spx * 0.003;
+    const nearSupport = state.weeklyLow && (spx - state.weeklyLow) < spx * 0.003;
+    if (nearResist) {
+      reasons.push({ icon: '⚠️', text: `Near weekly high (${state.weeklyHigh.toFixed(0)}) — potential resistance / supply zone`, bullish: null });
+    }
+    if (nearSupport) {
+      reasons.push({ icon: '⚠️', text: `Near weekly low (${state.weeklyLow.toFixed(0)}) — potential support / demand zone`, bullish: null });
+    }
+    if (!nearResist && !nearSupport) {
+      reasons.push({ icon: '✅', text: `Mid-range: prev ${state.prevLow.toFixed(0)}-${state.prevHigh.toFixed(0)}, week ${state.weeklyLow ? state.weeklyLow.toFixed(0) : '?'}-${state.weeklyHigh ? state.weeklyHigh.toFixed(0) : '?'} — no immediate S/R`, bullish: true });
+    }
+  }
+
+  // 6. Macro risk
+  const macroLabels = {
+    clear: { icon: '✅', text: 'No major economic events today — standard playbook' },
+    caution: { icon: '⚠️', text: 'Economic release today (PCE/data) — reduced size, delay entry' },
+    high: { icon: '❌', text: 'HIGH IMPACT event today (CPI/NFP) — skip morning, arvo only if settled' },
+    blackout: { icon: '🚫', text: 'FOMC / Market Holiday — NO TRADE today' },
+  };
+  const macroInfo = macroLabels[state.macroRisk] || macroLabels.clear;
+  reasons.push({ icon: macroInfo.icon, text: macroInfo.text, bullish: state.macroRisk === 'clear' ? true : state.macroRisk === 'blackout' ? false : null });
+
+  return reasons;
 }
 
 async function fetchAllQuotes() {
@@ -1337,28 +1514,62 @@ function scan() {
   document.getElementById('scanInfo').innerHTML = `${state.lastUpdated || ''} &middot; ${state.mode === 'arvo' ? 'ARVO \u0394 0.15' : 'MORN \u0394 0.12'} &middot; Fill = mid (live)`;
 
   // REGIME STRIP (compact context row)
+  const macroColors = { clear: 'var(--green)', caution: 'var(--gold)', high: 'var(--red)', blackout: 'var(--red)' };
+  const macroLabelsShort = { clear: '🟢 CLEAR', caution: '🟡 CAUTION', high: '🔴 HIGH RISK', blackout: '⛔ NO TRADE' };
+  const gexColors = { positive: 'var(--green)', neutral: 'var(--cyan)', cautious: 'var(--gold)', negative: 'var(--red)' };
+  const gexLabelsShort = { positive: '+GEX', neutral: 'NEUT', cautious: 'CAUT', negative: '-GEX' };
+
+  const regimeItems = [
+    { l:'SPX', v:state.spx.toLocaleString(), c:'var(--white)' },
+    { l:'VIX', v:f2(state.vix), c:regime.color },
+    { l:'EXP MOVE', v:`\u00B1${dailyMove}`, c:'var(--gold)' },
+  ];
+  if (dma200 > 0) regimeItems.push({ l:'200DMA', v:`${dmaAbove?'↑':'↓'} ${Math.abs(dmaDist)}pts`, c: dmaAbove?'var(--green)':'var(--red)' });
+  if (state.vwap) regimeItems.push({ l:'VWAP', v:`${state.aboveVwap?'↑':'↓'} ${state.vwap.toFixed(0)}`, c: state.aboveVwap?'var(--green)':'var(--red)' });
+  if (state.gexProxy) regimeItems.push({ l:'GEX', v:gexLabelsShort[state.gexProxy], c: gexColors[state.gexProxy] });
+  regimeItems.push({ l:'MACRO', v:macroLabelsShort[state.macroRisk], c: macroColors[state.macroRisk] });
+
   document.getElementById('regimeRow').innerHTML = `
     <div class="panel" style="border-left:4px solid ${regime.color};padding:10px 14px">
       <div class="chakra" style="font-size:18px;font-weight:700;color:${regime.color}">${regime.level}</div>
       <div style="font-size:11px;color:${regime.color}">${regime.action} · ${Math.round(regime.size*100)}%</div>
     </div>
-    ${[
-      { l:'SPX', v:state.spx.toLocaleString(), c:'var(--white)' },
-      { l:'VIX', v:f2(state.vix), c:regime.color },
-      { l:'EXP MOVE', v:`\u00B1${dailyMove}`, c:'var(--gold)' },
-    ].map(s => `<div class="panel" style="padding:10px 14px"><div style="font-size:10px;color:var(--textDim);letter-spacing:1px;margin-bottom:3px">${s.l}</div><div class="chakra" style="font-size:18px;font-weight:700;color:${s.c}">${s.v}</div></div>`).join('')}
-    ${dma200 > 0 ? `<div class="panel" style="padding:10px 14px"><div style="font-size:10px;color:var(--textDim);letter-spacing:1px;margin-bottom:3px">200DMA</div><div class="chakra" style="font-size:16px;font-weight:700;color:${dmaAbove?'var(--green)':'var(--red)'}">${dmaAbove?'↑':'↓'} ${Math.abs(dmaDist)}pts ${dmaAbove?'ABOVE':'BELOW'}</div></div>` : ''}`;
+    ${regimeItems.map(s => '<div class="panel" style="padding:10px 14px"><div style="font-size:10px;color:var(--textDim);letter-spacing:1px;margin-bottom:3px">' + s.l + '</div><div class="chakra" style="font-size:16px;font-weight:700;color:' + s.c + '">' + s.v + '</div></div>').join('')}`;
+
     // Remove old banners before re-render
     document.querySelectorAll('.bias-banner').forEach(el => el.remove());
-    // Warning banners — rendered AFTER the regime grid as separate block elements
+    document.querySelectorAll('.reasoning-panel').forEach(el => el.remove());
+
+    // Warning banners
     let bannerHtml = '';
-    if (isBearish) {
-      bannerHtml += `
-        <div class="bias-banner panel" style="border:2px solid var(--red);border-left:4px solid var(--red);padding:10px 16px;display:flex;align-items:center;gap:12px;background:rgba(255,71,87,0.06);margin-bottom:8px">
-          <span style="font-size:20px">🐻</span>
-          <div><div style="font-size:13px;color:var(--red);font-weight:700;letter-spacing:1px">▲ USE CALL SPREAD TODAY</div><div style="font-size:11px;color:var(--textMid);margin-top:2px">Auto-detected: SPX below 200DMA — put spreads are wrong-way trades</div></div>
-        </div>`;
+
+    // Macro blackout
+    if (state.macroRisk === 'blackout') {
+      bannerHtml += '<div class="bias-banner panel" style="border:2px solid var(--red);border-left:4px solid var(--red);padding:10px 16px;display:flex;align-items:center;gap:12px;background:rgba(255,71,87,0.08);margin-bottom:8px"><span style="font-size:20px">⛔</span><div><div style="font-size:13px;color:var(--red);font-weight:700;letter-spacing:1px">NO TRADE TODAY</div><div style="font-size:11px;color:var(--textMid);margin-top:2px">FOMC / Market Holiday — capital preservation day</div></div></div>';
+    } else if (isBearish) {
+      bannerHtml += '<div class="bias-banner panel" style="border:2px solid var(--red);border-left:4px solid var(--red);padding:10px 16px;display:flex;align-items:center;gap:12px;background:rgba(255,71,87,0.06);margin-bottom:8px"><span style="font-size:20px">🐻</span><div><div style="font-size:13px;color:var(--red);font-weight:700;letter-spacing:1px">▲ USE CALL SPREAD TODAY</div><div style="font-size:11px;color:var(--textMid);margin-top:2px">Auto-detected: SPX below 200DMA — put spreads are wrong-way trades</div></div></div>';
     }
+
+    // Reasoning panel (always show if we have reasons)
+    if (state.reasoning.length > 0) {
+      const bullCount = state.reasoning.filter(r => r.bullish === true).length;
+      const bearCount = state.reasoning.filter(r => r.bullish === false).length;
+      const score = bullCount - bearCount;
+      const scoreColor = score >= 3 ? 'var(--green)' : score >= 1 ? 'var(--gold)' : 'var(--red)';
+      const scoreLabel = score >= 3 ? 'STRONG' : score >= 1 ? 'MODERATE' : score >= -1 ? 'WEAK' : 'ADVERSE';
+
+      bannerHtml += '<div class="reasoning-panel panel" style="padding:14px 16px;margin-bottom:8px;border-left:3px solid ' + scoreColor + '">' +
+        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">' +
+          '<div style="font-size:12px;color:var(--textDim);letter-spacing:2px">MARKET ANALYSIS</div>' +
+          '<div style="display:flex;align-items:center;gap:8px"><span class="chakra" style="font-size:14px;font-weight:700;color:' + scoreColor + '">CONVICTION: ' + scoreLabel + ' (' + bullCount + '/' + state.reasoning.length + ' bullish)</span></div>' +
+        '</div>' +
+        state.reasoning.map(function(r) {
+          return '<div style="padding:3px 0;font-size:12px;color:var(--text)">' + r.icon + ' ' + r.text + '</div>';
+        }).join('') +
+        (state.prevHigh ? '<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border);font-size:10px;color:var(--textDim)">KEY LEVELS: Prev ' + state.prevLow.toFixed(0) + '-' + state.prevHigh.toFixed(0) + (state.pivot ? ' · Pivot ' + state.pivot.toFixed(0) + ' · S1 ' + state.s1.toFixed(0) + ' · R1 ' + state.r1.toFixed(0) : '') + (state.weeklyLow ? ' · Week ' + state.weeklyLow.toFixed(0) + '-' + state.weeklyHigh.toFixed(0) : '') + '</div>' : '') +
+      '</div>';
+    }
+
     if (bannerHtml) document.getElementById('regimeRow').insertAdjacentHTML('afterend', bannerHtml);
 
   // ── LIVE PRICE RESOLUTION (needed by order panel) ──
@@ -2956,15 +3167,7 @@ function runBacktest() {
     sma200.push(sum / 200);
   }
 
-  // 8 EMA (on daily closes as proxy for 10-min 8 EMA momentum)
-  const ema8 = [];
-  const emaK = 2 / (8 + 1); // multiplier
-  for (let i = 0; i < closes.length; i++) {
-    if (i === 0) { ema8.push(closes[0]); continue; }
-    ema8.push(closes[i] * emaK + ema8[i-1] * (1 - emaK));
-  }
-
-  // VIX regime classification for market mechanics
+  // VIX regime classification for market mechanics (GEX proxy)
   // Approximate GEX using VIX change rate + level:
   // - Falling VIX + low VIX = positive GEX (dealer hedging supports, mean-reversion)
   // - Rising VIX + high VIX = negative GEX (dealer hedging amplifies moves, trend)
@@ -2972,12 +3175,11 @@ function runBacktest() {
   const gexProxy = [];
   for (let i = 0; i < vixArr.length; i++) {
     if (i < 5) { gexProxy.push('neutral'); continue; }
-    // 5-day VIX change
     const vixChg = vixArr[i] - vixArr[i-5];
     const vixLevel = vixArr[i];
-    if (vixLevel < 18 && vixChg <= 0) gexProxy.push('positive');      // Low & falling VIX = +GEX, mean-revert
-    else if (vixLevel > 25 && vixChg > 2) gexProxy.push('negative');   // High & spiking VIX = -GEX, trending
-    else if (vixLevel > 22 && vixChg > 0) gexProxy.push('cautious');   // Elevated & rising = reduce size
+    if (vixLevel < 18 && vixChg <= 0) gexProxy.push('positive');
+    else if (vixLevel > 25 && vixChg > 2) gexProxy.push('negative');
+    else if (vixLevel > 22 && vixChg > 0) gexProxy.push('cautious');
     else gexProxy.push('neutral');
   }
 
@@ -3017,45 +3219,24 @@ function runBacktest() {
 
     if (strategy === 'auto') {
       const s200 = sma200[i];
-      const e8 = ema8[i];
       const gex = gexProxy[i];
 
       if (s200 === null) {
-        // Not enough data for 200 SMA yet — use simple VIX logic
-        strat = vix < 22 ? 'put' : 'put';
+        // Not enough data for 200 SMA yet — use puts as default
+        strat = 'put';
         biasLabel = 'No200SMA';
       } else {
-        // Dual filter: 200 SMA (structural) + 8 EMA (momentum)
         const aboveSMA = close > s200;
-        const aboveEMA = close > e8;
+        const distPct = Math.abs(close - s200) / s200;
 
-        if (aboveSMA && aboveEMA) {
-          // Strong BULL: price above both → sell puts
+        if (aboveSMA) {
+          // BULL: price above 200 SMA → sell puts
           strat = 'put';
           biasLabel = 'BULL→Put';
-        } else if (!aboveSMA && !aboveEMA) {
-          // Strong BEAR: price below both → sell calls
+        } else {
+          // BEAR: price below 200 SMA → sell calls
           strat = 'call';
           biasLabel = 'BEAR→Call';
-        } else if (aboveSMA && !aboveEMA) {
-          // Above 200 SMA but below 8 EMA → pullback in uptrend
-          // Cautious: smaller position or skip based on GEX
-          if (gex === 'negative') {
-            skipDay = true;
-            biasLabel = 'CAUTION→Skip';
-          } else {
-            strat = 'put'; // still bullish structure, just weaker
-            biasLabel = 'BULL→Put';
-          }
-        } else { // below SMA, above EMA
-          // Below 200 SMA but above 8 EMA → bounce in downtrend
-          if (gex === 'negative') {
-            skipDay = true;
-            biasLabel = 'CAUTION→Skip';
-          } else {
-            strat = 'call'; // still bearish structure
-            biasLabel = 'BEAR→Call';
-          }
         }
 
         // Market mechanics override: negative GEX + high VIX = skip entirely
@@ -3064,8 +3245,14 @@ function runBacktest() {
           biasLabel = 'CAUTION→Skip';
         }
 
-        // Neutral zone: when EMA and SMA are within 0.5% of each other → IC opportunity
-        if (!skipDay && s200 && Math.abs(close - s200) / s200 < 0.005 && gex !== 'negative') {
+        // Cautious GEX + VIX > 25 = skip
+        if (gex === 'cautious' && vix > 25) {
+          skipDay = true;
+          biasLabel = 'CAUTION→Skip';
+        }
+
+        // Neutral zone: price within 0.5% of 200 SMA → IC opportunity
+        if (!skipDay && distPct < 0.005 && gex !== 'negative') {
           strat = 'ic';
           biasLabel = 'NEUT→IC';
         }
@@ -3307,7 +3494,7 @@ function runBacktest() {
           '</div>';
         }).join('')}
         <div style="margin-top:8px;font-size:10px;color:var(--textDim)">
-          Auto strategy uses close vs 200 SMA (structural trend) + 8 EMA (momentum). Skips days with conflicting signals + negative GEX.
+          Auto strategy uses close vs 200 SMA (structural trend) + VIX/GEX filter. Skips high-risk days with negative GEX + elevated VIX.
         </div>
       </div>
       <!-- GEX PROXY STATS -->
