@@ -3439,44 +3439,82 @@ function runBacktest() {
     let callBreached = arvoHigh >= callStopLevel;
     let result, pnl;
 
-    // Stop calculation
-    let stopPrice;
-    if (stopMode === 'premium' || stopMode === 'timegated') {
+    // Stop calculation — TWO-TIER SYSTEM
+    // Premium mode: single fixed multiplier (e.g. 2×)
+    // Time-gated mode: 2× first 2hrs (wide, survive noise), 1.5× after (tight, theta decayed)
+    //   + 3× emergency always active
+    let stopPrice, earlyStopPrice, lateStopPrice, emergencyStopPrice;
+    if (stopMode === 'premium') {
       stopPrice = credit * stopVal;
+    } else if (stopMode === 'timegated') {
+      earlyStopPrice = credit * 2;     // first 2 hours: wide stop
+      lateStopPrice = credit * 1.5;    // after 2 hours: tight stop
+      emergencyStopPrice = credit * 3; // always active
+      stopPrice = lateStopPrice; // default for breach calc
     } else if (stopMode === 'points') {
       stopPrice = null;
     } else {
       stopPrice = credit * 2.5;
     }
 
-    // Time-gated stop: approximate whether breach was early (noise) vs late (sustained)
-    // Recovery ratio: how much price recovered from its extreme
-    // High recovery = early noise (would survive time-gated), low recovery = sustained move
+    // Time-gated two-tier stop approximation from daily OHLC:
+    // We use close position to estimate WHEN the breach happened:
+    // - Close near extreme (low for puts, high for calls) = late sustained move → 1.5× stop
+    // - Close recovered from extreme = early noise → only 2× stop applies (wider, may survive)
+    // - Close far from extreme with big move = early spike recovered → trade survives
     const closePos = (high !== low) ? (close - low) / (high - low) : 0.5;
-    // For puts: closePos > 0.5 means close recovered well above the low → early noise
-    // For calls: closePos < 0.5 means close recovered well below the high → early noise
-    // Time-gated threshold: if recovery > 50%, assume it was first-half noise → skip the stop
-    const timeGateThreshold = 0.50;
 
     let putStopped = putBreached;
     let callStopped = callBreached;
 
-    if (stopMode === 'timegated') {
-      // If price recovered from the extreme, the breach was likely early session noise
-      // The 2× stop wouldn't have been active yet (first 2 hours = no stop)
-      if (putBreached && closePos > timeGateThreshold) putStopped = false;
-      if (callBreached && closePos < (1 - timeGateThreshold)) callStopped = false;
+    if (stopMode === 'timegated' && (putBreached || callBreached)) {
+      // Estimate if breach was early (noise) or late (sustained)
+      // closePos for puts: high = recovered (early noise), low = sustained (late)
+      // closePos for calls: low = recovered (early noise), high = sustained (late)
+      if (putBreached) {
+        if (closePos > 0.6) {
+          // Price recovered well → early noise, 2× wide stop
+          // Check if move was big enough to hit even the 2× wide stop
+          const putBuffer = open - sP;
+          const moveDepth = putBuffer > 0 ? (open - arvoLow) / putBuffer : 1;
+          putStopped = moveDepth > 0.85; // only stopped if very deep move despite recovery
+        }
+        // else: close near low → sustained move, 1.5× tight stop applies → putStopped stays true
+      }
+      if (callBreached) {
+        if (closePos < 0.4) {
+          const callBuffer = sC - open;
+          const moveDepth = callBuffer > 0 ? (arvoHigh - open) / callBuffer : 1;
+          callStopped = moveDepth > 0.85;
+        }
+      }
+      // Emergency 3× always stops — check if move was catastrophic
+      // (breach + no recovery + deep move = emergency scenario, already handled by putStopped = true)
     }
+
+    // For time-gated losses, determine which stop tier was hit:
+    // If close recovered (early noise + deep move), use 2× wide stop loss
+    // If close near extreme (late sustained), use 1.5× tight stop loss
+    function tieredLoss(cr, cts, isEarlyNoise) {
+      if (stopMode === 'timegated') {
+        const sp = isEarlyNoise ? earlyStopPrice : lateStopPrice;
+        return -(sp - cr) * cts * 100;
+      }
+      return -(stopPrice - cr) * cts * 100;
+    }
+    // For time-gated: determine if it was an early or late stop
+    const putEarlyNoise = putBreached && closePos > 0.4; // recovered somewhat
+    const callEarlyNoise = callBreached && closePos < 0.6;
 
     if (strat === 'put') {
       if (stopMode === 'points' && arvoLow <= (sP - stopVal)) {
         result = 'LOSS';
         pnl = -(stopVal / width) * (width - credit) * cts * 100;
-      } else if (putStopped && stopPrice) {
+      } else if (putStopped && (stopPrice || stopMode === 'timegated')) {
         result = 'LOSS';
-        pnl = -(stopPrice - credit) * cts * 100;
+        pnl = tieredLoss(credit, cts, putEarlyNoise);
       } else if (putBreached && !putStopped) {
-        // Time-gated: breach was early noise, price recovered → still a win
+        // Time-gated: breach was early noise, price recovered → survived
         result = 'WIN';
         pnl = credit * profitPct * cts * 100;
       } else {
@@ -3487,9 +3525,9 @@ function runBacktest() {
       if (stopMode === 'points' && arvoHigh >= (sC + stopVal)) {
         result = 'LOSS';
         pnl = -(stopVal / width) * (width - credit) * cts * 100;
-      } else if (callStopped && stopPrice) {
+      } else if (callStopped && (stopPrice || stopMode === 'timegated')) {
         result = 'LOSS';
-        pnl = -(stopPrice - credit) * cts * 100;
+        pnl = tieredLoss(credit, cts, callEarlyNoise);
       } else if (callBreached && !callStopped) {
         result = 'WIN';
         pnl = credit * profitPct * cts * 100;
@@ -3501,9 +3539,10 @@ function runBacktest() {
       if (stopMode === 'points' && (arvoLow <= (sP - stopVal) || arvoHigh >= (sC + stopVal))) {
         result = 'LOSS';
         pnl = -(stopVal / width) * (width - icCredit) * cts * 100;
-      } else if ((putStopped || callStopped) && stopPrice) {
+      } else if ((putStopped || callStopped) && (stopPrice || stopMode === 'timegated')) {
         result = 'LOSS';
-        pnl = -(stopPrice - icCredit) * cts * 100;
+        const icEarly = putStopped ? putEarlyNoise : callEarlyNoise;
+        pnl = tieredLoss(icCredit, cts, icEarly);
       } else if ((putBreached || callBreached) && !(putStopped || callStopped)) {
         result = 'WIN';
         pnl = icCredit * profitPct * cts * 100;
@@ -3846,8 +3885,9 @@ function updateStopDesc() {
   const mode = document.getElementById('bt-stopMode').value;
   const desc = document.getElementById('bt-stopDesc');
   const valInput = document.getElementById('bt-stopVal');
+  valInput.disabled = false;
   if (mode === 'premium') { desc.innerHTML = '× credit received<br><span style="color:var(--gold)">e.g. 2× = close if spread hits 2× your credit ($1.00 → stop at $2.00)</span>'; valInput.value = '2'; valInput.step = '0.5'; }
-  else if (mode === 'timegated') { desc.innerHTML = '× credit (after 2hr delay)<br><span style="color:var(--green)">No stop first 2hrs (ride out noise). Then 2× stop kicks in when theta has decayed ~50%.</span>'; valInput.value = '2'; valInput.step = '0.5'; }
+  else if (mode === 'timegated') { desc.innerHTML = 'Two-tier stop system<br><span style="color:var(--gold)">2× wide first 2hrs (noise protection)</span><br><span style="color:var(--red)">1.5× tight after 2hrs (theta decayed)</span><br><span style="color:var(--textDim)">3× emergency always active</span>'; valInput.value = '2'; valInput.step = '0.5'; valInput.disabled = true; }
   else if (mode === 'points') { desc.innerHTML = 'SPX points past short strike<br><span style="color:var(--gold)">e.g. 10 = close if SPX moves 10pts through your short strike</span>'; valInput.value = '10'; valInput.step = '5'; }
   else { desc.innerHTML = '× credit (time-weighted avg)<br><span style="color:var(--gold)">Simulates tighter stops later in session (avg 2.5× across day)</span>'; valInput.value = '2.5'; valInput.step = '0.5'; }
 }
