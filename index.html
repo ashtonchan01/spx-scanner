@@ -1227,6 +1227,21 @@ async function fetchPrices() {
       localStorage.setItem('spx_dma200', state.dma200);
     }
 
+    // Fallback S/R levels from HIST_DATA when IBKR disconnected
+    if (!state.prevHigh && HIST_DATA.length >= 6) {
+      const last5 = HIST_DATA.slice(-6, -1); // last 5 completed days
+      const prev = HIST_DATA[HIST_DATA.length - 2]; // yesterday
+      state.prevHigh = prev[2]; state.prevLow = prev[3]; state.prevClose = prev[4];
+      state.weeklyHigh = Math.max(...last5.map(d => d[2]));
+      state.weeklyLow = Math.min(...last5.map(d => d[3]));
+      const ph = state.prevHigh, pl = state.prevLow, pc = state.prevClose;
+      state.pivot = (ph + pl + pc) / 3;
+      state.r1 = 2 * state.pivot - pl;
+      state.r2 = state.pivot + (ph - pl);
+      state.s1 = 2 * state.pivot - ph;
+      state.s2 = state.pivot - (ph - pl);
+    }
+
     // Determine macro risk for today
     state.macroRisk = getMacroRisk();
 
