@@ -298,9 +298,9 @@ input, select, button, textarea { font-family: 'IBM Plex Mono', monospace; outli
       <button class="btn" style="border:1px solid var(--green);color:var(--green);font-size:11px;padding:7px 16px;font-weight:700" onclick="connect()">CONNECT</button>
     </div>
     <div style="text-align:right;flex-shrink:0">
-      <div id="clock" style="font-family:'IBM Plex Mono',monospace;font-size:22px;font-weight:300;color:var(--gold);letter-spacing:2px;font-feature-settings:'zero' 0"></div>
+      <div id="clock" style="font-family:'Chakra Petch',sans-serif;font-size:22px;font-weight:300;color:var(--gold);letter-spacing:2px"></div>
       <div style="font-size:9px;color:var(--textDim);letter-spacing:1px">SYDNEY</div>
-      <div id="clockET" style="font-family:'IBM Plex Mono',monospace;font-size:15px;font-weight:300;color:var(--textMid);margin-top:4px;letter-spacing:2px;font-feature-settings:'zero' 0"></div>
+      <div id="clockET" style="font-family:'Chakra Petch',sans-serif;font-size:15px;font-weight:300;color:var(--textMid);margin-top:4px;letter-spacing:2px"></div>
       <div style="font-size:9px;color:var(--textDim);letter-spacing:1px">NEW YORK · <span id="clockMkt" style="font-weight:600">CLOSED</span></div>
     </div>
   </div>
@@ -3215,12 +3215,15 @@ function resetAllData() {
 // ══════════════════════════════════════════════════════════════════════════════
 // CLOCK
 // ══════════════════════════════════════════════════════════════════════════════
+function fixedDigits(str, size) {
+  return str.split('').map(c => `<span style="display:inline-block;width:${c===':'?size*0.5:size}px;text-align:center">${c}</span>`).join('');
+}
 function updateClock() {
   const now = new Date();
-  document.getElementById('clock').textContent = now.toLocaleTimeString('en-AU', { hour:'2-digit', minute:'2-digit', second:'2-digit', hour12:false, timeZone:'Australia/Sydney' });
+  document.getElementById('clock').innerHTML = fixedDigits(now.toLocaleTimeString('en-AU', { hour:'2-digit', minute:'2-digit', second:'2-digit', hour12:false, timeZone:'Australia/Sydney' }), 16);
   const etEl = document.getElementById('clockET');
   if (etEl) {
-    etEl.textContent = now.toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit', second:'2-digit', hour12:false, timeZone:'America/New_York' });
+    etEl.innerHTML = fixedDigits(now.toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit', second:'2-digit', hour12:false, timeZone:'America/New_York' }), 11);
     const etH = parseInt(now.toLocaleString('en-US', { timeZone:'America/New_York', hour:'numeric', hour12:false }));
     const etM = parseInt(now.toLocaleString('en-US', { timeZone:'America/New_York', minute:'numeric' }));
     const etDec = etH + etM / 60;
