@@ -1553,9 +1553,10 @@ function renderUnifiedPlaybook(d) {
     phase, dailyMove, dma200, dmaAbove, dmaDist, stopBuffer,
     wklyShort, wklyLong, wklyFill, macroColors } = d;
 
-  // Get playbook data for scheduled trades
+  // Get playbook data for scheduled trades — use New York market time
   const PLAYBOOK = getPlaybook();
-  const todayIdx = new Date().getDay();
+  const nyNow = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }));
+  const todayIdx = nyNow.getDay();
   const todayName = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][todayIdx];
   const ph = getPhase(traderData.currentCapital);
   const dual = ph.id >= 3;
@@ -2221,7 +2222,7 @@ function getPlaybook() {
     },
   };
 }
-let selectedPlaybookDay = ['Mon','Tue','Wed','Thu','Fri'][(new Date().getDay() + 6) % 7] || 'Mon';
+let selectedPlaybookDay = (function() { const ny = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' })); return ['Mon','Tue','Wed','Thu','Fri'][(ny.getDay() + 6) % 7] || 'Mon'; })();
 if (!getPlaybook()[selectedPlaybookDay]) selectedPlaybookDay = 'Mon';
 
 function renderPlaybook() {
