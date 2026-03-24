@@ -385,13 +385,11 @@ input, select, button, textarea { font-family: 'IBM Plex Mono', monospace; outli
         </div>
       </div>
     </div>
-    <div id="scanInfo" style="font-size:10px;color:var(--textDim);text-align:right;padding-top:6px">Enter SPX &amp; VIX then press WHAT'S TODAY'S SETUP?</div>
+    <div style="display:flex;align-items:center;gap:8px;padding-top:6px">
+      <div id="scanInfo" style="font-size:10px;color:var(--textDim);flex:1">Enter SPX &amp; VIX then press SCAN</div>
+      <button id="setupBtn" onclick="todaysSetup()" style="padding:6px 20px;font-size:11px;font-weight:700;font-family:'IBM Plex Mono',monospace;letter-spacing:2px;cursor:pointer;border:1px solid var(--cyan);background:rgba(0,229,255,0.08);color:var(--cyan)">SCAN</button>
+    </div>
   </div>
-</div>
-
-<!-- SETUP BUTTON -->
-<div style="margin-bottom:12px">
-  <button id="setupBtn" onclick="todaysSetup()" style="width:100%;padding:10px;font-size:12px;font-weight:600;font-family:'IBM Plex Mono',monospace;letter-spacing:2px;cursor:pointer;border:1px solid var(--cyan);background:rgba(0,229,255,0.06);color:var(--cyan);transition:all 0.15s">&#8635; WHAT'S TODAY'S SETUP?</button>
 </div>
 
 <!-- UNIFIED PLAYBOOK -->
@@ -1514,7 +1512,7 @@ async function todaysSetup() {
     }
     scan();
   } finally {
-    btn.innerHTML = '&#8635; RE-SCAN';
+    btn.textContent = 'SCAN';
     btn.style.opacity = '1';
     btn.disabled = false;
   }
@@ -1582,9 +1580,6 @@ function renderUnifiedPlaybook(d) {
     reasoningHtml = state.reasoning.map(function(r) {
       return '<div style="padding:3px 0;font-size:12px;color:var(--text)">' + r.icon + ' ' + r.text + '</div>';
     }).join('');
-    if (state.prevHigh) {
-      reasoningHtml += '<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border);font-size:10px;color:var(--textDim)">\uD83D\uDD11 KEY LEVELS: Prev ' + state.prevLow.toFixed(0) + '-' + state.prevHigh.toFixed(0) + (state.pivot ? ' \u00B7 Pivot ' + state.pivot.toFixed(0) + ' \u00B7 S1 ' + state.s1.toFixed(0) + ' \u00B7 R1 ' + state.r1.toFixed(0) : '') + (state.weeklyLow ? ' \u00B7 Week ' + state.weeklyLow.toFixed(0) + '-' + state.weeklyHigh.toFixed(0) : '') + '</div>';
-    }
   }
 
   // Scheduled trades for selected day
@@ -1620,92 +1615,101 @@ function renderUnifiedPlaybook(d) {
 
   // Build the unified panel
   const html = `
-    <!-- DAY SELECTOR + SESSION -->
-    <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
-      <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:4px;flex:1">${dayBtnsHtml}</div>
-      <div class="panel" style="padding:10px 16px;text-align:center;min-width:140px">
-        <div style="font-size:9px;color:var(--textDim);letter-spacing:1px;margin-bottom:2px">SESSION</div>
-        <div class="chakra" style="font-size:14px;font-weight:700;color:${sessionColor}">${sessionStatus}</div>
-        <div style="font-size:10px;color:${sessionColor};margin-top:2px">${sessionNote}</div>
-      </div>
-    </div>
-
     ${bannerHtml}
 
-    <!-- MARKET ANALYSIS — clean horizontal layout -->
+    <!-- MARKET ANALYSIS -->
     <div class="panel" style="padding:12px 16px;margin-bottom:8px">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
         <div style="font-size:10px;color:var(--textDim);letter-spacing:2px">MARKET ANALYSIS</div>
-        <div style="display:flex;align-items:center;gap:12px">
-          <span style="font-size:10px;padding:3px 10px;background:${regime.color}15;border:1px solid ${regime.color}40;color:${regime.color};font-weight:700">${regime.level} \u00B7 ${Math.round(regime.size*100)}%</span>
-          ${reasoningScoreLabel ? '<span style="font-size:10px;padding:3px 10px;background:' + reasoningScoreColor + '15;border:1px solid ' + reasoningScoreColor + '40;color:' + reasoningScoreColor + ';font-weight:700">' + reasoningScoreLabel + '</span>' : ''}
-          <span style="font-size:10px;padding:3px 10px;background:${isBearish ? 'var(--red)' : isBullish ? 'var(--green)' : 'var(--cyan)'}15;border:1px solid ${isBearish ? 'var(--red)' : isBullish ? 'var(--green)' : 'var(--cyan)'}40;color:${isBearish ? 'var(--red)' : isBullish ? 'var(--green)' : 'var(--cyan)'};font-weight:700">${isBearish ? '\u2193 BEAR' : isBullish ? '\u2191 BULL' : '\u2192 NEUT'}</span>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-size:10px;padding:3px 10px;border:1px solid ${regime.color};color:${regime.color};font-weight:700">${regime.level} \u00B7 ${Math.round(regime.size*100)}%</span>
+          ${reasoningScoreLabel ? '<span style="font-size:10px;padding:3px 10px;border:1px solid ' + reasoningScoreColor + ';color:' + reasoningScoreColor + ';font-weight:700">' + reasoningScoreLabel + '</span>' : ''}
+          <span style="font-size:10px;padding:3px 10px;border:1px solid ${isBearish ? 'var(--red)' : isBullish ? 'var(--green)' : 'var(--cyan)'};color:${isBearish ? 'var(--red)' : isBullish ? 'var(--green)' : 'var(--cyan)'};font-weight:700">${isBearish ? '\u2193 BEAR' : isBullish ? '\u2191 BULL' : '\u2192 NEUT'}</span>
         </div>
       </div>
-      <!-- Key numbers in a single row -->
-      <div style="display:flex;gap:24px;padding:8px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border);margin-bottom:8px;flex-wrap:wrap">
-        ${regimeItems.map(function(s) { return '<div><span style="font-size:9px;color:var(--textDim);letter-spacing:1px">' + s.l + '</span> <span class="chakra" style="font-size:14px;font-weight:700;color:' + s.c + '">' + s.v + '</span></div>'; }).join('')}
+      <!-- Key numbers in outline boxes -->
+      <div style="display:grid;grid-template-columns:repeat(${regimeItems.length},1fr);gap:6px;margin-bottom:8px">
+        ${regimeItems.map(function(s) { return '<div style="border:1px solid var(--border);padding:8px 10px;text-align:center"><div style="font-size:9px;color:var(--textDim);letter-spacing:1px;margin-bottom:2px">' + s.l + '</div><div class="chakra" style="font-size:15px;font-weight:700;color:' + s.c + '">' + s.v + '</div></div>'; }).join('')}
       </div>
-      <!-- Reasoning bullets -->
-      ${reasoningHtml}
+      <!-- Reasoning as table -->
+      ${state.reasoning.length > 0 ? '<table style="width:100%;border-collapse:collapse;font-size:11px">' + state.reasoning.map(function(r) { return '<tr style="border-bottom:1px solid var(--border)"><td style="padding:4px 0;width:24px;color:var(--textMid)">' + r.icon + '</td><td style="padding:4px 8px;color:var(--text)">' + r.text + '</td><td style="padding:4px 0;text-align:right;font-weight:700;color:' + (r.bullish ? 'var(--green)' : 'var(--red)') + '">' + (r.bullish ? '\u2191' : '\u2193') + '</td></tr>'; }).join('') + '</table>' : ''}
+      ${state.prevHigh ? '<div style="margin-top:6px;padding-top:6px;border-top:1px solid var(--border);font-size:10px;color:var(--textDim)">\uD83D\uDD11 KEY LEVELS: Prev ' + state.prevLow.toFixed(0) + '-' + state.prevHigh.toFixed(0) + (state.pivot ? ' \u00B7 Pivot ' + state.pivot.toFixed(0) + ' \u00B7 S1 ' + state.s1.toFixed(0) + ' \u00B7 R1 ' + state.r1.toFixed(0) : '') + (state.weeklyLow ? ' \u00B7 Week ' + state.weeklyLow.toFixed(0) + '-' + state.weeklyHigh.toFixed(0) : '') + '</div>' : ''}
     </div>
 
-    <!-- SCHEDULED TRADES + TODAY'S ORDER (combined) -->
-    <div class="panel" style="padding:14px 16px;margin-bottom:8px;border-left:3px solid ${orderColor}">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-        <div style="font-size:10px;color:var(--textDim);letter-spacing:2px">TRADES \u2014 ${selDay.toUpperCase()}</div>
-        <div style="display:flex;gap:6px">
-          <span style="font-size:10px;padding:3px 8px;background:rgba(0,208,132,0.1);border:1px solid rgba(0,208,132,0.3);color:var(--green)">PHASE ${ph.id}: ${pbContracts} CONTRACTS</span>
-        </div>
+    <!-- DAY WRAP — tabs + all content inside one box -->
+    <div class="panel" style="margin-bottom:8px;overflow:hidden">
+      <!-- Day tabs -->
+      <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:0;border-bottom:1px solid var(--border)">
+        ${['Mon','Tue','Wed','Thu','Fri'].map(function(dd) {
+          const isSel = dd === selDay;
+          const isToday = dd === todayName;
+          return '<button style="border:none;cursor:pointer;padding:10px;font-size:12px;font-family:\'IBM Plex Mono\',monospace;font-weight:' + (isSel ? 700 : 400) + ';color:' + (isSel ? 'var(--cyan)' : 'var(--textDim)') + ';background:' + (isSel ? 'rgba(0,229,255,0.08)' : 'transparent') + ';border-bottom:' + (isSel ? '2px solid var(--cyan)' : '2px solid transparent') + ';position:relative" onclick="window._unifiedPlaybookDay=\'' + dd + '\';scan()">' + dd.toUpperCase() + (isToday ? '<span style="position:absolute;top:3px;right:6px;font-size:7px;color:var(--green)">\u25CF</span>' : '') + '</button>';
+        }).join('')}
       </div>
 
-      <!-- TODAY'S ORDER — compact card -->
-      <div style="padding:12px;background:${orderColor}08;border:1px solid ${orderColor}30;margin-bottom:8px">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-          <div style="display:flex;align-items:center;gap:8px">
-            <span class="chakra" style="font-size:16px;font-weight:700;color:${orderColor}">${orderIcon} ${orderType}</span>
-          </div>
-          <span class="chakra" style="font-size:16px;font-weight:700;color:${convColor}">${conviction}</span>
-        </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1fr;gap:12px">
-          <div>
-            <div style="font-size:9px;color:var(--textDim);margin-bottom:2px">SELL / BUY</div>
-            <div class="mono" style="font-size:13px;font-weight:700;color:var(--white)">${useCall ? recRow.sC : recRow.sP} / ${useCall ? recRow.lC : recRow.lP} ${useCall ? 'C' : 'P'}</div>
-          </div>
-          <div>
-            <div style="font-size:9px;color:var(--textDim);margin-bottom:2px">SIZE</div>
-            <div class="chakra" style="font-size:16px;font-weight:700;color:var(--green)">${adjContracts}ct</div>
-          </div>
-          <div>
-            <div style="font-size:9px;color:var(--textDim);margin-bottom:2px">CREDIT</div>
-            <div class="chakra" style="font-size:16px;font-weight:700;color:${orderColor}">$${f2(orderCredit)}</div>
-            <div style="font-size:9px;color:var(--textDim)">${fmt$(adjIncome)} total</div>
-          </div>
-          <div>
-            <div style="font-size:9px;color:var(--textDim);margin-bottom:2px">STOP</div>
-            <div style="font-size:11px;color:var(--gold)">2\u00D7 $${f2(orderCredit*2)} <span style="color:var(--textDim)">(0-2hr)</span></div>
-            <div style="font-size:11px;color:var(--red)">1.5\u00D7 $${f2(orderCredit*1.5)} <span style="color:var(--textDim)">(2hr+)</span></div>
-          </div>
-          <div>
-            <div style="font-size:9px;color:var(--textDim);margin-bottom:2px">MAX LOSS</div>
-            <div style="font-size:11px;color:var(--gold)">-${fmt$(orderCredit * adjContracts * 100)} <span style="color:var(--textDim)">@ 2\u00D7</span></div>
-            <div style="font-size:11px;color:var(--red)">-${fmt$(orderCredit * 0.5 * adjContracts * 100)} <span style="color:var(--textDim)">@ 1.5\u00D7</span></div>
+      <!-- Day content -->
+      <div style="padding:14px 16px">
+        <!-- Phase + session info -->
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+          <div style="font-size:10px;color:var(--textDim);letter-spacing:2px">TRADES \u2014 ${selDay.toUpperCase()}</div>
+          <div style="display:flex;gap:6px;align-items:center">
+            <span style="font-size:10px;padding:3px 8px;border:1px solid var(--green);color:var(--green)">PHASE ${ph.id} \u00B7 ${pbContracts}ct</span>
+            <span style="font-size:10px;padding:3px 8px;border:1px solid ${sessionColor};color:${sessionColor}">${sessionStatus}</span>
           </div>
         </div>
-        <div style="margin-top:6px;font-size:10px;color:var(--textDim)">\u0394${recDelta} \u00B7 ${state.width}pt \u00B7 Hold to expiry \u00B7 ${stopInfo.tier === 'EARLY' ? '\u23F1 ' : stopInfo.tier === 'LATE' ? '\uD83D\uDD12 ' : ''}${stopInfo.window}</div>
-      </div>
 
-      <!-- Scheduled trades from playbook -->
-      ${scheduledHtml}
+        <!-- TODAY'S ORDER — outline box -->
+        <div style="padding:12px;border:1px solid ${orderColor};margin-bottom:8px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+            <span class="chakra" style="font-size:15px;font-weight:700;color:${orderColor}">${orderIcon} ${orderType}</span>
+            <span class="chakra" style="font-size:15px;font-weight:700;color:${convColor}">${conviction}</span>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1fr;gap:8px">
+            <div style="border:1px solid var(--border);padding:8px;text-align:center">
+              <div style="font-size:9px;color:var(--textDim);margin-bottom:3px">SELL / BUY</div>
+              <div class="mono" style="font-size:12px;font-weight:700;color:var(--white)">${useCall ? recRow.sC : recRow.sP} / ${useCall ? recRow.lC : recRow.lP}</div>
+              <div style="font-size:9px;color:var(--textDim);margin-top:2px">${useCall ? 'CALL' : 'PUT'} \u00B7 ${state.width}pt</div>
+            </div>
+            <div style="border:1px solid var(--border);padding:8px;text-align:center">
+              <div style="font-size:9px;color:var(--textDim);margin-bottom:3px">SIZE</div>
+              <div class="chakra" style="font-size:18px;font-weight:700;color:var(--green)">${adjContracts}ct</div>
+              ${adjContracts !== contracts ? '<div style="font-size:9px;color:var(--gold);margin-top:2px">sized down</div>' : ''}
+            </div>
+            <div style="border:1px solid var(--border);padding:8px;text-align:center">
+              <div style="font-size:9px;color:var(--textDim);margin-bottom:3px">CREDIT</div>
+              <div class="chakra" style="font-size:18px;font-weight:700;color:${orderColor}">$${f2(orderCredit)}</div>
+              <div style="font-size:9px;color:var(--textDim);margin-top:2px">${fmt$(adjIncome)} total</div>
+            </div>
+            <div style="border:1px solid var(--border);padding:8px;text-align:center">
+              <div style="font-size:9px;color:var(--textDim);margin-bottom:3px">STOP</div>
+              <div style="font-size:11px;color:var(--gold)">2\u00D7 $${f2(orderCredit*2)}</div>
+              <div style="font-size:9px;color:var(--textDim)">0-2hr</div>
+              <div style="font-size:11px;color:var(--red);margin-top:2px">1.5\u00D7 $${f2(orderCredit*1.5)}</div>
+              <div style="font-size:9px;color:var(--textDim)">2hr+</div>
+            </div>
+            <div style="border:1px solid var(--border);padding:8px;text-align:center">
+              <div style="font-size:9px;color:var(--textDim);margin-bottom:3px">MAX LOSS</div>
+              <div style="font-size:11px;color:var(--gold)">-${fmt$(orderCredit * adjContracts * 100)}</div>
+              <div style="font-size:9px;color:var(--textDim)">@ 2\u00D7</div>
+              <div style="font-size:11px;color:var(--red);margin-top:2px">-${fmt$(orderCredit * 0.5 * adjContracts * 100)}</div>
+              <div style="font-size:9px;color:var(--textDim)">@ 1.5\u00D7</div>
+            </div>
+          </div>
+          <div style="margin-top:6px;font-size:10px;color:var(--textDim)">\u0394${recDelta} \u00B7 Hold to expiry \u00B7 ${stopInfo.tier === 'EARLY' ? '\u23F1 ' : stopInfo.tier === 'LATE' ? '\uD83D\uDD12 ' : ''}${stopInfo.window}</div>
+        </div>
 
-      <!-- Compact rules row -->
-      <div style="margin-top:8px;padding:8px 12px;background:var(--panelAlt);border:1px solid var(--border);display:flex;gap:16px;flex-wrap:wrap;font-size:10px">
-        <span style="color:var(--gold)">MIN $0.60</span>
-        <span style="color:var(--green)">HOLD EXPIRY</span>
-        <span style="color:var(--red)">VIX +20% \u2192 CLOSE ALL</span>
-        <span style="color:${regime.color}">SIZE ${Math.round(regime.size*100)}%</span>
-        <span style="color:var(--gold)">HARD CLOSE 6:00 AM</span>
-        <span style="color:var(--textDim)">${state.mode === 'morning' ? '12:45\u20131:15 MORN' : '3:00\u20134:00 ARVO'}</span>
+        <!-- Scheduled trades from playbook -->
+        ${scheduledHtml}
+
+        <!-- Compact rules row -->
+        <div style="margin-top:8px;padding:8px 12px;border:1px solid var(--border);display:flex;gap:16px;flex-wrap:wrap;font-size:10px">
+          <span style="color:var(--gold)">MIN $0.60</span>
+          <span style="color:var(--green)">HOLD EXPIRY</span>
+          <span style="color:var(--red)">VIX +20% \u2192 CLOSE ALL</span>
+          <span style="color:${regime.color}">SIZE ${Math.round(regime.size*100)}%</span>
+          <span style="color:var(--gold)">HARD CLOSE 6:00 AM</span>
+          <span style="color:var(--textDim)">${state.mode === 'morning' ? '12:45\u20131:15 MORN' : '3:00\u20134:00 ARVO'}</span>
+        </div>
       </div>
     </div>
   `;
