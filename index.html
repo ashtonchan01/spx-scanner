@@ -391,7 +391,7 @@ input, select, button, textarea { font-family: 'IBM Plex Mono', monospace; outli
 
 <!-- SETUP BUTTON -->
 <div style="margin-bottom:12px">
-  <button id="setupBtn" onclick="todaysSetup()" style="width:100%;padding:18px;font-size:16px;font-weight:700;font-family:'Chakra Petch',sans-serif;letter-spacing:3px;cursor:pointer;border:2px solid var(--cyan);background:rgba(0,229,255,0.08);color:var(--cyan);transition:all 0.15s">WHAT'S TODAY'S SETUP?</button>
+  <button id="setupBtn" onclick="todaysSetup()" style="width:100%;padding:10px;font-size:12px;font-weight:600;font-family:'IBM Plex Mono',monospace;letter-spacing:2px;cursor:pointer;border:1px solid var(--cyan);background:rgba(0,229,255,0.06);color:var(--cyan);transition:all 0.15s">&#8635; WHAT'S TODAY'S SETUP?</button>
 </div>
 
 <!-- UNIFIED PLAYBOOK -->
@@ -1563,12 +1563,10 @@ function renderUnifiedPlaybook(d) {
     '</button>';
   }).join('');
 
-  // Warning banners
+  // Warning banners (only show blackout — bear warning removed per user request)
   let bannerHtml = '';
   if (state.macroRisk === 'blackout') {
     bannerHtml += '<div style="border:2px solid var(--red);border-left:4px solid var(--red);padding:10px 16px;display:flex;align-items:center;gap:12px;background:rgba(255,71,87,0.08);margin-bottom:8px"><span style="font-size:20px">\u26D4</span><div><div style="font-size:13px;color:var(--red);font-weight:700;letter-spacing:1px">NO TRADE TODAY</div><div style="font-size:11px;color:var(--textMid);margin-top:2px">FOMC / Market Holiday \u2014 capital preservation day</div></div></div>';
-  } else if (isBearish) {
-    bannerHtml += '<div style="border:2px solid var(--red);border-left:4px solid var(--red);padding:10px 16px;display:flex;align-items:center;gap:12px;background:rgba(255,71,87,0.06);margin-bottom:8px"><span style="font-size:20px">\uD83D\uDC3B</span><div><div style="font-size:13px;color:var(--red);font-weight:700;letter-spacing:1px">\u25B2 USE CALL SPREAD TODAY</div><div style="font-size:11px;color:var(--textMid);margin-top:2px">Auto-detected: SPX below 200DMA \u2014 put spreads are wrong-way trades</div></div></div>';
   }
 
   // Reasoning / market analysis
@@ -1634,138 +1632,81 @@ function renderUnifiedPlaybook(d) {
 
     ${bannerHtml}
 
-    <!-- MARKET ANALYSIS -->
-    <div class="panel" style="padding:14px 16px;margin-bottom:8px;border-left:3px solid ${reasoningScoreColor}">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-        <div style="font-size:12px;color:var(--textDim);letter-spacing:2px">MARKET ANALYSIS</div>
-        ${reasoningScoreLabel ? '<div class="chakra" style="font-size:14px;font-weight:700;color:' + reasoningScoreColor + '">CONVICTION: ' + reasoningScoreLabel + '</div>' : ''}
-      </div>
-      <!-- Metrics strip -->
-      <div class="regime-strip" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(100px,1fr));gap:1px;margin-bottom:10px">
-        <div class="panel" style="padding:8px 12px;border-left:4px solid ${regime.color}">
-          <div class="chakra" style="font-size:14px;font-weight:700;color:${regime.color}">${regime.level}</div>
-          <div style="font-size:10px;color:${regime.color}">${regime.action} \u00B7 ${Math.round(regime.size*100)}%</div>
+    <!-- MARKET ANALYSIS — clean horizontal layout -->
+    <div class="panel" style="padding:12px 16px;margin-bottom:8px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <div style="font-size:10px;color:var(--textDim);letter-spacing:2px">MARKET ANALYSIS</div>
+        <div style="display:flex;align-items:center;gap:12px">
+          <span style="font-size:10px;padding:3px 10px;background:${regime.color}15;border:1px solid ${regime.color}40;color:${regime.color};font-weight:700">${regime.level} \u00B7 ${Math.round(regime.size*100)}%</span>
+          ${reasoningScoreLabel ? '<span style="font-size:10px;padding:3px 10px;background:' + reasoningScoreColor + '15;border:1px solid ' + reasoningScoreColor + '40;color:' + reasoningScoreColor + ';font-weight:700">' + reasoningScoreLabel + '</span>' : ''}
+          <span style="font-size:10px;padding:3px 10px;background:${isBearish ? 'var(--red)' : isBullish ? 'var(--green)' : 'var(--cyan)'}15;border:1px solid ${isBearish ? 'var(--red)' : isBullish ? 'var(--green)' : 'var(--cyan)'}40;color:${isBearish ? 'var(--red)' : isBullish ? 'var(--green)' : 'var(--cyan)'};font-weight:700">${isBearish ? '\u2193 BEAR' : isBullish ? '\u2191 BULL' : '\u2192 NEUT'}</span>
         </div>
-        ${regimeItems.map(function(s) { return '<div class="panel" style="padding:8px 12px"><div style="font-size:9px;color:var(--textDim);letter-spacing:1px;margin-bottom:2px">' + s.l + '</div><div class="chakra" style="font-size:14px;font-weight:700;color:' + s.c + '">' + s.v + '</div></div>'; }).join('')}
+      </div>
+      <!-- Key numbers in a single row -->
+      <div style="display:flex;gap:24px;padding:8px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border);margin-bottom:8px;flex-wrap:wrap">
+        ${regimeItems.map(function(s) { return '<div><span style="font-size:9px;color:var(--textDim);letter-spacing:1px">' + s.l + '</span> <span class="chakra" style="font-size:14px;font-weight:700;color:' + s.c + '">' + s.v + '</span></div>'; }).join('')}
       </div>
       <!-- Reasoning bullets -->
       ${reasoningHtml}
     </div>
 
-    <!-- TODAY'S ORDER -->
-    <div class="panel" style="border:2px solid ${canTrade ? orderColor : 'var(--border)'};margin-bottom:8px;overflow:hidden">
-      <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 18px;background:${canTrade ? orderColor + '0C' : 'var(--panelAlt)'}">
-        <div style="display:flex;align-items:center;gap:14px">
-          <div class="chakra" style="font-size:28px;font-weight:700;color:${orderColor}">${orderIcon}</div>
-          <div>
-            <div style="font-size:10px;color:var(--textDim);letter-spacing:2px;margin-bottom:2px">TODAY'S ORDER</div>
-            <div class="chakra" style="font-size:20px;font-weight:700;color:${orderColor}">${orderType}</div>
-          </div>
-        </div>
-        <div style="text-align:right">
-          <div class="chakra" style="font-size:20px;font-weight:700;color:${convColor}">${conviction}</div>
-          <div style="font-size:10px;color:${convColor}">${convLabel}</div>
-        </div>
-      </div>
-
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:0;border-top:1px solid var(--border)">
-        ${useIC ? `
-        <div style="padding:12px 16px;border-right:1px solid var(--border)">
-          <div style="font-size:9px;color:var(--green);letter-spacing:1px;margin-bottom:4px">\u25BC SELL PUT</div>
-          <div class="mono" style="font-size:15px;font-weight:700;color:var(--white)">SPX ${recRow.sP}</div>
-          <div class="mono" style="font-size:11px;color:var(--textDim);margin-top:2px">BUY ${recRow.lP}</div>
-          <div style="margin-top:6px;font-size:9px;color:var(--orange);letter-spacing:1px;margin-bottom:4px">\u25B2 SELL CALL</div>
-          <div class="mono" style="font-size:15px;font-weight:700;color:var(--white)">SPX ${recRow.sC}</div>
-          <div class="mono" style="font-size:11px;color:var(--textDim);margin-top:2px">BUY ${recRow.lC}</div>
-        </div>
-        ` : `
-        <div style="padding:12px 16px;border-right:1px solid var(--border)">
-          <div style="font-size:9px;color:${orderColor};letter-spacing:1px;margin-bottom:4px">SELL</div>
-          <div class="mono" style="font-size:18px;font-weight:700;color:var(--white)">SPX ${useCall ? recRow.sC : recRow.sP} ${useCall ? 'C' : 'P'}</div>
-          <div style="font-size:9px;color:var(--textDim);letter-spacing:1px;margin-top:8px;margin-bottom:4px">BUY</div>
-          <div class="mono" style="font-size:18px;font-weight:700;color:var(--white)">SPX ${useCall ? recRow.lC : recRow.lP} ${useCall ? 'C' : 'P'}</div>
-        </div>
-        `}
-        <div style="padding:12px 16px;border-right:1px solid var(--border)">
-          <div style="font-size:9px;color:var(--textDim);letter-spacing:1px;margin-bottom:4px">CONTRACTS</div>
-          <div class="chakra" style="font-size:24px;font-weight:700;color:var(--green)">${adjContracts}</div>
-          ${adjContracts !== contracts ? '<div style="font-size:10px;color:var(--gold);margin-top:2px">' + conviction + ' setup \u2192 sized down</div>' : ''}
-          <div style="margin-top:10px;font-size:9px;color:var(--textDim);letter-spacing:1px;margin-bottom:4px">CREDIT</div>
-          <div class="chakra" style="font-size:24px;font-weight:700;color:${orderCredit >= 0.60 ? orderColor : 'var(--red)'}">$${f2(orderCredit)}</div>
-          <div style="font-size:10px;color:var(--textDim);margin-top:2px">${fmt$(adjIncome)} total</div>
-        </div>
-        <div style="padding:12px 16px;border-right:1px solid var(--border)">
-          <div style="font-size:9px;color:var(--green);letter-spacing:1px;margin-bottom:4px">HOLD TARGET</div>
-          <div class="chakra" style="font-size:20px;font-weight:700;color:var(--green)">$${f2(profitTgt)}</div>
-          <div style="font-size:10px;color:var(--green);margin-top:2px">+${fmt$(profitTgt * adjContracts * 100)} full credit</div>
-          <div style="font-size:10px;color:var(--textDim);margin-top:6px">\u0394${recDelta} \u00B7 ${state.width}pt wide \u00B7 ${regime.level}</div>
-        </div>
-        <div style="padding:12px 16px">
-          <div style="font-size:9px;color:var(--textDim);letter-spacing:1px;margin-bottom:6px">STOP LOSS TIERS</div>
-          <div style="display:flex;flex-direction:column;gap:6px">
-            <div style="display:flex;justify-content:space-between;align-items:center;padding:4px 8px;background:rgba(240,180,41,0.08);border-left:2px solid var(--gold)">
-              <span style="font-size:10px;color:var(--gold)">2\u00D7 WIDE (0-2hr)</span>
-              <span class="mono" style="font-size:13px;font-weight:700;color:var(--gold)">$${f2(orderCredit*2)}</span>
-            </div>
-            <div style="display:flex;justify-content:space-between;align-items:center;padding:4px 8px;background:rgba(255,71,87,0.08);border-left:2px solid var(--red)">
-              <span style="font-size:10px;color:var(--red)">1.5\u00D7 TIGHT (2hr+)</span>
-              <span class="mono" style="font-size:13px;font-weight:700;color:var(--red)">$${f2(orderCredit*1.5)}</span>
-            </div>
-            <div style="display:flex;justify-content:space-between;align-items:center;padding:4px 8px;background:rgba(255,71,87,0.12);border-left:2px solid var(--red)">
-              <span style="font-size:10px;color:var(--red)">3\u00D7 EMERGENCY</span>
-              <span class="mono" style="font-size:13px;font-weight:700;color:var(--red)">$${stopInfo.emergencyStop}</span>
-            </div>
-          </div>
-          <div style="margin-top:6px;font-size:9px;color:var(--textDim);letter-spacing:1px">MAX LOSS ${adjContracts}CT</div>
-          <div style="display:flex;flex-direction:column;gap:2px;margin-top:4px">
-            <div style="display:flex;justify-content:space-between"><span style="font-size:10px;color:var(--gold)">@ 2\u00D7</span><span class="mono" style="font-size:12px;font-weight:700;color:var(--gold)">-${fmt$(orderCredit * adjContracts * 100)}</span></div>
-            <div style="display:flex;justify-content:space-between"><span style="font-size:10px;color:var(--red)">@ 1.5\u00D7</span><span class="mono" style="font-size:12px;font-weight:700;color:var(--red)">-${fmt$(orderCredit * 0.5 * adjContracts * 100)}</span></div>
-            <div style="display:flex;justify-content:space-between"><span style="font-size:10px;color:var(--red)">@ 3\u00D7</span><span class="mono" style="font-size:12px;font-weight:700;color:var(--red)">-${fmt$(orderCredit * 2 * adjContracts * 100)}</span></div>
-          </div>
-        </div>
-      </div>
-      <div style="padding:6px 18px;border-top:1px solid var(--border);background:var(--panelAlt);font-size:10px;color:${stopInfo.windowColor}">${stopInfo.tier === 'EARLY' ? '\u23F1 ' : stopInfo.tier === 'LATE' ? '\uD83D\uDD12 ' : ''}${stopInfo.window}</div>
-    </div>
-
-    <!-- HARD RULES + ENTRY WINDOWS -->
-    <div class="panel" style="padding:14px 16px;margin-bottom:8px;border-top:3px solid var(--gold)">
-      <div style="display:grid;grid-template-columns:1fr 260px;gap:16px">
-        <div>
-          <div style="font-size:10px;color:var(--gold);letter-spacing:2px;margin-bottom:10px;font-weight:700">HARD RULES \u00B7 ${useIC ? 'IC' : 'PUT SPREAD'}</div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px 16px">
-            ${[
-              {rule:'MIN CREDIT',detail:useIC?'$0.60+ combined':'$0.60+ spread',c:'var(--gold)'},
-              {rule:'HOLD EXPIRY',detail:'Let full credit expire worthless',c:'var(--green)'},
-              {rule:'VIX SPIKE',detail:'+20% intra \u2192 close all',c:'var(--red)'},
-              {rule:'SIZE',detail:Math.round(regime.size*100)+'% \u00B7 '+regime.level,c:regime.color},
-              {rule:'HARD CLOSE',detail:'6:00 AM AEDT / 3:00 PM ET',c:'var(--gold)'},
-              {rule:'STOP RULES',detail:'2\u00D7 early \u2192 1.5\u00D7 late \u2192 3\u00D7 emergency',c:'var(--red)'},
-            ].map(function(r) { return '<div style="padding-bottom:6px;border-bottom:1px solid var(--border)"><div style="font-size:11px;color:'+r.c+';letter-spacing:1px;font-weight:700">'+r.rule+'</div><div style="font-size:11px;color:var(--textMid);margin-top:2px">'+r.detail+'</div></div>'; }).join('')}
-          </div>
-        </div>
-        <div>
-          <div style="font-size:10px;color:var(--textDim);letter-spacing:2px;margin-bottom:10px;font-weight:700">ENTRY WINDOWS (AEDT)</div>
-          ${[
-            {t:'12:30\u201312:45',n:'Wait for open',c:'var(--gold)',a:false},
-            {t:'12:45\u20131:15',n:'MORNING',c:'var(--gold)',a:state.mode==='morning'},
-            {t:'3:00\u20134:00',n:'ARVO',c:'var(--green)',a:state.mode==='arvo'},
-            {t:'4:00\u20135:30',n:'Close only',c:'var(--gold)',a:false},
-            {t:'5:30\u20136:00',n:'HARD CLOSE',c:'var(--red)',a:false},
-          ].map(function(t) { return '<div style="display:flex;justify-content:space-between;padding:5px 8px;border-left:'+(t.a?'3px solid '+t.c:'3px solid transparent')+';background:'+(t.a?'rgba(0,208,132,0.06)':'transparent')+';margin-bottom:2px"><span style="font-size:11px;color:'+(t.a?t.c:'var(--textDim)')+';font-weight:'+(t.a?700:400)+'">'+t.t+'</span><span style="font-size:11px;color:'+t.c+'">'+t.n+'</span></div>'; }).join('')}
-        </div>
-      </div>
-    </div>
-
-    <!-- SCHEDULED TRADES -->
-    <div class="panel" style="padding:14px 16px;margin-bottom:8px;border-top:3px solid var(--green)">
+    <!-- SCHEDULED TRADES + TODAY'S ORDER (combined) -->
+    <div class="panel" style="padding:14px 16px;margin-bottom:8px;border-left:3px solid ${orderColor}">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-        <div style="font-size:10px;color:var(--green);letter-spacing:2px;font-weight:700">SCHEDULED TRADES \u2014 ${selDay.toUpperCase()}</div>
+        <div style="font-size:10px;color:var(--textDim);letter-spacing:2px">TRADES \u2014 ${selDay.toUpperCase()}</div>
         <div style="display:flex;gap:6px">
           <span style="font-size:10px;padding:3px 8px;background:rgba(0,208,132,0.1);border:1px solid rgba(0,208,132,0.3);color:var(--green)">PHASE ${ph.id}: ${pbContracts} CONTRACTS</span>
-          ${dual ? '<span style="font-size:10px;padding:3px 8px;background:rgba(0,229,255,0.1);border:1px solid rgba(0,229,255,0.3);color:var(--cyan)">DUAL SESSION</span>' : ''}
         </div>
       </div>
+
+      <!-- TODAY'S ORDER — compact card -->
+      <div style="padding:12px;background:${orderColor}08;border:1px solid ${orderColor}30;margin-bottom:8px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <div style="display:flex;align-items:center;gap:8px">
+            <span class="chakra" style="font-size:16px;font-weight:700;color:${orderColor}">${orderIcon} ${orderType}</span>
+          </div>
+          <span class="chakra" style="font-size:16px;font-weight:700;color:${convColor}">${conviction}</span>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1fr;gap:12px">
+          <div>
+            <div style="font-size:9px;color:var(--textDim);margin-bottom:2px">SELL / BUY</div>
+            <div class="mono" style="font-size:13px;font-weight:700;color:var(--white)">${useCall ? recRow.sC : recRow.sP} / ${useCall ? recRow.lC : recRow.lP} ${useCall ? 'C' : 'P'}</div>
+          </div>
+          <div>
+            <div style="font-size:9px;color:var(--textDim);margin-bottom:2px">SIZE</div>
+            <div class="chakra" style="font-size:16px;font-weight:700;color:var(--green)">${adjContracts}ct</div>
+          </div>
+          <div>
+            <div style="font-size:9px;color:var(--textDim);margin-bottom:2px">CREDIT</div>
+            <div class="chakra" style="font-size:16px;font-weight:700;color:${orderColor}">$${f2(orderCredit)}</div>
+            <div style="font-size:9px;color:var(--textDim)">${fmt$(adjIncome)} total</div>
+          </div>
+          <div>
+            <div style="font-size:9px;color:var(--textDim);margin-bottom:2px">STOP</div>
+            <div style="font-size:11px;color:var(--gold)">2\u00D7 $${f2(orderCredit*2)} <span style="color:var(--textDim)">(0-2hr)</span></div>
+            <div style="font-size:11px;color:var(--red)">1.5\u00D7 $${f2(orderCredit*1.5)} <span style="color:var(--textDim)">(2hr+)</span></div>
+          </div>
+          <div>
+            <div style="font-size:9px;color:var(--textDim);margin-bottom:2px">MAX LOSS</div>
+            <div style="font-size:11px;color:var(--gold)">-${fmt$(orderCredit * adjContracts * 100)} <span style="color:var(--textDim)">@ 2\u00D7</span></div>
+            <div style="font-size:11px;color:var(--red)">-${fmt$(orderCredit * 0.5 * adjContracts * 100)} <span style="color:var(--textDim)">@ 1.5\u00D7</span></div>
+          </div>
+        </div>
+        <div style="margin-top:6px;font-size:10px;color:var(--textDim)">\u0394${recDelta} \u00B7 ${state.width}pt \u00B7 Hold to expiry \u00B7 ${stopInfo.tier === 'EARLY' ? '\u23F1 ' : stopInfo.tier === 'LATE' ? '\uD83D\uDD12 ' : ''}${stopInfo.window}</div>
+      </div>
+
+      <!-- Scheduled trades from playbook -->
       ${scheduledHtml}
+
+      <!-- Compact rules row -->
+      <div style="margin-top:8px;padding:8px 12px;background:var(--panelAlt);border:1px solid var(--border);display:flex;gap:16px;flex-wrap:wrap;font-size:10px">
+        <span style="color:var(--gold)">MIN $0.60</span>
+        <span style="color:var(--green)">HOLD EXPIRY</span>
+        <span style="color:var(--red)">VIX +20% \u2192 CLOSE ALL</span>
+        <span style="color:${regime.color}">SIZE ${Math.round(regime.size*100)}%</span>
+        <span style="color:var(--gold)">HARD CLOSE 6:00 AM</span>
+        <span style="color:var(--textDim)">${state.mode === 'morning' ? '12:45\u20131:15 MORN' : '3:00\u20134:00 ARVO'}</span>
+      </div>
     </div>
   `;
 
