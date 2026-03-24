@@ -323,13 +323,14 @@ input, select, button, textarea { font-family: 'IBM Plex Mono', monospace; outli
 <!-- ============================================================ -->
 <div id="tab-scanner" class="tab-content">
 
-<!-- UNIFIED PLAYBOOK (renders first — trades box on top) -->
-<div id="playbook-unified">
-  <div style="margin-bottom:8px">
-    <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:4px;margin-bottom:8px" id="playbook-day-btns"></div>
-    <div id="playbook-day-content"></div>
-  </div>
+<!-- PLAYBOOK -->
+<div style="margin-bottom:8px">
+  <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:4px;margin-bottom:8px" id="playbook-day-btns"></div>
+  <div id="playbook-day-content"></div>
 </div>
+
+<!-- ORDER PANEL (populated by scan) -->
+<div id="orderPanel" style="margin-bottom:8px"></div>
 
 <!-- INPUT + MARKET ANALYSIS GRID (side by side after scan) -->
 <div id="inputMarketGrid" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
@@ -1059,7 +1060,7 @@ function showCloudStatus(s) {
 function switchTab(tab) {
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
   document.querySelectorAll('.tab-content').forEach(c => c.classList.toggle('active', c.id === 'tab-' + tab));
-  if (tab === 'scanner') { if (state._scanDone) scan(); else renderPlaybook(); }
+  if (tab === 'scanner') { renderPlaybook(); if (state._scanDone) scan(); }
   if (tab === 'dashboard') { renderDashboard(); renderProjections(); }
   if (tab === 'calendar') renderCalendar();
   if (tab === 'phases') renderPhases();
@@ -1542,184 +1543,6 @@ async function todaysSetup() {
   }
 }
 
-// ── RENDER UNIFIED PLAYBOOK ──
-function renderUnifiedPlaybook(d) {
-  const { regime, regimeItems, recRow, recDelta, rows,
-    orderType, orderIcon, orderColor, orderCredit, profitTgt, stopInfo,
-    conviction, convColor, convLabel, adjContracts, adjIncome, contracts,
-    useIC, useCall, isBearish, isBullish,
-    pF, cF, liveP, liveC,
-    sessionStatus, sessionColor, sessionNote, canTrade,
-    phase, dailyMove, dma200, dmaAbove, dmaDist, stopBuffer,
-    wklyShort, wklyLong, wklyFill, macroColors } = d;
-
-  // Get playbook data for scheduled trades — use New York market time
-  const PLAYBOOK = getPlaybook();
-  const nyNow = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }));
-  const todayIdx = nyNow.getDay();
-  const todayName = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][todayIdx];
-  const ph = getPhase(traderData.currentCapital);
-  const dual = ph.id >= 3;
-  const pbRegime = getRegime(state.vix);
-  const pbContractsRaw = ph.perK ? Math.max(1, Math.floor(traderData.currentCapital / ph.perK)) : 2;
-  const pbContracts = Math.max(1, Math.round(pbContractsRaw * pbRegime.size));
-
-  // Day selector
-  if (!window._unifiedPlaybookDay) window._unifiedPlaybookDay = todayName;
-  const selDay = window._unifiedPlaybookDay;
-  const dayBtnsHtml = ['Mon','Tue','Wed','Thu','Fri'].map(function(dd) {
-    const isSel = dd === selDay;
-    return '<button class="btn" style="border-color:' + (isSel ? 'var(--cyan)' : 'var(--border)') + ';color:' + (isSel ? 'var(--cyan)' : 'var(--textDim)') + ';background:' + (isSel ? 'rgba(0,229,255,0.1)' : 'transparent') + ';font-size:13px;padding:10px;font-weight:' + (isSel ? 700 : 400) + ';position:relative" onclick="window._unifiedPlaybookDay=\'' + dd + '\';scan()">' +
-      dd.toUpperCase() +
-      (dd === todayName ? '<span style="position:absolute;top:4px;right:8px;font-size:8px;color:var(--green)">TODAY</span>' : '') +
-    '</button>';
-  }).join('');
-
-  // Warning banners (only show blackout — bear warning removed per user request)
-  let bannerHtml = '';
-  if (state.macroRisk === 'blackout') {
-    bannerHtml += '<div style="border:2px solid var(--red);border-left:4px solid var(--red);padding:10px 16px;display:flex;align-items:center;gap:12px;background:rgba(255,71,87,0.08);margin-bottom:8px"><span style="font-size:20px">\u26D4</span><div><div style="font-size:13px;color:var(--red);font-weight:700;letter-spacing:1px">NO TRADE TODAY</div><div style="font-size:11px;color:var(--textMid);margin-top:2px">FOMC / Market Holiday \u2014 capital preservation day</div></div></div>';
-  }
-
-  // Reasoning / market analysis
-  let reasoningHtml = '';
-  let reasoningScoreColor = 'var(--textDim)';
-  let reasoningScoreLabel = '';
-  if (state.reasoning.length > 0) {
-    const bullCount = state.reasoning.filter(function(r) { return r.bullish === true; }).length;
-    const bearCount = state.reasoning.filter(function(r) { return r.bullish === false; }).length;
-    const score = bullCount - bearCount;
-    reasoningScoreColor = score >= 3 ? 'var(--green)' : score >= 1 ? 'var(--gold)' : 'var(--red)';
-    reasoningScoreLabel = score >= 3 ? 'STRONG' : score >= 1 ? 'MODERATE' : score >= -1 ? 'WEAK' : 'ADVERSE';
-    reasoningHtml = state.reasoning.map(function(r) {
-      return '<div style="padding:3px 0;font-size:12px;color:var(--text)">' + r.icon + ' ' + r.text + '</div>';
-    }).join('');
-  }
-
-  // Scheduled trades for selected day
-  const dayData = PLAYBOOK[selDay] || PLAYBOOK['Mon'];
-  const scheduledHtml = dayData.trades.map(function(t) {
-    const ctDisplay = t.contracts === '-' ? '-' : (t.contracts === '1ct' ? '1ct' : t.contracts === 'phase' ? pbContracts + 'ct' : t.contracts);
-    const showStagger = t.contracts === 'phase' && ph.id >= 3 && pbContracts >= 4;
-    const batches3 = ph.id >= 4;
-    const b1 = showStagger ? (batches3 ? Math.floor(pbContracts / 3) : Math.floor(pbContracts / 2)) : 0;
-    const b2 = showStagger ? (batches3 ? Math.floor(pbContracts / 3) : pbContracts - Math.floor(pbContracts / 2)) : 0;
-    const b3 = showStagger && batches3 ? pbContracts - b1 - b2 : 0;
-    return '<div style="padding:6px 0;border-bottom:1px solid var(--border);font-size:11px">' +
-      '<div style="display:flex;justify-content:space-between;margin-bottom:3px">' +
-        '<span style="font-size:12px;font-weight:600;color:var(--white)">' + t.name + '</span>' +
-        '<span style="font-size:10px;color:var(--cyan)">' + t.dte + '</span>' +
-      '</div>' +
-      '<div style="display:flex;gap:16px;flex-wrap:wrap">' +
-        '<span style="color:var(--textDim);font-size:11px">Time: <span style="color:var(--textMid)">' + t.time + '</span></span>' +
-        '<span style="color:var(--textDim);font-size:11px">Delta: <span style="color:var(--cyan)">' + t.delta + '</span></span>' +
-        '<span style="color:var(--textDim);font-size:11px">Credit: <span style="color:var(--green)">' + t.credit + '</span></span>' +
-        '<span style="color:var(--textDim);font-size:11px">Size: <span style="color:var(--white);font-weight:600">' + ctDisplay + '</span></span>' +
-      '</div>' +
-      (showStagger ? '<div style="margin-top:8px;padding:8px 10px;background:rgba(0,229,255,0.05);border:1px solid rgba(0,229,255,0.15)">' +
-        '<div style="font-size:10px;color:var(--cyan);letter-spacing:2px;margin-bottom:6px;font-weight:700">STAGGER PLAN \u2014 ' + pbContracts + ' CONTRACTS (' + (batches3 ? '3' : '2') + ' BATCHES)</div>' +
-        '<div style="display:grid;grid-template-columns:' + (batches3 ? '1fr 1fr 1fr' : '1fr 1fr') + ';gap:6px">' +
-          '<div style="text-align:center;padding:6px;background:rgba(0,208,132,0.08);border:1px solid rgba(0,208,132,0.2)"><div style="font-size:9px;color:var(--textDim);margin-bottom:2px">BATCH 1</div><div style="font-size:16px;font-weight:700;color:var(--green)">' + b1 + 'ct</div><div style="font-size:9px;color:var(--textDim)">Enter first</div></div>' +
-          '<div style="text-align:center;padding:6px;background:rgba(255,215,0,0.08);border:1px solid rgba(255,215,0,0.2)"><div style="font-size:9px;color:var(--textDim);margin-bottom:2px">BATCH 2</div><div style="font-size:16px;font-weight:700;color:var(--gold)">' + b2 + 'ct</div><div style="font-size:9px;color:var(--textDim)">+2 min wait</div></div>' +
-          (batches3 ? '<div style="text-align:center;padding:6px;background:rgba(0,229,255,0.08);border:1px solid rgba(0,229,255,0.2)"><div style="font-size:9px;color:var(--textDim);margin-bottom:2px">BATCH 3</div><div style="font-size:16px;font-weight:700;color:var(--cyan)">' + b3 + 'ct</div><div style="font-size:9px;color:var(--textDim)">+2 min wait</div></div>' : '') +
-        '</div></div>' : '') +
-    '</div>';
-  }).join('');
-
-  // Build the unified panel
-  const html = `
-    ${bannerHtml}
-
-    <!-- DAY WRAP — tabs + trades (TOP) -->
-    <div class="panel" style="margin-bottom:8px;overflow:hidden">
-      <!-- Day tabs -->
-      <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:0;border-bottom:1px solid var(--border)">
-        ${['Mon','Tue','Wed','Thu','Fri'].map(function(dd) {
-          const isSel = dd === selDay;
-          const isToday = dd === todayName;
-          return '<button style="border:none;cursor:pointer;padding:10px;font-size:12px;font-family:\'IBM Plex Mono\',monospace;font-weight:' + (isSel ? 700 : 400) + ';color:' + (isSel ? 'var(--cyan)' : 'var(--textDim)') + ';background:' + (isSel ? 'rgba(0,229,255,0.08)' : 'transparent') + ';border-bottom:' + (isSel ? '2px solid var(--cyan)' : '2px solid transparent') + ';position:relative" onclick="window._unifiedPlaybookDay=\'' + dd + '\';scan()">' + dd.toUpperCase() + (isToday ? '<span style="position:absolute;top:3px;right:6px;font-size:7px;color:var(--green)">\u25CF</span>' : '') + '</button>';
-        }).join('')}
-      </div>
-
-      <!-- Day content -->
-      <div style="padding:14px 16px">
-        <!-- Phase + session info -->
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-          <div style="font-size:10px;color:var(--textDim);letter-spacing:2px">TRADES \u2014 ${selDay.toUpperCase()}</div>
-          <div style="display:flex;gap:6px;align-items:center">
-            <span style="font-size:10px;padding:3px 8px;border:1px solid var(--green);color:var(--green)">PHASE ${ph.id} \u00B7 ${pbContracts}ct</span>
-            <span style="font-size:10px;padding:3px 8px;border:1px solid ${sessionColor};color:${sessionColor}">${sessionStatus}</span>
-          </div>
-        </div>
-
-        <!-- TODAY'S ORDER — compact inline -->
-        <div style="padding:10px 12px;border:1px solid ${orderColor};margin-bottom:6px">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
-            <span class="chakra" style="font-size:14px;font-weight:700;color:${orderColor}">${orderIcon} ${orderType}</span>
-            <span class="chakra" style="font-size:14px;font-weight:700;color:${convColor}">${conviction}</span>
-          </div>
-          <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1fr;gap:6px">
-            <div style="border:1px solid var(--border);padding:6px;text-align:center">
-              <div style="font-size:8px;color:var(--textDim);margin-bottom:2px">SELL / BUY</div>
-              <div class="mono" style="font-size:12px;font-weight:700;color:var(--white)">${useCall ? recRow.sC : recRow.sP} / ${useCall ? recRow.lC : recRow.lP}</div>
-              <div style="font-size:8px;color:var(--textDim);margin-top:1px">${useCall ? 'CALL' : 'PUT'} ${state.width}pt</div>
-            </div>
-            <div style="border:1px solid var(--border);padding:6px;text-align:center">
-              <div style="font-size:8px;color:var(--textDim);margin-bottom:2px">SIZE</div>
-              <div class="chakra" style="font-size:16px;font-weight:700;color:var(--green)">${adjContracts}ct</div>
-            </div>
-            <div style="border:1px solid var(--border);padding:6px;text-align:center">
-              <div style="font-size:8px;color:var(--textDim);margin-bottom:2px">CREDIT</div>
-              <div class="chakra" style="font-size:16px;font-weight:700;color:${orderColor}">$${f2(orderCredit)}</div>
-              <div style="font-size:8px;color:var(--textDim)">${fmt$(adjIncome)} total</div>
-            </div>
-            <div style="border:1px solid var(--gold);padding:6px;text-align:center">
-              <div style="font-size:8px;color:var(--gold);margin-bottom:2px">2\u00D7 (0-2hr)</div>
-              <div class="mono" style="font-size:14px;font-weight:700;color:var(--gold)">$${f2(orderCredit*2)}</div>
-            </div>
-            <div style="border:1px solid var(--red);padding:6px;text-align:center">
-              <div style="font-size:8px;color:var(--red);margin-bottom:2px">1.5\u00D7 (2hr+)</div>
-              <div class="mono" style="font-size:14px;font-weight:700;color:var(--red)">$${f2(orderCredit*1.5)}</div>
-            </div>
-          </div>
-          <div style="margin-top:4px;font-size:9px;color:var(--textDim)">\u0394${recDelta} \u00B7 Hold to expiry \u00B7 Max loss -${fmt$(orderCredit * adjContracts * 100)} @ 2\u00D7</div>
-        </div>
-
-        <!-- Rules -->
-        <div style="font-size:10px;color:var(--textDim);letter-spacing:2px;margin-bottom:6px">RULES</div>
-        ${dayData.rules.map(function(r) { return '<div style="padding:4px 0;font-size:12px;color:var(--textMid);border-bottom:1px solid var(--border)">\u2022 ' + r + '</div>'; }).join('')}
-
-        <!-- Scheduled trades from playbook -->
-        <div style="font-size:10px;color:var(--textDim);letter-spacing:2px;margin:12px 0 6px">SCHEDULED TRADES</div>
-        ${scheduledHtml}
-      </div>
-    </div>
-
-    <!-- (market analysis is rendered separately into #marketAnalysisPanel) -->
-  `;
-
-  // Include hidden placeholders for renderPlaybook() compat
-  document.getElementById('playbook-unified').innerHTML = html +
-    '<div id="playbook-day-btns" style="display:none"></div>' +
-    '<div id="playbook-day-content" style="display:none"></div>';
-
-  // Populate market analysis panel (right side of input grid)
-  document.getElementById('marketAnalysisPanel').innerHTML = `
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-      <div style="font-size:10px;color:var(--textDim);letter-spacing:2px">MARKET ANALYSIS</div>
-      <div style="display:flex;align-items:center;gap:6px">
-        <span style="font-size:9px;padding:2px 8px;border:1px solid ${regime.color};color:${regime.color};font-weight:700">${regime.level}</span>
-        <span style="font-size:9px;padding:2px 8px;border:1px solid ${isBearish ? 'var(--red)' : isBullish ? 'var(--green)' : 'var(--cyan)'};color:${isBearish ? 'var(--red)' : isBullish ? 'var(--green)' : 'var(--cyan)'};font-weight:700">${isBearish ? '\u2193 BEAR' : isBullish ? '\u2191 BULL' : '\u2192 NEUT'}</span>
-      </div>
-    </div>
-    <div style="display:grid;grid-template-columns:repeat(${Math.min(regimeItems.length, 3)},1fr);gap:4px;margin-bottom:6px">
-      ${regimeItems.slice(0, 3).map(function(s) { return '<div style="border:1px solid var(--border);padding:6px 8px;text-align:center"><div style="font-size:8px;color:var(--textDim);letter-spacing:1px;margin-bottom:1px">' + s.l + '</div><div class="chakra" style="font-size:14px;font-weight:700;color:' + s.c + '">' + s.v + '</div></div>'; }).join('')}
-    </div>
-    ${regimeItems.length > 3 ? '<div style="display:grid;grid-template-columns:repeat(' + (regimeItems.length - 3) + ',1fr);gap:4px;margin-bottom:6px">' + regimeItems.slice(3).map(function(s) { return '<div style="border:1px solid var(--border);padding:6px 8px;text-align:center"><div style="font-size:8px;color:var(--textDim);letter-spacing:1px;margin-bottom:1px">' + s.l + '</div><div class="chakra" style="font-size:14px;font-weight:700;color:' + s.c + '">' + s.v + '</div></div>'; }).join('') + '</div>' : ''}
-    ${state.reasoning.length > 0 ? '<table style="width:100%;border-collapse:collapse;font-size:11px">' + state.reasoning.map(function(r) { return '<tr style="border-bottom:1px solid var(--border)"><td style="padding:3px 0;width:20px;color:var(--textMid)">' + r.icon + '</td><td style="padding:3px 6px;color:var(--text)">' + r.text + '</td><td style="padding:3px 0;text-align:right;font-weight:700;color:' + (r.bullish ? 'var(--green)' : 'var(--red)') + '">' + (r.bullish ? '\u2191' : '\u2193') + '</td></tr>'; }).join('') + '</table>' : ''}
-    ${state.prevHigh ? '<div style="margin-top:4px;padding-top:4px;border-top:1px solid var(--border);font-size:9px;color:var(--textDim)">\uD83D\uDD11 Prev ' + state.prevLow.toFixed(0) + '-' + state.prevHigh.toFixed(0) + (state.pivot ? ' \u00B7 P ' + state.pivot.toFixed(0) + ' \u00B7 S1 ' + state.s1.toFixed(0) + ' \u00B7 R1 ' + state.r1.toFixed(0) : '') + (state.weeklyLow ? ' \u00B7 Wk ' + state.weeklyLow.toFixed(0) + '-' + state.weeklyHigh.toFixed(0) : '') + '</div>' : ''}
-  `;
-}
 
 // ── SCAN / RENDER SCANNER ──
 function scan() {
@@ -1862,17 +1685,75 @@ function scan() {
   else { sessionStatus = 'MARKET CLOSED'; sessionColor = 'var(--textDim)'; sessionNote = 'US market not open'; }
   const canTrade = sessionStatus === 'MORNING ENTRY' || sessionStatus === 'ARVO ENTRY';
 
-  // ── RENDER UNIFIED PLAYBOOK ──
-  renderUnifiedPlaybook({
-    regime, regimeItems, recRow, recDelta, rows,
-    orderType, orderIcon, orderColor, orderCredit, profitTgt, stopInfo,
-    conviction, convColor, convLabel, adjContracts, adjIncome, contracts,
-    useIC, useCall, isBearish, isBullish,
-    pF, cF, liveP, liveC,
-    sessionStatus, sessionColor, sessionNote, canTrade,
-    phase, dailyMove, dma200, dmaAbove, dmaDist, stopBuffer,
-    wklyShort, wklyLong, wklyFill, macroColors
-  });
+  // ── RENDER PLAYBOOK + ORDER PANEL ──
+  renderPlaybook();
+
+  // Banners
+  let bannerHtml = '';
+  if (state.macroRisk === 'blackout') {
+    bannerHtml = '<div style="border:2px solid var(--red);border-left:4px solid var(--red);padding:10px 16px;display:flex;align-items:center;gap:12px;background:rgba(255,71,87,0.08);margin-bottom:8px"><span style="font-size:20px">\u26D4</span><div><div style="font-size:13px;color:var(--red);font-weight:700;letter-spacing:1px">NO TRADE TODAY</div><div style="font-size:11px;color:var(--textMid);margin-top:2px">FOMC / Market Holiday \u2014 capital preservation day</div></div></div>';
+  }
+
+  // Order panel
+  document.getElementById('orderPanel').innerHTML = `
+    ${bannerHtml}
+    <div class="panel" style="padding:12px 16px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <span style="font-size:10px;color:var(--textDim);letter-spacing:2px">TODAY'S ORDER</span>
+        <div style="display:flex;gap:6px;align-items:center">
+          <span style="font-size:10px;padding:3px 8px;border:1px solid ${sessionColor};color:${sessionColor}">${sessionStatus}</span>
+        </div>
+      </div>
+      <div style="padding:10px 12px;border:1px solid ${orderColor}">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+          <span class="chakra" style="font-size:14px;font-weight:700;color:${orderColor}">${orderIcon} ${orderType}</span>
+          <span class="chakra" style="font-size:14px;font-weight:700;color:${convColor}">${conviction}</span>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1fr;gap:6px">
+          <div style="border:1px solid var(--border);padding:6px;text-align:center">
+            <div style="font-size:8px;color:var(--textDim);margin-bottom:2px">SELL / BUY</div>
+            <div class="mono" style="font-size:12px;font-weight:700;color:var(--white)">${useCall ? recRow.sC : recRow.sP} / ${useCall ? recRow.lC : recRow.lP}</div>
+            <div style="font-size:8px;color:var(--textDim);margin-top:1px">${useCall ? 'CALL' : 'PUT'} ${state.width}pt</div>
+          </div>
+          <div style="border:1px solid var(--border);padding:6px;text-align:center">
+            <div style="font-size:8px;color:var(--textDim);margin-bottom:2px">SIZE</div>
+            <div class="chakra" style="font-size:16px;font-weight:700;color:var(--green)">${adjContracts}ct</div>
+          </div>
+          <div style="border:1px solid var(--border);padding:6px;text-align:center">
+            <div style="font-size:8px;color:var(--textDim);margin-bottom:2px">CREDIT</div>
+            <div class="chakra" style="font-size:16px;font-weight:700;color:${orderColor}">$${f2(orderCredit)}</div>
+            <div style="font-size:8px;color:var(--textDim)">${fmt$(adjIncome)} total</div>
+          </div>
+          <div style="border:1px solid var(--gold);padding:6px;text-align:center">
+            <div style="font-size:8px;color:var(--gold);margin-bottom:2px">2\u00D7 (0-2hr)</div>
+            <div class="mono" style="font-size:14px;font-weight:700;color:var(--gold)">$${f2(orderCredit*2)}</div>
+          </div>
+          <div style="border:1px solid var(--red);padding:6px;text-align:center">
+            <div style="font-size:8px;color:var(--red);margin-bottom:2px">1.5\u00D7 (2hr+)</div>
+            <div class="mono" style="font-size:14px;font-weight:700;color:var(--red)">$${f2(orderCredit*1.5)}</div>
+          </div>
+        </div>
+        <div style="margin-top:4px;font-size:9px;color:var(--textDim)">\u0394${recDelta} \u00B7 Hold to expiry \u00B7 Max loss -${fmt$(orderCredit * adjContracts * 100)} @ 2\u00D7</div>
+      </div>
+    </div>
+  `;
+
+  // Market analysis panel
+  document.getElementById('marketAnalysisPanel').innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <div style="font-size:10px;color:var(--textDim);letter-spacing:2px">MARKET ANALYSIS</div>
+      <div style="display:flex;align-items:center;gap:6px">
+        <span style="font-size:9px;padding:2px 8px;border:1px solid ${regime.color};color:${regime.color};font-weight:700">${regime.level}</span>
+        <span style="font-size:9px;padding:2px 8px;border:1px solid ${isBearish ? 'var(--red)' : isBullish ? 'var(--green)' : 'var(--cyan)'};color:${isBearish ? 'var(--red)' : isBullish ? 'var(--green)' : 'var(--cyan)'};font-weight:700">${isBearish ? '\u2193 BEAR' : isBullish ? '\u2191 BULL' : '\u2192 NEUT'}</span>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(${Math.min(regimeItems.length, 3)},1fr);gap:4px;margin-bottom:6px">
+      ${regimeItems.slice(0, 3).map(function(s) { return '<div style="border:1px solid var(--border);padding:6px 8px;text-align:center"><div style="font-size:8px;color:var(--textDim);letter-spacing:1px;margin-bottom:1px">' + s.l + '</div><div class="chakra" style="font-size:14px;font-weight:700;color:' + s.c + '">' + s.v + '</div></div>'; }).join('')}
+    </div>
+    ${regimeItems.length > 3 ? '<div style="display:grid;grid-template-columns:repeat(' + (regimeItems.length - 3) + ',1fr);gap:4px;margin-bottom:6px">' + regimeItems.slice(3).map(function(s) { return '<div style="border:1px solid var(--border);padding:6px 8px;text-align:center"><div style="font-size:8px;color:var(--textDim);letter-spacing:1px;margin-bottom:1px">' + s.l + '</div><div class="chakra" style="font-size:14px;font-weight:700;color:' + s.c + '">' + s.v + '</div></div>'; }).join('') + '</div>' : ''}
+    ${state.reasoning.length > 0 ? '<table style="width:100%;border-collapse:collapse;font-size:11px">' + state.reasoning.map(function(r) { return '<tr style="border-bottom:1px solid var(--border)"><td style="padding:3px 0;width:20px;color:var(--textMid)">' + r.icon + '</td><td style="padding:3px 6px;color:var(--text)">' + r.text + '</td><td style="padding:3px 0;text-align:right;font-weight:700;color:' + (r.bullish ? 'var(--green)' : 'var(--red)') + '">' + (r.bullish ? '\u2191' : '\u2193') + '</td></tr>'; }).join('') + '</table>' : ''}
+    ${state.prevHigh ? '<div style="margin-top:4px;padding-top:4px;border-top:1px solid var(--border);font-size:9px;color:var(--textDim)">\uD83D\uDD11 Prev ' + state.prevLow.toFixed(0) + '-' + state.prevHigh.toFixed(0) + (state.pivot ? ' \u00B7 P ' + state.pivot.toFixed(0) + ' \u00B7 S1 ' + state.s1.toFixed(0) + ' \u00B7 R1 ' + state.r1.toFixed(0) : '') + (state.weeklyLow ? ' \u00B7 Wk ' + state.weeklyLow.toFixed(0) + '-' + state.weeklyHigh.toFixed(0) : '') + '</div>' : ''}
+  `;
 
   // ── DELTA TABLE ──
   const activeColor = useIC ? 'var(--cyan)' : useCall ? 'var(--orange)' : 'var(--green)';
