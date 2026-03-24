@@ -2132,55 +2132,73 @@ function renderPlaybook() {
         <span style="font-size:10px;padding:4px 8px;background:${dual?'rgba(0,229,255,0.1)':'rgba(255,215,0,0.1)'};border:1px solid ${dual?'rgba(0,229,255,0.3)':'rgba(255,215,0,0.3)'};color:${dual?'var(--cyan)':'var(--gold)'}">${dual?'DUAL SESSION: MORN + ARVO':'MORNING PRIMARY'}</span>
       </div>
 
-      <!-- Rules -->
-      <div class="label" style="margin-bottom:6px">RULES</div>
-      ${day.rules.map(r => `<div style="padding:4px 0;font-size:12px;color:var(--textMid);border-bottom:1px solid var(--border)">\u2022 ${r}</div>`).join('')}
-
-      <!-- Trades -->
-      <div class="label" style="margin:12px 0 6px">SCHEDULED TRADES</div>
-      ${day.trades.map(t => {
-        const ctDisplay = t.contracts === '-' ? '-' : (t.contracts === '1ct' ? '1ct' : t.contracts === 'phase' ? pbContracts + 'ct' : t.contracts);
-        const showStagger = t.contracts === 'phase' && pbPhase.id >= 3 && pbContracts >= 4;
-        const batches3 = pbPhase.id >= 4;
-        const b1 = showStagger ? (batches3 ? Math.floor(pbContracts / 3) : Math.floor(pbContracts / 2)) : 0;
-        const b2 = showStagger ? (batches3 ? Math.floor(pbContracts / 3) : pbContracts - Math.floor(pbContracts / 2)) : 0;
-        const b3 = showStagger && batches3 ? pbContracts - b1 - b2 : 0;
-        return `
-        <div style="padding:6px 0;border-bottom:1px solid var(--border);font-size:11px">
-          <div style="display:flex;justify-content:space-between;margin-bottom:3px">
-            <span style="font-size:12px;font-weight:600;color:var(--white)">${t.name}</span>
-            <span style="font-size:10px;color:var(--cyan)">${t.dte}</span>
-          </div>
-          <div style="display:flex;gap:16px;flex-wrap:wrap">
-            <span style="color:var(--textDim)">Time: <span style="color:var(--textMid)">${t.time}</span></span>
-            <span style="color:var(--textDim)">Delta: <span style="color:var(--cyan)">${t.delta}</span></span>
-            <span style="color:var(--textDim)">Credit: <span style="color:var(--green)">${t.credit}</span></span>
-            <span style="color:var(--textDim)">Size: <span style="color:var(--white);font-weight:600">${ctDisplay}</span></span>
-          </div>
-          ${showStagger ? `
-          <div style="margin-top:8px;padding:8px 10px;background:rgba(0,229,255,0.05);border:1px solid rgba(0,229,255,0.15);border-radius:4px">
-            <div style="font-size:10px;color:var(--cyan);letter-spacing:2px;margin-bottom:6px;font-weight:700">STAGGER PLAN — ${pbContracts} CONTRACTS (${batches3?'3':'2'} BATCHES)</div>
-            <div style="display:grid;grid-template-columns:${batches3?'1fr 1fr 1fr':'1fr 1fr'};gap:6px">
-              <div style="text-align:center;padding:6px;background:rgba(0,208,132,0.08);border:1px solid rgba(0,208,132,0.2);border-radius:3px">
-                <div style="font-size:9px;color:var(--textDim);margin-bottom:2px">BATCH 1</div>
-                <div style="font-size:16px;font-weight:700;color:var(--green)">${b1}ct</div>
-                <div style="font-size:9px;color:var(--textDim)">Enter first</div>
+      <!-- Scheduled Trades (left) + Rules (right) -->
+      <div style="display:grid;grid-template-columns:1fr 280px;gap:12px">
+        <div>
+          <div class="label" style="margin-bottom:6px">SCHEDULED TRADES</div>
+          ${day.trades.map(t => {
+            const ctDisplay = t.contracts === '-' ? '-' : (t.contracts === '1ct' ? '1ct' : t.contracts === 'phase' ? pbContracts + 'ct' : t.contracts);
+            const showStagger = t.contracts === 'phase' && pbPhase.id >= 3 && pbContracts >= 4;
+            const batches3 = pbPhase.id >= 4;
+            const b1 = showStagger ? (batches3 ? Math.floor(pbContracts / 3) : Math.floor(pbContracts / 2)) : 0;
+            const b2 = showStagger ? (batches3 ? Math.floor(pbContracts / 3) : pbContracts - Math.floor(pbContracts / 2)) : 0;
+            const b3 = showStagger && batches3 ? pbContracts - b1 - b2 : 0;
+            return `
+            <div style="padding:6px 0;border-bottom:1px solid var(--border);font-size:11px">
+              <div style="display:flex;justify-content:space-between;margin-bottom:3px">
+                <span style="font-size:12px;font-weight:600;color:var(--white)">${t.name}</span>
+                <span style="font-size:10px;color:var(--cyan)">${t.dte}</span>
               </div>
-              <div style="text-align:center;padding:6px;background:rgba(255,215,0,0.08);border:1px solid rgba(255,215,0,0.2);border-radius:3px">
-                <div style="font-size:9px;color:var(--textDim);margin-bottom:2px">BATCH 2</div>
-                <div style="font-size:16px;font-weight:700;color:var(--gold)">${b2}ct</div>
-                <div style="font-size:9px;color:var(--textDim)">+2 min wait</div>
+              <div style="display:flex;gap:16px;flex-wrap:wrap">
+                <span style="color:var(--textDim)">Time: <span style="color:var(--textMid)">${t.time}</span></span>
+                <span style="color:var(--textDim)">Delta: <span style="color:var(--cyan)">${t.delta}</span></span>
+                <span style="color:var(--textDim)">Credit: <span style="color:var(--green)">${t.credit}</span></span>
+                <span style="color:var(--textDim)">Size: <span style="color:var(--white);font-weight:600">${ctDisplay}</span></span>
               </div>
-              ${batches3 ? `<div style="text-align:center;padding:6px;background:rgba(0,229,255,0.08);border:1px solid rgba(0,229,255,0.2);border-radius:3px">
-                <div style="font-size:9px;color:var(--textDim);margin-bottom:2px">BATCH 3</div>
-                <div style="font-size:16px;font-weight:700;color:var(--cyan)">${b3}ct</div>
-                <div style="font-size:9px;color:var(--textDim)">+2 min wait</div>
+              ${showStagger ? `
+              <div style="margin-top:8px;padding:8px 10px;background:rgba(0,229,255,0.05);border:1px solid rgba(0,229,255,0.15);border-radius:4px">
+                <div style="font-size:10px;color:var(--cyan);letter-spacing:2px;margin-bottom:6px;font-weight:700">STAGGER PLAN — ${pbContracts} CONTRACTS (${batches3?'3':'2'} BATCHES)</div>
+                <div style="display:grid;grid-template-columns:${batches3?'1fr 1fr 1fr':'1fr 1fr'};gap:6px">
+                  <div style="text-align:center;padding:6px;background:rgba(0,208,132,0.08);border:1px solid rgba(0,208,132,0.2);border-radius:3px">
+                    <div style="font-size:9px;color:var(--textDim);margin-bottom:2px">BATCH 1</div>
+                    <div style="font-size:16px;font-weight:700;color:var(--green)">${b1}ct</div>
+                    <div style="font-size:9px;color:var(--textDim)">Enter first</div>
+                  </div>
+                  <div style="text-align:center;padding:6px;background:rgba(255,215,0,0.08);border:1px solid rgba(255,215,0,0.2);border-radius:3px">
+                    <div style="font-size:9px;color:var(--textDim);margin-bottom:2px">BATCH 2</div>
+                    <div style="font-size:16px;font-weight:700;color:var(--gold)">${b2}ct</div>
+                    <div style="font-size:9px;color:var(--textDim)">+2 min wait</div>
+                  </div>
+                  ${batches3 ? `<div style="text-align:center;padding:6px;background:rgba(0,229,255,0.08);border:1px solid rgba(0,229,255,0.2);border-radius:3px">
+                    <div style="font-size:9px;color:var(--textDim);margin-bottom:2px">BATCH 3</div>
+                    <div style="font-size:16px;font-weight:700;color:var(--cyan)">${b3}ct</div>
+                    <div style="font-size:9px;color:var(--textDim)">+2 min wait</div>
+                  </div>` : ''}
+                </div>
+                <div style="margin-top:6px;font-size:10px;color:var(--textDim)">\u26A0 If fill slips below min credit after Batch 1 — STOP. Do not force remaining batches.</div>
               </div>` : ''}
-            </div>
-            <div style="margin-top:6px;font-size:10px;color:var(--textDim)">\u26A0 If fill slips below min credit after Batch 1 — STOP. Do not force remaining batches.</div>
-          </div>` : ''}
-        </div>`;
-      }).join('')}
+            </div>`;
+          }).join('')}
+
+          <!-- Logged trades for this day -->
+          ${(function() {
+            const dayTrades = traderData.trades.filter(t => t.day === selectedPlaybookDay);
+            return dayTrades.length > 0 ? `
+              <div class="label" style="margin:12px 0 6px">TRADES — ${selectedPlaybookDay.toUpperCase()}</div>
+              ${dayTrades.map(t => `
+                <div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--border)">
+                  <span style="font-size:12px;color:var(--white)">${t.type} - ${t.date}</span>
+                  <span style="font-size:12px;font-weight:700;color:${t.win?'var(--green)':'var(--red)'}">${t.win?'+':''}${fmt$(t.result||0)}</span>
+                </div>
+              `).join('')}
+            ` : '';
+          })()}
+        </div>
+        <div style="border-left:1px solid var(--border);padding-left:12px">
+          <div class="label" style="margin-bottom:6px">RULES</div>
+          ${day.rules.map(r => `<div style="padding:5px 0;font-size:12px;color:var(--textMid);border-bottom:1px solid var(--border)">\u2022 ${r}</div>`).join('')}
+        </div>
+      </div>
 
     </div>`;
 
