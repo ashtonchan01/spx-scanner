@@ -1605,17 +1605,16 @@ function renderUnifiedPlaybook(d) {
     const b1 = showStagger ? (batches3 ? Math.floor(pbContracts / 3) : Math.floor(pbContracts / 2)) : 0;
     const b2 = showStagger ? (batches3 ? Math.floor(pbContracts / 3) : pbContracts - Math.floor(pbContracts / 2)) : 0;
     const b3 = showStagger && batches3 ? pbContracts - b1 - b2 : 0;
-    const borderC = t.type === 'check' ? 'var(--gold)' : t.type === 'close' ? 'var(--red)' : 'var(--green)';
-    return '<div style="padding:10px 12px;border-left:3px solid ' + borderC + ';background:var(--panelAlt);margin-bottom:4px">' +
-      '<div style="display:flex;justify-content:space-between;margin-bottom:4px">' +
-        '<span style="font-size:13px;font-weight:700;color:var(--white)">' + t.name + '</span>' +
-        '<span style="font-size:11px;color:var(--cyan)">' + t.dte + '</span>' +
+    return '<div style="padding:6px 0;border-bottom:1px solid var(--border);font-size:11px">' +
+      '<div style="display:flex;justify-content:space-between;margin-bottom:3px">' +
+        '<span style="font-size:12px;font-weight:600;color:var(--white)">' + t.name + '</span>' +
+        '<span style="font-size:10px;color:var(--cyan)">' + t.dte + '</span>' +
       '</div>' +
       '<div style="display:flex;gap:16px;flex-wrap:wrap">' +
-        '<span style="color:var(--textMid);font-size:11px">Time: <span style="color:var(--gold)">' + t.time + '</span></span>' +
-        '<span style="color:var(--textMid);font-size:11px">Delta: <span style="color:var(--cyan)">' + t.delta + '</span></span>' +
-        '<span style="color:var(--textMid);font-size:11px">Credit: <span style="color:var(--green)">' + t.credit + '</span></span>' +
-        '<span style="color:var(--textMid);font-size:11px">Size: <span style="color:var(--white);font-weight:700">' + ctDisplay + '</span></span>' +
+        '<span style="color:var(--textDim);font-size:11px">Time: <span style="color:var(--textMid)">' + t.time + '</span></span>' +
+        '<span style="color:var(--textDim);font-size:11px">Delta: <span style="color:var(--cyan)">' + t.delta + '</span></span>' +
+        '<span style="color:var(--textDim);font-size:11px">Credit: <span style="color:var(--green)">' + t.credit + '</span></span>' +
+        '<span style="color:var(--textDim);font-size:11px">Size: <span style="color:var(--white);font-weight:600">' + ctDisplay + '</span></span>' +
       '</div>' +
       (showStagger ? '<div style="margin-top:8px;padding:8px 10px;background:rgba(0,229,255,0.05);border:1px solid rgba(0,229,255,0.15)">' +
         '<div style="font-size:10px;color:var(--cyan);letter-spacing:2px;margin-bottom:6px;font-weight:700">STAGGER PLAN \u2014 ' + pbContracts + ' CONTRACTS (' + (batches3 ? '3' : '2') + ' BATCHES)</div>' +
@@ -1686,18 +1685,13 @@ function renderUnifiedPlaybook(d) {
           <div style="margin-top:4px;font-size:9px;color:var(--textDim)">\u0394${recDelta} \u00B7 Hold to expiry \u00B7 Max loss -${fmt$(orderCredit * adjContracts * 100)} @ 2\u00D7</div>
         </div>
 
-        <!-- Scheduled trades from playbook -->
-        ${scheduledHtml}
+        <!-- Rules -->
+        <div style="font-size:10px;color:var(--textDim);letter-spacing:2px;margin-bottom:6px">RULES</div>
+        ${dayData.rules.map(function(r) { return '<div style="padding:4px 0;font-size:12px;color:var(--textMid);border-bottom:1px solid var(--border)">\u2022 ' + r + '</div>'; }).join('')}
 
-        <!-- Compact rules row -->
-        <div style="margin-top:8px;padding:8px 12px;border:1px solid var(--border);display:flex;gap:16px;flex-wrap:wrap;font-size:10px">
-          <span style="color:var(--gold)">MIN $0.60</span>
-          <span style="color:var(--green)">HOLD EXPIRY</span>
-          <span style="color:var(--red)">VIX +20% \u2192 CLOSE ALL</span>
-          <span style="color:${regime.color}">SIZE ${Math.round(regime.size*100)}%</span>
-          <span style="color:var(--gold)">HARD CLOSE 6:00 AM</span>
-          <span style="color:var(--textDim)">${state.mode === 'morning' ? '12:45\u20131:15 MORN' : '3:00\u20134:00 ARVO'}</span>
-        </div>
+        <!-- Scheduled trades from playbook -->
+        <div style="font-size:10px;color:var(--textDim);letter-spacing:2px;margin:12px 0 6px">SCHEDULED TRADES</div>
+        ${scheduledHtml}
       </div>
     </div>
 
