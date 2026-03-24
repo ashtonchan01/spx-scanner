@@ -323,88 +323,94 @@ input, select, button, textarea { font-family: 'IBM Plex Mono', monospace; outli
 <!-- ============================================================ -->
 <div id="tab-scanner" class="tab-content">
 
-<!-- PLAYBOOK STRIP (above scanner) -->
-<div style="margin-bottom:8px">
-  <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:4px;margin-bottom:8px" id="playbook-day-btns"></div>
-  <div id="playbook-day-content"></div>
-</div>
-
-<!-- INPUT ROW -->
+<!-- COMPACT INPUT BAR -->
 <div id="inputPanel" class="panel flash" style="padding:12px 16px;margin-bottom:8px;border-width:2px">
-  <div class="scanner-inputs" style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1.5fr 1fr 1.5fr auto;gap:10px;align-items:end">
-    <div>
-      <div class="label" style="margin-bottom:4px">SPX PRICE</div>
-      <div style="display:flex;height:42px">
-        <span style="display:flex;align-items:center;padding:0 10px;background:var(--panelAlt);border:1px solid var(--borderBright);border-right:none;color:var(--textDim);font-size:13px">$</span>
-        <input id="spxInput" type="number" value="5800" style="width:100%;background:var(--panelAlt);border:1px solid var(--borderBright);color:var(--white);padding:0 10px;font-size:18px;font-weight:700;height:100%;box-sizing:border-box" onkeydown="if(event.key==='Enter')scan()">
-      </div>
+  <div id="inputSummary" style="display:none;cursor:pointer;align-items:center;justify-content:space-between;padding:4px 0" onclick="toggleInputs()">
+    <div style="display:flex;align-items:center;gap:16px">
+      <span class="chakra" style="font-size:14px;font-weight:700;color:var(--white)" id="inputSummaryText">SPX -- | VIX -- | --pt</span>
+      <span style="font-size:10px;color:var(--textDim);letter-spacing:1px">IBKR LIVE</span>
     </div>
-    <div>
-      <div class="label" style="margin-bottom:4px">VIX</div>
-      <div style="display:flex;height:42px">
-        <span style="display:flex;align-items:center;padding:0 10px;background:var(--panelAlt);border:1px solid var(--borderBright);border-right:none;color:var(--textDim);font-size:13px">V</span>
-        <input id="vixInput" type="number" step="0.1" value="22" style="width:100%;background:var(--panelAlt);border:1px solid var(--borderBright);color:var(--white);padding:0 10px;font-size:18px;font-weight:700;height:100%;box-sizing:border-box" onkeydown="if(event.key==='Enter')scan()">
-      </div>
-    </div>
-    <div>
-      <div class="label" style="margin-bottom:4px">WIDTH</div>
-      <select id="widthSelect" style="width:100%;background:var(--panelAlt);border:1px solid var(--borderBright);color:var(--white);padding:0 10px;font-size:14px;font-weight:700;height:42px;cursor:pointer;box-sizing:border-box" onchange="scan()">
-        <option value="10">10 pts</option>
-        <option value="15" selected>15 pts &#9733;</option>
-        <option value="20">20 pts</option>
-        <option value="25">25 pts</option>
-      </select>
-    </div>
-    <div>
-      <div class="label" style="margin-bottom:4px">200DMA</div>
-      <div style="display:flex;height:42px">
-        <span style="display:flex;align-items:center;padding:0 8px;background:var(--panelAlt);border:1px solid var(--borderBright);border-right:none;color:var(--textDim);font-size:11px">MA</span>
-        <input id="dma200Input" type="number" value="" placeholder="5700" style="width:100%;background:var(--panelAlt);border:1px solid var(--borderBright);color:var(--white);padding:0 8px;font-size:14px;font-weight:700;height:100%;box-sizing:border-box" onkeydown="if(event.key==='Enter'){state.dma200=parseFloat(this.value)||0;localStorage.setItem('spx_dma200',state.dma200);scan()}" onchange="state.dma200=parseFloat(this.value)||0;localStorage.setItem('spx_dma200',state.dma200);scan()">
-      </div>
-    </div>
-    <div>
-      <div class="label" style="margin-bottom:4px">MODE / STRATEGY</div>
-      <div style="display:flex;height:42px" id="modeStratRow">
-        <button class="mode-btn active" data-mode="morning" style="flex:1;border:none;cursor:pointer;font-size:11px;font-family:'IBM Plex Mono',monospace;background:rgba(240,180,41,0.15);color:var(--gold);border-top:1px solid var(--borderBright);border-left:1px solid var(--borderBright);border-right:1px solid var(--borderBright);border-bottom:3px solid var(--gold)" onclick="setMode('morning')">MORN</button>
-        <button class="mode-btn" data-mode="arvo" style="flex:1;border:none;cursor:pointer;font-size:11px;font-family:'IBM Plex Mono',monospace;background:var(--panelAlt);color:var(--textDim);border-top:1px solid var(--borderBright);border-left:1px solid var(--borderBright);border-right:1px solid var(--borderBright);border-bottom:3px solid var(--border)" onclick="setMode('arvo')">ARVO</button>
-        <div style="width:1px;background:var(--borderBright)"></div>
-        <button class="strat-btn active" data-strat="auto" onclick="setStrategy('auto')" style="flex:1;border:none;cursor:pointer;font-size:10px;font-family:'IBM Plex Mono',monospace;background:rgba(0,229,255,0.15);color:var(--cyan);border-bottom:3px solid var(--cyan);border-top:1px solid var(--borderBright);border-right:1px solid var(--borderBright)">AUTO</button>
-        <button class="strat-btn" data-strat="put" onclick="setStrategy('put')" style="flex:1;border:none;cursor:pointer;font-size:10px;font-family:'IBM Plex Mono',monospace;background:var(--panelAlt);color:var(--textDim);border-bottom:3px solid var(--border);border-top:1px solid var(--borderBright);border-right:1px solid var(--borderBright)">PUT</button>
-        <button class="strat-btn" data-strat="call" onclick="setStrategy('call')" style="flex:1;border:none;cursor:pointer;font-size:10px;font-family:'IBM Plex Mono',monospace;background:var(--panelAlt);color:var(--textDim);border-bottom:3px solid var(--border);border-top:1px solid var(--borderBright);border-right:1px solid var(--borderBright)">CALL</button>
-        <button class="strat-btn" data-strat="ic" onclick="setStrategy('ic')" style="flex:1;border:none;cursor:pointer;font-size:10px;font-family:'IBM Plex Mono',monospace;background:var(--panelAlt);color:var(--textDim);border-bottom:3px solid var(--border);border-top:1px solid var(--borderBright);border-right:1px solid var(--borderBright)">IC</button>
-      </div>
-    </div>
-    <div>
-      <div class="label" style="margin-bottom:4px">BIAS</div>
-      <div style="display:flex;height:42px" id="biasButtons">
-        <button class="bias-btn" data-bias="bull" onclick="setBias('bull')" style="flex:1;border:none;cursor:pointer;font-size:11px;font-family:'IBM Plex Mono',monospace;background:var(--panelAlt);color:var(--textDim);border-bottom:3px solid var(--border);border-top:1px solid var(--borderBright);border-left:1px solid var(--borderBright);border-right:1px solid var(--borderBright)">↑ BULL</button>
-        <button class="bias-btn active" data-bias="neutral" onclick="setBias('neutral')" style="flex:1;border:none;cursor:pointer;font-size:11px;font-family:'IBM Plex Mono',monospace;background:rgba(0,229,255,0.15);color:var(--cyan);border-bottom:3px solid var(--cyan);border-top:1px solid var(--borderBright);border-left:1px solid var(--borderBright);border-right:1px solid var(--borderBright)">→ NEUT</button>
-        <button class="bias-btn" data-bias="bear" onclick="setBias('bear')" style="flex:1;border:none;cursor:pointer;font-size:11px;font-family:'IBM Plex Mono',monospace;background:var(--panelAlt);color:var(--textDim);border-bottom:3px solid var(--border);border-top:1px solid var(--borderBright);border-left:1px solid var(--borderBright);border-right:1px solid var(--borderBright)">↓ BEAR</button>
-      </div>
-    </div>
-    <div>
-      <div class="label" style="margin-bottom:4px">&nbsp;</div>
-      <div style="display:flex;gap:8px;height:42px;align-items:stretch">
-        <button id="scanBtn" class="btn" style="padding:0 20px;border:2px solid var(--cyan);color:var(--cyan);font-size:12px;letter-spacing:2px;font-weight:700;height:100%" onclick="scan()">&#8635; SCAN</button>
-      </div>
-    </div>
+    <span style="font-size:11px;color:var(--cyan);letter-spacing:1px;cursor:pointer">EXPAND &#9660;</span>
   </div>
-  <div id="scanInfo" style="font-size:10px;color:var(--textDim);text-align:right;padding-top:6px">Enter SPX &amp; VIX then press SCAN</div>
+  <div id="inputFields">
+    <div class="scanner-inputs" style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1.5fr 1fr;gap:10px;align-items:end">
+      <div>
+        <div class="label" style="margin-bottom:4px">SPX PRICE</div>
+        <div style="display:flex;height:42px">
+          <span style="display:flex;align-items:center;padding:0 10px;background:var(--panelAlt);border:1px solid var(--borderBright);border-right:none;color:var(--textDim);font-size:13px">$</span>
+          <input id="spxInput" type="number" value="5800" style="width:100%;background:var(--panelAlt);border:1px solid var(--borderBright);color:var(--white);padding:0 10px;font-size:18px;font-weight:700;height:100%;box-sizing:border-box" onkeydown="if(event.key==='Enter')todaysSetup()">
+        </div>
+      </div>
+      <div>
+        <div class="label" style="margin-bottom:4px">VIX</div>
+        <div style="display:flex;height:42px">
+          <span style="display:flex;align-items:center;padding:0 10px;background:var(--panelAlt);border:1px solid var(--borderBright);border-right:none;color:var(--textDim);font-size:13px">V</span>
+          <input id="vixInput" type="number" step="0.1" value="22" style="width:100%;background:var(--panelAlt);border:1px solid var(--borderBright);color:var(--white);padding:0 10px;font-size:18px;font-weight:700;height:100%;box-sizing:border-box" onkeydown="if(event.key==='Enter')todaysSetup()">
+        </div>
+      </div>
+      <div>
+        <div class="label" style="margin-bottom:4px">WIDTH</div>
+        <select id="widthSelect" style="width:100%;background:var(--panelAlt);border:1px solid var(--borderBright);color:var(--white);padding:0 10px;font-size:14px;font-weight:700;height:42px;cursor:pointer;box-sizing:border-box">
+          <option value="10">10 pts</option>
+          <option value="15" selected>15 pts &#9733;</option>
+          <option value="20">20 pts</option>
+          <option value="25">25 pts</option>
+        </select>
+      </div>
+      <div>
+        <div class="label" style="margin-bottom:4px">200DMA</div>
+        <div style="display:flex;height:42px">
+          <span style="display:flex;align-items:center;padding:0 8px;background:var(--panelAlt);border:1px solid var(--borderBright);border-right:none;color:var(--textDim);font-size:11px">MA</span>
+          <input id="dma200Input" type="number" value="" placeholder="5700" style="width:100%;background:var(--panelAlt);border:1px solid var(--borderBright);color:var(--white);padding:0 8px;font-size:14px;font-weight:700;height:100%;box-sizing:border-box" onkeydown="if(event.key==='Enter'){state.dma200=parseFloat(this.value)||0;localStorage.setItem('spx_dma200',state.dma200);}" onchange="state.dma200=parseFloat(this.value)||0;localStorage.setItem('spx_dma200',state.dma200);">
+        </div>
+      </div>
+      <div>
+        <div class="label" style="margin-bottom:4px">MODE / STRATEGY</div>
+        <div style="display:flex;height:42px" id="modeStratRow">
+          <button class="mode-btn active" data-mode="morning" style="flex:1;border:none;cursor:pointer;font-size:11px;font-family:'IBM Plex Mono',monospace;background:rgba(240,180,41,0.15);color:var(--gold);border-top:1px solid var(--borderBright);border-left:1px solid var(--borderBright);border-right:1px solid var(--borderBright);border-bottom:3px solid var(--gold)" onclick="setMode('morning')">MORN</button>
+          <button class="mode-btn" data-mode="arvo" style="flex:1;border:none;cursor:pointer;font-size:11px;font-family:'IBM Plex Mono',monospace;background:var(--panelAlt);color:var(--textDim);border-top:1px solid var(--borderBright);border-left:1px solid var(--borderBright);border-right:1px solid var(--borderBright);border-bottom:3px solid var(--border)" onclick="setMode('arvo')">ARVO</button>
+          <div style="width:1px;background:var(--borderBright)"></div>
+          <button class="strat-btn active" data-strat="auto" onclick="setStrategy('auto')" style="flex:1;border:none;cursor:pointer;font-size:10px;font-family:'IBM Plex Mono',monospace;background:rgba(0,229,255,0.15);color:var(--cyan);border-bottom:3px solid var(--cyan);border-top:1px solid var(--borderBright);border-right:1px solid var(--borderBright)">AUTO</button>
+          <button class="strat-btn" data-strat="put" onclick="setStrategy('put')" style="flex:1;border:none;cursor:pointer;font-size:10px;font-family:'IBM Plex Mono',monospace;background:var(--panelAlt);color:var(--textDim);border-bottom:3px solid var(--border);border-top:1px solid var(--borderBright);border-right:1px solid var(--borderBright)">PUT</button>
+          <button class="strat-btn" data-strat="call" onclick="setStrategy('call')" style="flex:1;border:none;cursor:pointer;font-size:10px;font-family:'IBM Plex Mono',monospace;background:var(--panelAlt);color:var(--textDim);border-bottom:3px solid var(--border);border-top:1px solid var(--borderBright);border-right:1px solid var(--borderBright)">CALL</button>
+          <button class="strat-btn" data-strat="ic" onclick="setStrategy('ic')" style="flex:1;border:none;cursor:pointer;font-size:10px;font-family:'IBM Plex Mono',monospace;background:var(--panelAlt);color:var(--textDim);border-bottom:3px solid var(--border);border-top:1px solid var(--borderBright);border-right:1px solid var(--borderBright)">IC</button>
+        </div>
+      </div>
+      <div>
+        <div class="label" style="margin-bottom:4px">BIAS</div>
+        <div style="display:flex;height:42px" id="biasButtons">
+          <button class="bias-btn" data-bias="bull" onclick="setBias('bull')" style="flex:1;border:none;cursor:pointer;font-size:11px;font-family:'IBM Plex Mono',monospace;background:var(--panelAlt);color:var(--textDim);border-bottom:3px solid var(--border);border-top:1px solid var(--borderBright);border-left:1px solid var(--borderBright);border-right:1px solid var(--borderBright)">&#8593; BULL</button>
+          <button class="bias-btn active" data-bias="neutral" onclick="setBias('neutral')" style="flex:1;border:none;cursor:pointer;font-size:11px;font-family:'IBM Plex Mono',monospace;background:rgba(0,229,255,0.15);color:var(--cyan);border-bottom:3px solid var(--cyan);border-top:1px solid var(--borderBright);border-left:1px solid var(--borderBright);border-right:1px solid var(--borderBright)">&#8594; NEUT</button>
+          <button class="bias-btn" data-bias="bear" onclick="setBias('bear')" style="flex:1;border:none;cursor:pointer;font-size:11px;font-family:'IBM Plex Mono',monospace;background:var(--panelAlt);color:var(--textDim);border-bottom:3px solid var(--border);border-top:1px solid var(--borderBright);border-left:1px solid var(--borderBright);border-right:1px solid var(--borderBright)">&#8595; BEAR</button>
+        </div>
+      </div>
+    </div>
+    <div id="scanInfo" style="font-size:10px;color:var(--textDim);text-align:right;padding-top:6px">Enter SPX &amp; VIX then press WHAT'S TODAY'S SETUP?</div>
+  </div>
 </div>
 
-<!-- REGIME STRIP -->
-<div id="regimeRow" class="regime-strip"></div>
+<!-- SETUP BUTTON -->
+<div style="margin-bottom:12px">
+  <button id="setupBtn" onclick="todaysSetup()" style="width:100%;padding:18px;font-size:16px;font-weight:700;font-family:'Chakra Petch',sans-serif;letter-spacing:3px;cursor:pointer;border:2px solid var(--cyan);background:rgba(0,229,255,0.08);color:var(--cyan);transition:all 0.15s">WHAT'S TODAY'S SETUP?</button>
+</div>
 
-<!-- ORDER RECOMMENDATION -->
-<div id="orderPanel"></div>
+<!-- UNIFIED PLAYBOOK -->
+<div id="playbook-unified">
+  <div style="margin-bottom:8px">
+    <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:4px;margin-bottom:8px" id="playbook-day-btns"></div>
+    <div id="playbook-day-content"></div>
+  </div>
+</div>
 
-<!-- MAIN CONTENT: 3 Tickets + Rules -->
-<div id="mainArea"></div>
+<!-- Hidden containers for backward compat (scan() previously wrote here) -->
+<div id="regimeRow" style="display:none"></div>
+<div id="orderPanel" style="display:none"></div>
+<div id="mainArea" style="display:none"></div>
 
 <!-- DELTA TABLE -->
 <div id="deltaTable" class="panel delta-full"></div>
 
-<!-- BOTTOM: Weekly + Income + Phase -->
+<!-- BOTTOM: Income + Phase -->
 <div id="bottomArea"></div>
 </div>
 
@@ -1042,7 +1048,7 @@ function showCloudStatus(s) {
 function switchTab(tab) {
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
   document.querySelectorAll('.tab-content').forEach(c => c.classList.toggle('active', c.id === 'tab-' + tab));
-  if (tab === 'scanner') renderPlaybook();
+  if (tab === 'scanner') { if (state._scanDone) scan(); else renderPlaybook(); }
   if (tab === 'dashboard') { renderDashboard(); renderProjections(); }
   if (tab === 'calendar') renderCalendar();
   if (tab === 'phases') renderPhases();
@@ -1474,8 +1480,304 @@ function computeRows() {
   });
 }
 
+// ── TOGGLE INPUT PANEL ──
+function toggleInputs() {
+  const fields = document.getElementById('inputFields');
+  const summary = document.getElementById('inputSummary');
+  if (fields.style.display === 'none') {
+    fields.style.display = 'block';
+    summary.style.display = 'none';
+  } else {
+    fields.style.display = 'none';
+    summary.style.display = 'flex';
+  }
+}
+
+function updateInputSummary() {
+  const el = document.getElementById('inputSummaryText');
+  if (el) {
+    el.textContent = 'SPX $' + state.spx.toLocaleString() + ' | VIX ' + (state.vix ? state.vix.toFixed(1) : '--') + ' | ' + state.width + 'pt';
+  }
+}
+
+// ── TODAY'S SETUP BUTTON ──
+async function todaysSetup() {
+  const btn = document.getElementById('setupBtn');
+  btn.textContent = 'ANALYZING...';
+  btn.style.opacity = '0.6';
+  btn.disabled = true;
+
+  try {
+    if (state.connected) {
+      await fetchPrices();
+      await fetchAllQuotes();
+    }
+    scan();
+  } finally {
+    btn.innerHTML = '&#8635; RE-SCAN';
+    btn.style.opacity = '1';
+    btn.disabled = false;
+  }
+
+  // Auto-collapse inputs when IBKR connected
+  if (state.connected) {
+    updateInputSummary();
+    const fields = document.getElementById('inputFields');
+    const summary = document.getElementById('inputSummary');
+    if (fields && summary) {
+      fields.style.display = 'none';
+      summary.style.display = 'flex';
+    }
+  }
+}
+
+// ── RENDER UNIFIED PLAYBOOK ──
+function renderUnifiedPlaybook(d) {
+  const { regime, regimeItems, recRow, recDelta, rows,
+    orderType, orderIcon, orderColor, orderCredit, profitTgt, stopInfo,
+    conviction, convColor, convLabel, adjContracts, adjIncome, contracts,
+    useIC, useCall, isBearish, isBullish,
+    pF, cF, liveP, liveC,
+    sessionStatus, sessionColor, sessionNote, canTrade,
+    phase, dailyMove, dma200, dmaAbove, dmaDist, stopBuffer,
+    wklyShort, wklyLong, wklyFill, macroColors } = d;
+
+  // Get playbook data for scheduled trades
+  const PLAYBOOK = getPlaybook();
+  const todayIdx = new Date().getDay();
+  const todayName = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][todayIdx];
+  const ph = getPhase(traderData.currentCapital);
+  const dual = ph.id >= 3;
+  const pbRegime = getRegime(state.vix);
+  const pbContractsRaw = ph.perK ? Math.max(1, Math.floor(traderData.currentCapital / ph.perK)) : 2;
+  const pbContracts = Math.max(1, Math.round(pbContractsRaw * pbRegime.size));
+
+  // Day selector
+  if (!window._unifiedPlaybookDay) window._unifiedPlaybookDay = todayName;
+  const selDay = window._unifiedPlaybookDay;
+  const dayBtnsHtml = ['Mon','Tue','Wed','Thu','Fri'].map(function(dd) {
+    const isSel = dd === selDay;
+    return '<button class="btn" style="border-color:' + (isSel ? 'var(--cyan)' : 'var(--border)') + ';color:' + (isSel ? 'var(--cyan)' : 'var(--textDim)') + ';background:' + (isSel ? 'rgba(0,229,255,0.1)' : 'transparent') + ';font-size:13px;padding:10px;font-weight:' + (isSel ? 700 : 400) + ';position:relative" onclick="window._unifiedPlaybookDay=\'' + dd + '\';scan()">' +
+      dd.toUpperCase() +
+      (dd === todayName ? '<span style="position:absolute;top:4px;right:8px;font-size:8px;color:var(--green)">TODAY</span>' : '') +
+    '</button>';
+  }).join('');
+
+  // Warning banners
+  let bannerHtml = '';
+  if (state.macroRisk === 'blackout') {
+    bannerHtml += '<div style="border:2px solid var(--red);border-left:4px solid var(--red);padding:10px 16px;display:flex;align-items:center;gap:12px;background:rgba(255,71,87,0.08);margin-bottom:8px"><span style="font-size:20px">\u26D4</span><div><div style="font-size:13px;color:var(--red);font-weight:700;letter-spacing:1px">NO TRADE TODAY</div><div style="font-size:11px;color:var(--textMid);margin-top:2px">FOMC / Market Holiday \u2014 capital preservation day</div></div></div>';
+  } else if (isBearish) {
+    bannerHtml += '<div style="border:2px solid var(--red);border-left:4px solid var(--red);padding:10px 16px;display:flex;align-items:center;gap:12px;background:rgba(255,71,87,0.06);margin-bottom:8px"><span style="font-size:20px">\uD83D\uDC3B</span><div><div style="font-size:13px;color:var(--red);font-weight:700;letter-spacing:1px">\u25B2 USE CALL SPREAD TODAY</div><div style="font-size:11px;color:var(--textMid);margin-top:2px">Auto-detected: SPX below 200DMA \u2014 put spreads are wrong-way trades</div></div></div>';
+  }
+
+  // Reasoning / market analysis
+  let reasoningHtml = '';
+  let reasoningScoreColor = 'var(--textDim)';
+  let reasoningScoreLabel = '';
+  if (state.reasoning.length > 0) {
+    const bullCount = state.reasoning.filter(function(r) { return r.bullish === true; }).length;
+    const bearCount = state.reasoning.filter(function(r) { return r.bullish === false; }).length;
+    const score = bullCount - bearCount;
+    reasoningScoreColor = score >= 3 ? 'var(--green)' : score >= 1 ? 'var(--gold)' : 'var(--red)';
+    reasoningScoreLabel = score >= 3 ? 'STRONG' : score >= 1 ? 'MODERATE' : score >= -1 ? 'WEAK' : 'ADVERSE';
+    reasoningHtml = state.reasoning.map(function(r) {
+      return '<div style="padding:3px 0;font-size:12px;color:var(--text)">' + r.icon + ' ' + r.text + '</div>';
+    }).join('');
+    if (state.prevHigh) {
+      reasoningHtml += '<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border);font-size:10px;color:var(--textDim)">\uD83D\uDD11 KEY LEVELS: Prev ' + state.prevLow.toFixed(0) + '-' + state.prevHigh.toFixed(0) + (state.pivot ? ' \u00B7 Pivot ' + state.pivot.toFixed(0) + ' \u00B7 S1 ' + state.s1.toFixed(0) + ' \u00B7 R1 ' + state.r1.toFixed(0) : '') + (state.weeklyLow ? ' \u00B7 Week ' + state.weeklyLow.toFixed(0) + '-' + state.weeklyHigh.toFixed(0) : '') + '</div>';
+    }
+  }
+
+  // Scheduled trades for selected day
+  const dayData = PLAYBOOK[selDay] || PLAYBOOK['Mon'];
+  const scheduledHtml = dayData.trades.map(function(t) {
+    const ctDisplay = t.contracts === '-' ? '-' : (t.contracts === '1ct' ? '1ct' : t.contracts === 'phase' ? pbContracts + 'ct' : t.contracts);
+    const showStagger = t.contracts === 'phase' && ph.id >= 3 && pbContracts >= 4;
+    const batches3 = ph.id >= 4;
+    const b1 = showStagger ? (batches3 ? Math.floor(pbContracts / 3) : Math.floor(pbContracts / 2)) : 0;
+    const b2 = showStagger ? (batches3 ? Math.floor(pbContracts / 3) : pbContracts - Math.floor(pbContracts / 2)) : 0;
+    const b3 = showStagger && batches3 ? pbContracts - b1 - b2 : 0;
+    const borderC = t.type === 'check' ? 'var(--gold)' : t.type === 'close' ? 'var(--red)' : 'var(--green)';
+    return '<div style="padding:10px 12px;border-left:3px solid ' + borderC + ';background:var(--panelAlt);margin-bottom:4px">' +
+      '<div style="display:flex;justify-content:space-between;margin-bottom:4px">' +
+        '<span style="font-size:13px;font-weight:700;color:var(--white)">' + t.name + '</span>' +
+        '<span style="font-size:11px;color:var(--cyan)">' + t.dte + '</span>' +
+      '</div>' +
+      '<div style="display:flex;gap:16px;flex-wrap:wrap">' +
+        '<span style="color:var(--textMid);font-size:11px">Time: <span style="color:var(--gold)">' + t.time + '</span></span>' +
+        '<span style="color:var(--textMid);font-size:11px">Delta: <span style="color:var(--cyan)">' + t.delta + '</span></span>' +
+        '<span style="color:var(--textMid);font-size:11px">Credit: <span style="color:var(--green)">' + t.credit + '</span></span>' +
+        '<span style="color:var(--textMid);font-size:11px">Size: <span style="color:var(--white);font-weight:700">' + ctDisplay + '</span></span>' +
+      '</div>' +
+      (showStagger ? '<div style="margin-top:8px;padding:8px 10px;background:rgba(0,229,255,0.05);border:1px solid rgba(0,229,255,0.15)">' +
+        '<div style="font-size:10px;color:var(--cyan);letter-spacing:2px;margin-bottom:6px;font-weight:700">STAGGER PLAN \u2014 ' + pbContracts + ' CONTRACTS (' + (batches3 ? '3' : '2') + ' BATCHES)</div>' +
+        '<div style="display:grid;grid-template-columns:' + (batches3 ? '1fr 1fr 1fr' : '1fr 1fr') + ';gap:6px">' +
+          '<div style="text-align:center;padding:6px;background:rgba(0,208,132,0.08);border:1px solid rgba(0,208,132,0.2)"><div style="font-size:9px;color:var(--textDim);margin-bottom:2px">BATCH 1</div><div style="font-size:16px;font-weight:700;color:var(--green)">' + b1 + 'ct</div><div style="font-size:9px;color:var(--textDim)">Enter first</div></div>' +
+          '<div style="text-align:center;padding:6px;background:rgba(255,215,0,0.08);border:1px solid rgba(255,215,0,0.2)"><div style="font-size:9px;color:var(--textDim);margin-bottom:2px">BATCH 2</div><div style="font-size:16px;font-weight:700;color:var(--gold)">' + b2 + 'ct</div><div style="font-size:9px;color:var(--textDim)">+2 min wait</div></div>' +
+          (batches3 ? '<div style="text-align:center;padding:6px;background:rgba(0,229,255,0.08);border:1px solid rgba(0,229,255,0.2)"><div style="font-size:9px;color:var(--textDim);margin-bottom:2px">BATCH 3</div><div style="font-size:16px;font-weight:700;color:var(--cyan)">' + b3 + 'ct</div><div style="font-size:9px;color:var(--textDim)">+2 min wait</div></div>' : '') +
+        '</div></div>' : '') +
+    '</div>';
+  }).join('');
+
+  // Build the unified panel
+  const html = `
+    <!-- DAY SELECTOR + SESSION -->
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+      <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:4px;flex:1">${dayBtnsHtml}</div>
+      <div class="panel" style="padding:10px 16px;text-align:center;min-width:140px">
+        <div style="font-size:9px;color:var(--textDim);letter-spacing:1px;margin-bottom:2px">SESSION</div>
+        <div class="chakra" style="font-size:14px;font-weight:700;color:${sessionColor}">${sessionStatus}</div>
+        <div style="font-size:10px;color:${sessionColor};margin-top:2px">${sessionNote}</div>
+      </div>
+    </div>
+
+    ${bannerHtml}
+
+    <!-- MARKET ANALYSIS -->
+    <div class="panel" style="padding:14px 16px;margin-bottom:8px;border-left:3px solid ${reasoningScoreColor}">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <div style="font-size:12px;color:var(--textDim);letter-spacing:2px">MARKET ANALYSIS</div>
+        ${reasoningScoreLabel ? '<div class="chakra" style="font-size:14px;font-weight:700;color:' + reasoningScoreColor + '">CONVICTION: ' + reasoningScoreLabel + '</div>' : ''}
+      </div>
+      <!-- Metrics strip -->
+      <div class="regime-strip" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(100px,1fr));gap:1px;margin-bottom:10px">
+        <div class="panel" style="padding:8px 12px;border-left:4px solid ${regime.color}">
+          <div class="chakra" style="font-size:14px;font-weight:700;color:${regime.color}">${regime.level}</div>
+          <div style="font-size:10px;color:${regime.color}">${regime.action} \u00B7 ${Math.round(regime.size*100)}%</div>
+        </div>
+        ${regimeItems.map(function(s) { return '<div class="panel" style="padding:8px 12px"><div style="font-size:9px;color:var(--textDim);letter-spacing:1px;margin-bottom:2px">' + s.l + '</div><div class="chakra" style="font-size:14px;font-weight:700;color:' + s.c + '">' + s.v + '</div></div>'; }).join('')}
+      </div>
+      <!-- Reasoning bullets -->
+      ${reasoningHtml}
+    </div>
+
+    <!-- TODAY'S ORDER -->
+    <div class="panel" style="border:2px solid ${canTrade ? orderColor : 'var(--border)'};margin-bottom:8px;overflow:hidden">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 18px;background:${canTrade ? orderColor + '0C' : 'var(--panelAlt)'}">
+        <div style="display:flex;align-items:center;gap:14px">
+          <div class="chakra" style="font-size:28px;font-weight:700;color:${orderColor}">${orderIcon}</div>
+          <div>
+            <div style="font-size:10px;color:var(--textDim);letter-spacing:2px;margin-bottom:2px">TODAY'S ORDER</div>
+            <div class="chakra" style="font-size:20px;font-weight:700;color:${orderColor}">${orderType}</div>
+          </div>
+        </div>
+        <div style="text-align:right">
+          <div class="chakra" style="font-size:20px;font-weight:700;color:${convColor}">${conviction}</div>
+          <div style="font-size:10px;color:${convColor}">${convLabel}</div>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:0;border-top:1px solid var(--border)">
+        ${useIC ? `
+        <div style="padding:12px 16px;border-right:1px solid var(--border)">
+          <div style="font-size:9px;color:var(--green);letter-spacing:1px;margin-bottom:4px">\u25BC SELL PUT</div>
+          <div class="mono" style="font-size:15px;font-weight:700;color:var(--white)">SPX ${recRow.sP}</div>
+          <div class="mono" style="font-size:11px;color:var(--textDim);margin-top:2px">BUY ${recRow.lP}</div>
+          <div style="margin-top:6px;font-size:9px;color:var(--orange);letter-spacing:1px;margin-bottom:4px">\u25B2 SELL CALL</div>
+          <div class="mono" style="font-size:15px;font-weight:700;color:var(--white)">SPX ${recRow.sC}</div>
+          <div class="mono" style="font-size:11px;color:var(--textDim);margin-top:2px">BUY ${recRow.lC}</div>
+        </div>
+        ` : `
+        <div style="padding:12px 16px;border-right:1px solid var(--border)">
+          <div style="font-size:9px;color:${orderColor};letter-spacing:1px;margin-bottom:4px">SELL</div>
+          <div class="mono" style="font-size:18px;font-weight:700;color:var(--white)">SPX ${useCall ? recRow.sC : recRow.sP} ${useCall ? 'C' : 'P'}</div>
+          <div style="font-size:9px;color:var(--textDim);letter-spacing:1px;margin-top:8px;margin-bottom:4px">BUY</div>
+          <div class="mono" style="font-size:18px;font-weight:700;color:var(--white)">SPX ${useCall ? recRow.lC : recRow.lP} ${useCall ? 'C' : 'P'}</div>
+        </div>
+        `}
+        <div style="padding:12px 16px;border-right:1px solid var(--border)">
+          <div style="font-size:9px;color:var(--textDim);letter-spacing:1px;margin-bottom:4px">CONTRACTS</div>
+          <div class="chakra" style="font-size:24px;font-weight:700;color:var(--green)">${adjContracts}</div>
+          ${adjContracts !== contracts ? '<div style="font-size:10px;color:var(--gold);margin-top:2px">' + conviction + ' setup \u2192 sized down</div>' : ''}
+          <div style="margin-top:10px;font-size:9px;color:var(--textDim);letter-spacing:1px;margin-bottom:4px">CREDIT</div>
+          <div class="chakra" style="font-size:24px;font-weight:700;color:${orderCredit >= 0.60 ? orderColor : 'var(--red)'}">$${f2(orderCredit)}</div>
+          <div style="font-size:10px;color:var(--textDim);margin-top:2px">${fmt$(adjIncome)} total</div>
+        </div>
+        <div style="padding:12px 16px;border-right:1px solid var(--border)">
+          <div style="font-size:9px;color:var(--green);letter-spacing:1px;margin-bottom:4px">HOLD TARGET</div>
+          <div class="chakra" style="font-size:20px;font-weight:700;color:var(--green)">$${f2(profitTgt)}</div>
+          <div style="font-size:10px;color:var(--green);margin-top:2px">+${fmt$(profitTgt * adjContracts * 100)} full credit</div>
+          <div style="font-size:10px;color:var(--textDim);margin-top:6px">\u0394${recDelta} \u00B7 ${state.width}pt wide \u00B7 ${regime.level}</div>
+        </div>
+        <div style="padding:12px 16px">
+          <div style="font-size:9px;color:var(--textDim);letter-spacing:1px;margin-bottom:6px">STOP LOSS TIERS</div>
+          <div style="display:flex;flex-direction:column;gap:6px">
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:4px 8px;background:rgba(240,180,41,0.08);border-left:2px solid var(--gold)">
+              <span style="font-size:10px;color:var(--gold)">2\u00D7 WIDE (0-2hr)</span>
+              <span class="mono" style="font-size:13px;font-weight:700;color:var(--gold)">$${f2(orderCredit*2)}</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:4px 8px;background:rgba(255,71,87,0.08);border-left:2px solid var(--red)">
+              <span style="font-size:10px;color:var(--red)">1.5\u00D7 TIGHT (2hr+)</span>
+              <span class="mono" style="font-size:13px;font-weight:700;color:var(--red)">$${f2(orderCredit*1.5)}</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:4px 8px;background:rgba(255,71,87,0.12);border-left:2px solid var(--red)">
+              <span style="font-size:10px;color:var(--red)">3\u00D7 EMERGENCY</span>
+              <span class="mono" style="font-size:13px;font-weight:700;color:var(--red)">$${stopInfo.emergencyStop}</span>
+            </div>
+          </div>
+          <div style="margin-top:6px;font-size:9px;color:var(--textDim);letter-spacing:1px">MAX LOSS ${adjContracts}CT</div>
+          <div style="display:flex;flex-direction:column;gap:2px;margin-top:4px">
+            <div style="display:flex;justify-content:space-between"><span style="font-size:10px;color:var(--gold)">@ 2\u00D7</span><span class="mono" style="font-size:12px;font-weight:700;color:var(--gold)">-${fmt$(orderCredit * adjContracts * 100)}</span></div>
+            <div style="display:flex;justify-content:space-between"><span style="font-size:10px;color:var(--red)">@ 1.5\u00D7</span><span class="mono" style="font-size:12px;font-weight:700;color:var(--red)">-${fmt$(orderCredit * 0.5 * adjContracts * 100)}</span></div>
+            <div style="display:flex;justify-content:space-between"><span style="font-size:10px;color:var(--red)">@ 3\u00D7</span><span class="mono" style="font-size:12px;font-weight:700;color:var(--red)">-${fmt$(orderCredit * 2 * adjContracts * 100)}</span></div>
+          </div>
+        </div>
+      </div>
+      <div style="padding:6px 18px;border-top:1px solid var(--border);background:var(--panelAlt);font-size:10px;color:${stopInfo.windowColor}">${stopInfo.tier === 'EARLY' ? '\u23F1 ' : stopInfo.tier === 'LATE' ? '\uD83D\uDD12 ' : ''}${stopInfo.window}</div>
+    </div>
+
+    <!-- HARD RULES + ENTRY WINDOWS -->
+    <div class="panel" style="padding:14px 16px;margin-bottom:8px;border-top:3px solid var(--gold)">
+      <div style="display:grid;grid-template-columns:1fr 260px;gap:16px">
+        <div>
+          <div style="font-size:10px;color:var(--gold);letter-spacing:2px;margin-bottom:10px;font-weight:700">HARD RULES \u00B7 ${useIC ? 'IC' : 'PUT SPREAD'}</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px 16px">
+            ${[
+              {rule:'MIN CREDIT',detail:useIC?'$0.60+ combined':'$0.60+ spread',c:'var(--gold)'},
+              {rule:'HOLD EXPIRY',detail:'Let full credit expire worthless',c:'var(--green)'},
+              {rule:'VIX SPIKE',detail:'+20% intra \u2192 close all',c:'var(--red)'},
+              {rule:'SIZE',detail:Math.round(regime.size*100)+'% \u00B7 '+regime.level,c:regime.color},
+              {rule:'HARD CLOSE',detail:'6:00 AM AEDT / 3:00 PM ET',c:'var(--gold)'},
+              {rule:'STOP RULES',detail:'2\u00D7 early \u2192 1.5\u00D7 late \u2192 3\u00D7 emergency',c:'var(--red)'},
+            ].map(function(r) { return '<div style="padding-bottom:6px;border-bottom:1px solid var(--border)"><div style="font-size:11px;color:'+r.c+';letter-spacing:1px;font-weight:700">'+r.rule+'</div><div style="font-size:11px;color:var(--textMid);margin-top:2px">'+r.detail+'</div></div>'; }).join('')}
+          </div>
+        </div>
+        <div>
+          <div style="font-size:10px;color:var(--textDim);letter-spacing:2px;margin-bottom:10px;font-weight:700">ENTRY WINDOWS (AEDT)</div>
+          ${[
+            {t:'12:30\u201312:45',n:'Wait for open',c:'var(--gold)',a:false},
+            {t:'12:45\u20131:15',n:'MORNING',c:'var(--gold)',a:state.mode==='morning'},
+            {t:'3:00\u20134:00',n:'ARVO',c:'var(--green)',a:state.mode==='arvo'},
+            {t:'4:00\u20135:30',n:'Close only',c:'var(--gold)',a:false},
+            {t:'5:30\u20136:00',n:'HARD CLOSE',c:'var(--red)',a:false},
+          ].map(function(t) { return '<div style="display:flex;justify-content:space-between;padding:5px 8px;border-left:'+(t.a?'3px solid '+t.c:'3px solid transparent')+';background:'+(t.a?'rgba(0,208,132,0.06)':'transparent')+';margin-bottom:2px"><span style="font-size:11px;color:'+(t.a?t.c:'var(--textDim)')+';font-weight:'+(t.a?700:400)+'">'+t.t+'</span><span style="font-size:11px;color:'+t.c+'">'+t.n+'</span></div>'; }).join('')}
+        </div>
+      </div>
+    </div>
+
+    <!-- SCHEDULED TRADES -->
+    <div class="panel" style="padding:14px 16px;margin-bottom:8px;border-top:3px solid var(--green)">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <div style="font-size:10px;color:var(--green);letter-spacing:2px;font-weight:700">SCHEDULED TRADES \u2014 ${selDay.toUpperCase()}</div>
+        <div style="display:flex;gap:6px">
+          <span style="font-size:10px;padding:3px 8px;background:rgba(0,208,132,0.1);border:1px solid rgba(0,208,132,0.3);color:var(--green)">PHASE ${ph.id}: ${pbContracts} CONTRACTS</span>
+          ${dual ? '<span style="font-size:10px;padding:3px 8px;background:rgba(0,229,255,0.1);border:1px solid rgba(0,229,255,0.3);color:var(--cyan)">DUAL SESSION</span>' : ''}
+        </div>
+      </div>
+      ${scheduledHtml}
+    </div>
+  `;
+
+  // Include hidden placeholders for renderPlaybook() compat
+  document.getElementById('playbook-unified').innerHTML = html +
+    '<div id="playbook-day-btns" style="display:none"></div>' +
+    '<div id="playbook-day-content" style="display:none"></div>';
+}
+
 // ── SCAN / RENDER SCANNER ──
 function scan() {
+  state._scanDone = true;
   state.spx = parseFloat(document.getElementById('spxInput').value) || state.spx;
   state.vix = parseFloat(document.getElementById('vixInput').value) || state.vix;
   state.width = parseInt(document.getElementById('widthSelect').value) || 15;
@@ -1535,10 +1837,11 @@ function scan() {
   const wklyFill = Math.max(wklyMid - SLIPPAGE, 0);
 
   document.getElementById('scanInfo').innerHTML = `${state.lastUpdated || ''} &middot; ${state.mode.toUpperCase()} \u0394 ${recDelta} ${recDelta !== (state.mode === 'arvo' ? 0.15 : 0.12) ? '(auto-widened for VIX ' + f2(state.vix) + ')' : ''} &middot; Fill = mid (live)`;
+  updateInputSummary();
 
-  // REGIME STRIP (compact context row)
+  // ── COMPUTED VALUES FOR RENDERING ──
   const macroColors = { clear: 'var(--green)', caution: 'var(--gold)', high: 'var(--red)', blackout: 'var(--red)' };
-  const macroLabelsShort = { clear: '🟢 CLEAR', caution: '🟡 CAUTION', high: '🔴 HIGH RISK', blackout: '⛔ NO TRADE' };
+  const macroLabelsShort = { clear: 'CLEAR', caution: 'CAUTION', high: 'HIGH RISK', blackout: 'NO TRADE' };
   const gexColors = { positive: 'var(--green)', neutral: 'var(--cyan)', cautious: 'var(--gold)', negative: 'var(--red)' };
   const gexLabelsShort = { positive: '+GEX', neutral: 'NEUT', cautious: 'CAUT', negative: '-GEX' };
 
@@ -1547,55 +1850,12 @@ function scan() {
     { l:'VIX', v:f2(state.vix), c:regime.color },
     { l:'EXP MOVE', v:`\u00B1${dailyMove}`, c:'var(--gold)' },
   ];
-  if (dma200 > 0) regimeItems.push({ l:'200DMA', v:`${dmaAbove?'↑':'↓'} ${Math.abs(dmaDist)}pts`, c: dmaAbove?'var(--green)':'var(--red)' });
-  if (state.vwap) regimeItems.push({ l:'VWAP', v:`${state.aboveVwap?'↑':'↓'} ${state.vwap.toFixed(0)}`, c: state.aboveVwap?'var(--green)':'var(--red)' });
+  if (dma200 > 0) regimeItems.push({ l:'200DMA', v:`${dmaAbove?'\u2191':'\u2193'} ${Math.abs(dmaDist)}pts`, c: dmaAbove?'var(--green)':'var(--red)' });
+  if (state.vwap) regimeItems.push({ l:'VWAP', v:`${state.aboveVwap?'\u2191':'\u2193'} ${state.vwap.toFixed(0)}`, c: state.aboveVwap?'var(--green)':'var(--red)' });
   if (state.gexProxy) regimeItems.push({ l:'GEX', v:gexLabelsShort[state.gexProxy], c: gexColors[state.gexProxy] });
   regimeItems.push({ l:'MACRO', v:macroLabelsShort[state.macroRisk], c: macroColors[state.macroRisk] });
 
-  document.getElementById('regimeRow').innerHTML = `
-    <div class="panel" style="border-left:4px solid ${regime.color};padding:10px 14px">
-      <div class="chakra" style="font-size:18px;font-weight:700;color:${regime.color}">${regime.level}</div>
-      <div style="font-size:11px;color:${regime.color}">${regime.action} · ${Math.round(regime.size*100)}%</div>
-    </div>
-    ${regimeItems.map(s => '<div class="panel" style="padding:10px 14px"><div style="font-size:10px;color:var(--textDim);letter-spacing:1px;margin-bottom:3px">' + s.l + '</div><div class="chakra" style="font-size:16px;font-weight:700;color:' + s.c + '">' + s.v + '</div></div>').join('')}`;
-
-    // Remove old banners before re-render
-    document.querySelectorAll('.bias-banner').forEach(el => el.remove());
-    document.querySelectorAll('.reasoning-panel').forEach(el => el.remove());
-
-    // Warning banners
-    let bannerHtml = '';
-
-    // Macro blackout
-    if (state.macroRisk === 'blackout') {
-      bannerHtml += '<div class="bias-banner panel" style="border:2px solid var(--red);border-left:4px solid var(--red);padding:10px 16px;display:flex;align-items:center;gap:12px;background:rgba(255,71,87,0.08);margin-bottom:8px"><span style="font-size:20px">⛔</span><div><div style="font-size:13px;color:var(--red);font-weight:700;letter-spacing:1px">NO TRADE TODAY</div><div style="font-size:11px;color:var(--textMid);margin-top:2px">FOMC / Market Holiday — capital preservation day</div></div></div>';
-    } else if (isBearish) {
-      bannerHtml += '<div class="bias-banner panel" style="border:2px solid var(--red);border-left:4px solid var(--red);padding:10px 16px;display:flex;align-items:center;gap:12px;background:rgba(255,71,87,0.06);margin-bottom:8px"><span style="font-size:20px">🐻</span><div><div style="font-size:13px;color:var(--red);font-weight:700;letter-spacing:1px">▲ USE CALL SPREAD TODAY</div><div style="font-size:11px;color:var(--textMid);margin-top:2px">Auto-detected: SPX below 200DMA — put spreads are wrong-way trades</div></div></div>';
-    }
-
-    // Reasoning panel (always show if we have reasons)
-    if (state.reasoning.length > 0) {
-      const bullCount = state.reasoning.filter(r => r.bullish === true).length;
-      const bearCount = state.reasoning.filter(r => r.bullish === false).length;
-      const score = bullCount - bearCount;
-      const scoreColor = score >= 3 ? 'var(--green)' : score >= 1 ? 'var(--gold)' : 'var(--red)';
-      const scoreLabel = score >= 3 ? 'STRONG' : score >= 1 ? 'MODERATE' : score >= -1 ? 'WEAK' : 'ADVERSE';
-
-      bannerHtml += '<div class="reasoning-panel panel" style="padding:14px 16px;margin-bottom:8px;border-left:3px solid ' + scoreColor + '">' +
-        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">' +
-          '<div style="font-size:12px;color:var(--textDim);letter-spacing:2px">MARKET ANALYSIS</div>' +
-          '<div style="display:flex;align-items:center;gap:8px"><span class="chakra" style="font-size:14px;font-weight:700;color:' + scoreColor + '">CONVICTION: ' + scoreLabel + ' (' + bullCount + '/' + state.reasoning.length + ' bullish)</span></div>' +
-        '</div>' +
-        state.reasoning.map(function(r) {
-          return '<div style="padding:3px 0;font-size:12px;color:var(--text)">' + r.icon + ' ' + r.text + '</div>';
-        }).join('') +
-        (state.prevHigh ? '<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border);font-size:10px;color:var(--textDim)">KEY LEVELS: Prev ' + state.prevLow.toFixed(0) + '-' + state.prevHigh.toFixed(0) + (state.pivot ? ' · Pivot ' + state.pivot.toFixed(0) + ' · S1 ' + state.s1.toFixed(0) + ' · R1 ' + state.r1.toFixed(0) : '') + (state.weeklyLow ? ' · Week ' + state.weeklyLow.toFixed(0) + '-' + state.weeklyHigh.toFixed(0) : '') + '</div>' : '') +
-      '</div>';
-    }
-
-    if (bannerHtml) document.getElementById('regimeRow').insertAdjacentHTML('afterend', bannerHtml);
-
-  // ── LIVE PRICE RESOLUTION (needed by order panel) ──
+  // ── LIVE PRICE RESOLUTION ──
   const liveP = state.liveQuotes[`${recRow.sP}_${recRow.lP}_P`];
   const liveC = state.liveQuotes[`${recRow.sC}_${recRow.lC}_C`];
   const pF = liveP && liveP.credit_bid !== undefined ? liveP.credit_bid : recRow.putFill;
@@ -1603,326 +1863,72 @@ function scan() {
 
   // ── ORDER RECOMMENDATION ──
   const orderType = useIC ? 'IRON CONDOR' : useCall ? 'CALL CREDIT SPREAD' : 'PUT CREDIT SPREAD';
-  const orderIcon = useIC ? '⬡' : useCall ? '▲' : '▼';
+  const orderIcon = useIC ? '\u2B21' : useCall ? '\u25B2' : '\u25BC';
   const orderColor = useIC ? 'var(--cyan)' : useCall ? 'var(--orange)' : 'var(--green)';
   const orderCredit = useIC ? recRow.icFill : useCall ? cF : pF;
   const orderIncome = orderCredit * contracts * 100;
-  const profitTgt = orderCredit; // hold to expiry — full credit
+  const profitTgt = orderCredit;
 
-  // TWO-TIER STOP: 2× first 2hrs (noise protection), 1.5× after (theta decayed)
-  // Emergency stops always active: 3× or strike breach
+  // TWO-TIER STOP
   function getStopLevel(credit) {
     const now = new Date();
     const etHour = parseInt(now.toLocaleString('en-US', { timeZone: 'America/New_York', hour: 'numeric', hour12: false }));
     const etMin = parseInt(now.toLocaleString('en-US', { timeZone: 'America/New_York', minute: 'numeric' }));
     const etTime = etHour + etMin / 60;
-
-    // Arvo session starts ~12:00 ET, morning ~9:45 ET
     const isArvo = state.mode === 'arvo';
     const sessionStart = isArvo ? 12.0 : 9.75;
-    const gateEnd = sessionStart + 2; // 2-hour gate
-
+    const gateEnd = sessionStart + 2;
     let mult, window, windowColor, tier;
-    if (etTime < sessionStart) {
-      // Pre-session — show what will happen
-      mult = 2;
-      tier = 'PRE';
-      window = '2× STOP (pre-session — waiting for entry)';
-      windowColor = 'var(--textDim)';
-    } else if (etTime < gateEnd) {
-      // First 2 hours: wide 2× stop to survive noise
-      mult = 2;
-      tier = 'EARLY';
-      const minsLeft = Math.round((gateEnd - etTime) * 60);
-      window = '2× WIDE STOP — ' + minsLeft + 'min until tighten to 1.5×';
-      windowColor = 'var(--gold)';
-    } else {
-      // After 2 hours: tighten to 1.5× — theta has decayed
-      mult = 1.5;
-      tier = 'LATE';
-      window = '1.5× TIGHT STOP (theta decayed)';
-      windowColor = 'var(--red)';
-    }
-
-    const stopSpreadVal = f2(credit * mult);
-    const maxLoss = f2((credit * mult) - credit);
-    const emergencyStop = f2(credit * 3);
-    return { mult, stopSpreadVal, maxLoss, window, windowColor, tier, emergencyStop };
+    if (etTime < sessionStart) { mult = 2; tier = 'PRE'; window = '2\u00D7 STOP (pre-session)'; windowColor = 'var(--textDim)'; }
+    else if (etTime < gateEnd) { mult = 2; tier = 'EARLY'; const minsLeft = Math.round((gateEnd - etTime) * 60); window = '2\u00D7 WIDE \u2014 ' + minsLeft + 'min until 1.5\u00D7'; windowColor = 'var(--gold)'; }
+    else { mult = 1.5; tier = 'LATE'; window = '1.5\u00D7 TIGHT STOP (theta decayed)'; windowColor = 'var(--red)'; }
+    return { mult, stopSpreadVal: f2(credit * mult), maxLoss: f2((credit * mult) - credit), window, windowColor, tier, emergencyStop: f2(credit * 3) };
   }
   const stopInfo = getStopLevel(orderCredit);
-  // Conviction — factors: credit quality, VIX regime size, GEX, macro risk
+
+  // Conviction
   let conviction, convColor, convLabel, adjContracts;
-
-  // Base conviction from credit quality
-  if (orderCredit >= 1.00) {
-    conviction = 'A+'; convColor = 'var(--green)'; convLabel = 'HIGH';
-  } else if (orderCredit >= 0.60) {
-    conviction = 'B'; convColor = 'var(--gold)'; convLabel = 'MODERATE';
-  } else {
-    conviction = 'C'; convColor = 'var(--red)'; convLabel = 'LOW — Skip or 1ct';
-  }
-
-  // Apply regime.size as a MULTIPLIER (e.g. 0.75 = 75% of full contracts)
+  if (orderCredit >= 1.00) { conviction = 'A+'; convColor = 'var(--green)'; convLabel = 'HIGH'; }
+  else if (orderCredit >= 0.60) { conviction = 'B'; convColor = 'var(--gold)'; convLabel = 'MODERATE'; }
+  else { conviction = 'C'; convColor = 'var(--red)'; convLabel = 'LOW \u2014 Skip or 1ct'; }
   adjContracts = Math.max(1, Math.round(contracts * regime.size));
   if (conviction === 'C') adjContracts = 1;
-  const sizeNote = regime.size < 1 ? ' · ' + Math.round(regime.size * 100) + '% size (VIX)' : '';
+  const sizeNote = regime.size < 1 ? ' \u00B7 ' + Math.round(regime.size * 100) + '% size (VIX)' : '';
   convLabel += sizeNote;
-
-  // Downgrade for adverse conditions
-  if (state.macroRisk === 'blackout') {
-    conviction = 'X'; convColor = 'var(--red)'; convLabel = 'NO TRADE — FOMC/Holiday';
-    adjContracts = 0;
-  } else if (state.macroRisk === 'high') {
-    if (conviction === 'A+') { conviction = 'B'; convColor = 'var(--gold)'; convLabel = 'REDUCED — High-impact event'; adjContracts = Math.max(1, Math.round(contracts * 0.5)); }
-    else { conviction = 'C'; convColor = 'var(--red)'; convLabel = 'MINIMAL — High-impact event'; adjContracts = 1; }
-  } else if (state.macroRisk === 'caution' && conviction === 'A+') {
-    conviction = 'B'; convColor = 'var(--gold)'; convLabel = 'MODERATE — Caution day';
-    adjContracts = Math.max(1, Math.round(contracts * 0.75));
-  }
-
-  // GEX downgrade
-  if (state.gexProxy === 'negative' && conviction !== 'X') {
-    conviction = 'C'; convColor = 'var(--red)'; convLabel = 'MINIMAL — Negative GEX';
-    adjContracts = 1;
-  } else if (state.gexProxy === 'cautious' && conviction === 'A+') {
-    conviction = 'B'; convColor = 'var(--gold)'; convLabel = 'MODERATE — Cautious GEX';
-    adjContracts = Math.max(1, Math.round(contracts * 0.5));
-  }
+  if (state.macroRisk === 'blackout') { conviction = 'X'; convColor = 'var(--red)'; convLabel = 'NO TRADE \u2014 FOMC/Holiday'; adjContracts = 0; }
+  else if (state.macroRisk === 'high') { if (conviction === 'A+') { conviction = 'B'; convColor = 'var(--gold)'; convLabel = 'REDUCED \u2014 High-impact event'; adjContracts = Math.max(1, Math.round(contracts * 0.5)); } else { conviction = 'C'; convColor = 'var(--red)'; convLabel = 'MINIMAL \u2014 High-impact event'; adjContracts = 1; } }
+  else if (state.macroRisk === 'caution' && conviction === 'A+') { conviction = 'B'; convColor = 'var(--gold)'; convLabel = 'MODERATE \u2014 Caution day'; adjContracts = Math.max(1, Math.round(contracts * 0.75)); }
+  if (state.gexProxy === 'negative' && conviction !== 'X') { conviction = 'C'; convColor = 'var(--red)'; convLabel = 'MINIMAL \u2014 Negative GEX'; adjContracts = 1; }
+  else if (state.gexProxy === 'cautious' && conviction === 'A+') { conviction = 'B'; convColor = 'var(--gold)'; convLabel = 'MODERATE \u2014 Cautious GEX'; adjContracts = Math.max(1, Math.round(contracts * 0.5)); }
   const adjIncome = orderCredit * adjContracts * 100;
+
   // Session check
   const nowAEDT = new Date();
   const aedtStr = nowAEDT.toLocaleString('en-AU', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Australia/Sydney' });
   const [aH, aM] = aedtStr.split(':').map(Number);
   const aT = aH + aM / 60;
   let sessionStatus, sessionColor, sessionNote;
-  if ((aT >= 23.5) || (aT >= 0 && aT < 1.25)) {
-    sessionStatus = 'MORNING ENTRY'; sessionColor = 'var(--gold)'; sessionNote = 'Morning session open — Δ0.12';
-  } else if (aT >= 1.25 && aT < 3.0) {
-    sessionStatus = 'BETWEEN SESSIONS'; sessionColor = 'var(--textDim)'; sessionNote = 'Wait for arvo session at 3:00 AM';
-  } else if (aT >= 3.0 && aT < 4.0) {
-    sessionStatus = 'ARVO ENTRY'; sessionColor = 'var(--green)'; sessionNote = 'Arvo session open — Δ0.15';
-  } else if (aT >= 4.0 && aT < 5.5) {
-    sessionStatus = 'CLOSE ONLY'; sessionColor = 'var(--orange)'; sessionNote = 'No new entries — manage existing positions';
-  } else if (aT >= 5.5 && aT < 7.0) {
-    sessionStatus = 'HARD CLOSE'; sessionColor = 'var(--red)'; sessionNote = 'Close all positions NOW';
-  } else {
-    sessionStatus = 'MARKET CLOSED'; sessionColor = 'var(--textDim)'; sessionNote = 'US market not open';
-  }
+  if ((aT >= 23.5) || (aT >= 0 && aT < 1.25)) { sessionStatus = 'MORNING ENTRY'; sessionColor = 'var(--gold)'; sessionNote = 'Morning session open \u2014 \u03940.12'; }
+  else if (aT >= 1.25 && aT < 3.0) { sessionStatus = 'BETWEEN SESSIONS'; sessionColor = 'var(--textDim)'; sessionNote = 'Wait for arvo session at 3:00 AM'; }
+  else if (aT >= 3.0 && aT < 4.0) { sessionStatus = 'ARVO ENTRY'; sessionColor = 'var(--green)'; sessionNote = 'Arvo session open \u2014 \u03940.15'; }
+  else if (aT >= 4.0 && aT < 5.5) { sessionStatus = 'CLOSE ONLY'; sessionColor = 'var(--orange)'; sessionNote = 'No new entries \u2014 manage existing'; }
+  else if (aT >= 5.5 && aT < 7.0) { sessionStatus = 'HARD CLOSE'; sessionColor = 'var(--red)'; sessionNote = 'Close all positions NOW'; }
+  else { sessionStatus = 'MARKET CLOSED'; sessionColor = 'var(--textDim)'; sessionNote = 'US market not open'; }
   const canTrade = sessionStatus === 'MORNING ENTRY' || sessionStatus === 'ARVO ENTRY';
-  const noTrade = isBearish && !useCall && state.strategy !== 'auto';
 
-  document.getElementById('orderPanel').innerHTML = `
-    <div class="panel" style="border:2px solid ${canTrade ? orderColor : 'var(--border)'};margin-bottom:8px;overflow:hidden">
-      <!-- ORDER HEADER -->
-      <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 18px;background:${canTrade ? orderColor+'0C' : 'var(--panelAlt)'}">
-        <div style="display:flex;align-items:center;gap:14px">
-          <div class="chakra" style="font-size:28px;font-weight:700;color:${orderColor}">${orderIcon}</div>
-          <div>
-            <div style="font-size:10px;color:var(--textDim);letter-spacing:2px;margin-bottom:2px">TODAY'S ORDER</div>
-            <div class="chakra" style="font-size:20px;font-weight:700;color:${orderColor}">${orderType}</div>
-          </div>
-        </div>
-        <div style="text-align:right">
-          <div style="font-size:10px;color:var(--textDim);letter-spacing:1px;margin-bottom:2px">SESSION</div>
-          <div class="chakra" style="font-size:14px;font-weight:700;color:${sessionColor}">${sessionStatus}</div>
-        </div>
-      </div>
+  // ── RENDER UNIFIED PLAYBOOK ──
+  renderUnifiedPlaybook({
+    regime, regimeItems, recRow, recDelta, rows,
+    orderType, orderIcon, orderColor, orderCredit, profitTgt, stopInfo,
+    conviction, convColor, convLabel, adjContracts, adjIncome, contracts,
+    useIC, useCall, isBearish, isBullish,
+    pF, cF, liveP, liveC,
+    sessionStatus, sessionColor, sessionNote, canTrade,
+    phase, dailyMove, dma200, dmaAbove, dmaDist, stopBuffer,
+    wklyShort, wklyLong, wklyFill, macroColors
+  });
 
-      <!-- ORDER DETAILS GRID -->
-      <div style="display:grid;grid-template-columns:repeat(8,1fr);gap:0;border-top:1px solid var(--border)">
-        ${useIC ? `
-        <div style="padding:12px 16px;border-right:1px solid var(--border)">
-          <div style="font-size:9px;color:var(--green);letter-spacing:1px;margin-bottom:4px">▼ SELL PUT</div>
-          <div class="mono" style="font-size:15px;font-weight:700;color:var(--white)">SPX ${recRow.sP}</div>
-          <div class="mono" style="font-size:11px;color:var(--textDim);margin-top:2px">BUY ${recRow.lP}</div>
-        </div>
-        <div style="padding:12px 16px;border-right:1px solid var(--border)">
-          <div style="font-size:9px;color:var(--orange);letter-spacing:1px;margin-bottom:4px">▲ SELL CALL</div>
-          <div class="mono" style="font-size:15px;font-weight:700;color:var(--white)">SPX ${recRow.sC}</div>
-          <div class="mono" style="font-size:11px;color:var(--textDim);margin-top:2px">BUY ${recRow.lC}</div>
-        </div>
-        ` : `
-        <div style="padding:12px 16px;border-right:1px solid var(--border)">
-          <div style="font-size:9px;color:${orderColor};letter-spacing:1px;margin-bottom:4px">SELL</div>
-          <div class="mono" style="font-size:15px;font-weight:700;color:var(--white)">SPX ${useCall ? recRow.sC : recRow.sP} ${useCall ? 'C' : 'P'}</div>
-        </div>
-        <div style="padding:12px 16px;border-right:1px solid var(--border)">
-          <div style="font-size:9px;color:var(--textDim);letter-spacing:1px;margin-bottom:4px">BUY</div>
-          <div class="mono" style="font-size:15px;font-weight:700;color:var(--white)">SPX ${useCall ? recRow.lC : recRow.lP} ${useCall ? 'C' : 'P'}</div>
-        </div>
-        `}
-        <div style="padding:12px 16px;border-right:1px solid var(--border)">
-          <div style="font-size:9px;color:var(--textDim);letter-spacing:1px;margin-bottom:4px">CONTRACTS</div>
-          <div class="chakra" style="font-size:20px;font-weight:700;color:var(--green)">${adjContracts}</div>
-          ${adjContracts !== contracts ? `<div style="font-size:10px;color:var(--gold);margin-top:2px">${conviction} setup → sized down</div>` : ''}
-        </div>
-        <div style="padding:12px 16px;border-right:1px solid var(--border)">
-          <div style="font-size:9px;color:var(--textDim);letter-spacing:1px;margin-bottom:4px">TARGET CREDIT</div>
-          <div class="chakra" style="font-size:20px;font-weight:700;color:${orderCredit >= 0.60 ? orderColor : 'var(--red)'}">$${f2(orderCredit)}</div>
-          <div style="font-size:10px;color:var(--textDim);margin-top:2px">${fmt$(adjIncome)} total</div>
-        </div>
-        <div style="padding:12px 16px;border-right:1px solid var(--border)">
-          <div style="font-size:9px;color:var(--green);letter-spacing:1px;margin-bottom:4px">HOLD TO EXPIRY</div>
-          <div class="chakra" style="font-size:20px;font-weight:700;color:var(--green)">$${f2(profitTgt)}</div>
-          <div style="font-size:10px;color:var(--green);margin-top:2px">+${fmt$(profitTgt * adjContracts * 100)} full credit</div>
-        </div>
-        <div style="padding:12px 16px;border-right:1px solid var(--border)">
-          <div style="font-size:9px;color:var(--textDim);letter-spacing:1px;margin-bottom:4px">CONVICTION</div>
-          <div class="chakra" style="font-size:20px;font-weight:700;color:${convColor}">${conviction}</div>
-          <div style="font-size:10px;color:${convColor};margin-top:2px">${convLabel}</div>
-        </div>
-        <div style="padding:12px 16px;border-right:1px solid var(--border)">
-          <div style="font-size:9px;color:var(--textDim);letter-spacing:1px;margin-bottom:6px">STOP LOSS TIERS</div>
-          <div style="display:flex;flex-direction:column;gap:6px">
-            <div style="display:flex;justify-content:space-between;align-items:center;padding:4px 8px;background:rgba(240,180,41,0.08);border-left:2px solid var(--gold)">
-              <span style="font-size:10px;color:var(--gold)">2× WIDE (0-2hr)</span>
-              <span class="mono" style="font-size:13px;font-weight:700;color:var(--gold)">$${f2(orderCredit*2)}</span>
-            </div>
-            <div style="display:flex;justify-content:space-between;align-items:center;padding:4px 8px;background:rgba(255,71,87,0.08);border-left:2px solid var(--red)">
-              <span style="font-size:10px;color:var(--red)">1.5× TIGHT (2hr+)</span>
-              <span class="mono" style="font-size:13px;font-weight:700;color:var(--red)">$${f2(orderCredit*1.5)}</span>
-            </div>
-            <div style="display:flex;justify-content:space-between;align-items:center;padding:4px 8px;background:rgba(255,71,87,0.12);border-left:2px solid var(--red)">
-              <span style="font-size:10px;color:var(--red)">3× EMERGENCY</span>
-              <span class="mono" style="font-size:13px;font-weight:700;color:var(--red)">$${stopInfo.emergencyStop}</span>
-            </div>
-          </div>
-          <div style="font-size:9px;color:${stopInfo.windowColor};margin-top:6px">${stopInfo.tier === 'EARLY' ? '⏱ ' : stopInfo.tier === 'LATE' ? '🔒 ' : ''}${stopInfo.window}</div>
-        </div>
-        <div style="padding:12px 16px">
-          <div style="font-size:9px;color:var(--textDim);letter-spacing:1px;margin-bottom:6px">MAX LOSS ${adjContracts}CT</div>
-          <div style="display:flex;flex-direction:column;gap:4px">
-            <div style="display:flex;justify-content:space-between;align-items:center">
-              <span style="font-size:10px;color:var(--gold)">@ 2× stop</span>
-              <span class="mono" style="font-size:13px;font-weight:700;color:var(--gold)">-${fmt$(orderCredit * adjContracts * 100)}</span>
-            </div>
-            <div style="display:flex;justify-content:space-between;align-items:center">
-              <span style="font-size:10px;color:var(--red)">@ 1.5× stop</span>
-              <span class="mono" style="font-size:13px;font-weight:700;color:var(--red)">-${fmt$(orderCredit * 0.5 * adjContracts * 100)}</span>
-            </div>
-            <div style="display:flex;justify-content:space-between;align-items:center">
-              <span style="font-size:10px;color:var(--red)">@ 3× emerg</span>
-              <span class="mono" style="font-size:13px;font-weight:700;color:var(--red)">-${fmt$(orderCredit * 2 * adjContracts * 100)}</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- SESSION NOTE -->
-      <div style="padding:8px 18px;border-top:1px solid var(--border);background:var(--panelAlt);display:flex;justify-content:space-between;align-items:center">
-        <div style="font-size:11px;color:${sessionColor}">${sessionNote}</div>
-        <div style="font-size:11px;color:var(--textDim)">Δ${recDelta} ${recDelta !== (state.mode === 'arvo' ? 0.15 : 0.12) ? '(auto-widened)' : ''} · ${state.width}pt wide · ${regime.level} regime</div>
-      </div>
-
-    </div>`;
-
-  // Remove old stop strip if still present
-  const oldStop = document.getElementById('stopLevelStrip');
-  if (oldStop) oldStop.remove();
-
-  // MAIN AREA: 3 Tickets + Rules
-  function liveBanner(key, color) {
-    const live = state.liveQuotes[key];
-    if (!live || live.credit_bid === undefined) return { html: '', live: null };
-    return { live, html: `<div class="live-banner" style="background:${color}0C;border:1px solid ${color}40">
-      <div style="font-size:9px;color:${color};letter-spacing:2px;margin-bottom:3px">\u26A1 LIVE IBKR</div>
-      <div style="display:flex;gap:12px;align-items:baseline">
-        <div class="chakra" style="font-size:22px;font-weight:700;color:${live.credit_bid>=0.80?color:'var(--red)'}">\$${f2(live.credit_bid)}</div>
-        <div style="font-size:12px;color:var(--textDim)">mid \$${f2(live.credit_mid)}</div>
-        ${live.short_delta?`<div style="font-size:11px;color:var(--cyan)">\u0394${f2(Math.abs(live.short_delta))}</div>`:''}
-        ${live.short_iv?`<div style="font-size:11px;color:var(--gold)">IV ${live.short_iv.toFixed(1)}%</div>`:''}
-      </div></div>` };
-  }
-  function mkRows(data) { return data.map(r => `<div class="row"><span${r.ls?' style="'+r.ls+'"':''}>${r.l}</span><span style="font-size:${r.big?14:12}px;color:${r.color||'var(--text)'};font-weight:${r.big?700:400}">${r.v}</span></div>`).join(''); }
-
-  const pB = liveBanner(`${recRow.sP}_${recRow.lP}_P`, '#00D084');
-  const cB = liveBanner(`${recRow.sC}_${recRow.lC}_C`, '#FF6B35');
-
-  document.getElementById('mainArea').innerHTML = `
-    <div class="tickets-grid" style="display:grid;grid-template-columns:1fr 1fr 1fr 320px;gap:8px;margin-bottom:8px">
-      <!-- PUT -->
-      <div class="panelAlt" style="border:1px solid ${isBearish?'rgba(255,71,87,0.4)':!useIC&&!useCall?'rgba(0,208,132,0.4)':'var(--border)'};border-top:3px solid ${isBearish?'var(--red)':'var(--green)'};padding:12px 14px;position:relative;${isBearish?'opacity:0.6;':''}">
-        ${isBearish?'<div class="tag" style="background:rgba(255,71,87,0.15);color:var(--red);border:1px solid rgba(255,71,87,0.3);font-size:9px">⚠ WRONG WAY</div>':!useIC&&!useCall?'<div class="tag" style="background:rgba(0,208,132,0.15);color:var(--green);border:1px solid rgba(0,208,132,0.3);font-size:9px">\u2605 REC</div>':''}
-        <div style="font-size:11px;color:var(--green);letter-spacing:2px;margin-bottom:${pB.html?4:8}px;font-weight:700">\u25BC PUT CREDIT SPREAD</div>
-        ${pB.html}
-        ${mkRows([
-          {l:'SELL',v:`SPX ${recRow.sP} P`,big:1},{l:'BUY',v:`SPX ${recRow.lP} P`},
-          {l:pB.live?'LIVE FILL':'FILL EST.',v:`\$${f2(pF)}`,big:1,color:pF>=0.60?'var(--green)':'var(--red)',ls:pB.live?'color:var(--green)':''},
-          {l:'WIN PROB',v:`${recRow.putProb}%`,color:'var(--gold)'},
-          {l:'50% TGT',v:`\$${f2(pF*0.5)}`,color:'var(--green)'},
-          {l:'STOP 2× (0-2hr)',v:`\$${f2(pF * 2)}`,color:'var(--gold)'},
-          {l:'STOP 1.5× (2hr+)',v:`\$${f2(pF * 1.5)}`,big:1,color:'var(--red)'},
-          {l:'EMERGENCY 3×',v:`\$${f2(pF * 3)}`,color:'var(--red)'},
-          {l:'CTRS',v:adjContracts,color:'var(--green)'},{l:'INCOME',v:fmt$(pF*adjContracts*100),color:'var(--green)'},
-        ])}
-        ${isBearish?'<div style="margin-top:6px;padding:8px 10px;background:rgba(255,71,87,0.1);border:2px solid rgba(255,71,87,0.4);font-size:11px;color:var(--red);font-weight:700">🐻 BEARISH DAY — DO NOT ENTER</div>':!pB.live&&!recRow.putOK?'<div style="margin-top:6px;padding:5px 8px;background:rgba(255,71,87,0.08);border:1px solid rgba(255,71,87,0.25);font-size:10px;color:var(--red)">\u26A0 Below $0.80</div>':''}
-      </div>
-      <!-- CALL -->
-      <div class="panelAlt" style="border:1px solid ${isBearish||useCall?'rgba(255,107,53,0.4)':'var(--border)'};border-top:3px solid var(--orange);padding:12px 14px;position:relative">
-        ${isBearish?'<div class="tag" style="background:rgba(255,107,53,0.15);color:var(--orange);border:1px solid rgba(255,107,53,0.3);font-size:9px">★ REC</div>':useCall?'<div class="tag" style="background:rgba(255,107,53,0.15);color:var(--orange);border:1px solid rgba(255,107,53,0.3);font-size:9px">\u2605 SEL</div>':''}
-        <div style="font-size:11px;color:var(--orange);letter-spacing:2px;margin-bottom:${cB.html?4:8}px;font-weight:700">\u25B2 CALL CREDIT SPREAD</div>
-        ${cB.html}
-        ${mkRows([
-          {l:'SELL',v:`SPX ${recRow.sC} C`,big:1},{l:'BUY',v:`SPX ${recRow.lC} C`},
-          {l:cB.live?'LIVE FILL':'FILL EST.',v:`\$${f2(cF)}`,big:1,color:cF>=0.60?'var(--orange)':'var(--red)'},
-          {l:'WIN PROB',v:`${recRow.callProb}%`,color:'var(--gold)'},
-          {l:'50% TGT',v:`\$${f2(cF*0.5)}`,color:'var(--green)'},
-          {l:'STOP 2× (0-2hr)',v:`\$${f2(cF * 2)}`,color:'var(--gold)'},
-          {l:'STOP 1.5× (2hr+)',v:`\$${f2(cF * 1.5)}`,big:1,color:'var(--red)'},
-          {l:'EMERGENCY 3×',v:`\$${f2(cF * 3)}`,color:'var(--red)'},
-          {l:'CTRS',v:adjContracts,color:'var(--green)'},{l:'INCOME',v:fmt$(cF*adjContracts*100),color:'var(--green)'},
-        ])}
-        ${isBearish?'<div style="margin-top:6px;padding:5px 8px;background:rgba(0,208,132,0.08);border:1px solid rgba(0,208,132,0.25);font-size:10px;color:var(--green)">✓ Correct direction for bearish bias</div>':'<div style="margin-top:6px;padding:5px 8px;background:rgba(240,180,41,0.05);border:1px solid rgba(240,180,41,0.15);font-size:10px;color:var(--gold)">Use on confirmed bearish days only</div>'}
-      </div>
-      <!-- IC -->
-      <div class="panelAlt" style="border:1px solid ${useIC?'rgba(0,229,255,0.4)':'var(--border)'};border-top:3px solid var(--cyan);padding:12px 14px;position:relative">
-        ${useIC?'<div class="tag" style="background:rgba(0,229,255,0.15);color:var(--cyan);border:1px solid rgba(0,229,255,0.3);font-size:9px">\u2605 REC</div>':''}
-        <div style="font-size:11px;color:var(--cyan);letter-spacing:2px;margin-bottom:6px;font-weight:700">\u2B21 IRON CONDOR</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px">
-          <div style="padding:6px 8px;background:var(--panel);border:1px solid var(--border);border-left:2px solid var(--green)">
-            <div style="font-size:9px;color:var(--green);font-weight:700;margin-bottom:2px">\u25BC PUT</div>
-            <div style="font-size:12px;color:var(--white)">${recRow.sP}/${recRow.lP}</div>
-            <div style="font-size:12px;color:var(--green);font-weight:700">\$${f2(recRow.putFill)}</div>
-          </div>
-          <div style="padding:6px 8px;background:var(--panel);border:1px solid var(--border);border-left:2px solid var(--orange)">
-            <div style="font-size:9px;color:var(--orange);font-weight:700;margin-bottom:2px">\u25B2 CALL</div>
-            <div style="font-size:12px;color:var(--white)">${recRow.sC}/${recRow.lC}</div>
-            <div style="font-size:12px;color:var(--orange);font-weight:700">\$${f2(recRow.callFill)}</div>
-          </div>
-        </div>
-        ${mkRows([
-          {l:'COMBINED',v:`\$${f2(recRow.icFill)}`,big:1,color:recRow.icOK?'var(--cyan)':'var(--red)'},
-          {l:'ZONE',v:recRow.profitZone},
-          {l:'50% TGT',v:`\$${f2(recRow.icFill*0.5)}`,color:'var(--green)'},
-          {l:'CTRS',v:adjContracts,color:'var(--green)'},{l:'INCOME',v:fmt$(recRow.icFill*adjContracts*100),color:'var(--green)'},
-        ])}
-        <div style="margin-top:6px;padding:5px 8px;background:rgba(255,71,87,0.05);border:1px solid rgba(255,71,87,0.15);font-size:10px;color:var(--red)">Close all if SPX hits either strike \u00B1${stopBuffer}pts</div>
-      </div>
-      <!-- RULES SIDE PANEL -->
-      <div class="panel" style="padding:12px 14px;border-top:3px solid var(--gold)">
-        <div style="font-size:10px;color:var(--gold);letter-spacing:2px;margin-bottom:10px;font-weight:700">HARD RULES \u00B7 ${useIC?'IC':'PUT SPREAD'}</div>
-        ${[
-          {rule:'MIN CREDIT',detail:useIC?'$0.60+ combined':'$0.60+ spread',c:'var(--gold)'},
-          {rule:'STOP \u00B7 FIRST 2HRS',detail:'2\u00D7 wide stop \u2014 Close if spread \u2265 $'+f2(orderCredit*2),c:'var(--gold)'},
-          {rule:'STOP \u00B7 AFTER 2HRS',detail:'1.5\u00D7 tight stop \u2014 Close if spread \u2265 $'+f2(orderCredit*1.5),c:'var(--red)'},
-          {rule:'EMERGENCY',detail:'3\u00D7 ($'+stopInfo.emergencyStop+') or strike breach \u2192 close immediately',c:'var(--red)'},
-          {rule:'HOLD EXPIRY',detail:'Let full credit expire worthless',c:'var(--green)'},
-          {rule:'VIX SPIKE',detail:'+20% intra \u2192 close all',c:'var(--red)'},
-          {rule:'SIZE',detail:Math.round(regime.size*100)+'% \u00B7 '+regime.level,c:regime.color},
-          {rule:'HARD CLOSE',detail:'6:00 AM AEDT / 3:00 PM ET',c:'var(--gold)'},
-        ].map(r => '<div style="margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid var(--border)"><div style="font-size:11px;color:'+r.c+';letter-spacing:1px;font-weight:700">'+r.rule+'</div><div style="font-size:11px;color:var(--textMid);margin-top:2px">'+r.detail+'</div></div>').join('')}
-        <div style="font-size:10px;color:var(--textDim);letter-spacing:2px;margin:10px 0 6px;font-weight:700">ENTRY WINDOWS</div>
-        ${[
-          {t:'12:30\u201312:45',n:'Wait',c:'var(--gold)',a:false},
-          {t:'12:45\u20131:15',n:'MORN',c:'var(--gold)',a:state.mode==='morning'},
-          {t:'3:00\u20134:00',n:'ARVO',c:'var(--green)',a:state.mode==='arvo'},
-          {t:'4:00\u20135:30',n:'Close only',c:'var(--gold)',a:false},
-          {t:'5:30\u20136:00',n:'HARD CLOSE',c:'var(--red)',a:false},
-        ].map(t => '<div style="display:flex;justify-content:space-between;padding:4px 6px;border-left:'+(t.a?'3px solid '+t.c:'3px solid transparent')+';background:'+(t.a?'rgba(0,208,132,0.06)':'transparent')+';margin-bottom:2px"><span style="font-size:11px;color:'+(t.a?t.c:'var(--textDim)')+';font-weight:'+(t.a?700:400)+'">'+t.t+'</span><span style="font-size:11px;color:'+t.c+'">'+t.n+'</span></div>').join('')}
-      </div>
-    </div>`;
-
-  // DELTA TABLE
+  // ── DELTA TABLE ──
   const activeColor = useIC ? 'var(--cyan)' : useCall ? 'var(--orange)' : 'var(--green)';
   const cols = 'minmax(65px,80px) minmax(70px,85px) minmax(70px,80px) minmax(70px,80px) minmax(65px,75px) minmax(65px,75px) minmax(80px,95px) minmax(80px,95px) minmax(70px,85px) minmax(65px,75px) minmax(65px,75px) 1fr';
   document.getElementById('deltaTable').innerHTML = `
@@ -1956,27 +1962,14 @@ function scan() {
       </div>`;
     }).join('')}`;
 
-  // BOTTOM: Weekly + Income + Phase
-  const dow = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][new Date().getDay()];
-  const isMon = dow==='Mon', isFri = dow==='Fri', isThu = dow==='Thu';
-  const wc = isMon?'var(--blue)':isFri?'var(--red)':isThu?'var(--orange)':'var(--gold)';
-  const wt = isMon?'WEEKLY \u2014 OPEN':isFri?'WEEKLY \u2014 CLOSE':isThu?'WEEKLY \u2014 CHECK':'WEEKLY \u2014 HOLD';
+  // ── BOTTOM: Income + Phase (2 columns) ──
+  function mkRows(data) { return data.map(r => `<div class="row"><span${r.ls?' style="'+r.ls+'"':''}>${r.l}</span><span style="font-size:${r.big?14:12}px;color:${r.color||'var(--text)'};font-weight:${r.big?700:400}">${r.v}</span></div>`).join(''); }
   const putW=recRow.putFill*adjContracts*100, calW=recRow.callFill*adjContracts*100;
   const icW=recRow.icFill*adjContracts*100, icL=recRow.icFill*2*adjContracts*100;
   const wkD=wklyFill*100/5;
 
   document.getElementById('bottomArea').innerHTML = `
-    <div class="bottom-3col" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
-      <div class="panelAlt" style="border:1px solid var(--border);border-top:3px solid ${wc};padding:12px 14px">
-        <div style="font-size:11px;color:${wc};letter-spacing:2px;margin-bottom:8px;font-weight:700">${wt}</div>
-        ${mkRows([
-          {l:'SELL',v:`SPX ${wklyShort} P`,big:1},{l:'BUY',v:`SPX ${wklyLong} P`},
-          {l:'FILL',v:`\$${f2(wklyFill)}`,big:1,color:wklyFill>=1.0?'var(--green)':wklyFill>=0.80?'var(--gold)':'var(--red)'},
-          {l:'50% CLOSE',v:`\$${f2(wklyFill*0.5)}`,color:'var(--green)'},
-          {l:'STOP \u2264',v:`${wklyShort+20}`,color:'var(--red)'},
-          {l:'INCOME',v:fmt$(wklyFill*100),color:'var(--green)'},
-        ])}
-      </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
       <div class="panelAlt" style="border:1px solid var(--border);border-top:3px solid var(--gold);padding:12px 14px">
         <div style="font-size:11px;color:var(--gold);letter-spacing:2px;margin-bottom:8px;font-weight:700">INCOME SUMMARY</div>
         ${[
