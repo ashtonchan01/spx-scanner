@@ -323,80 +323,93 @@ input, select, button, textarea { font-family: 'IBM Plex Mono', monospace; outli
 <!-- ============================================================ -->
 <div id="tab-scanner" class="tab-content">
 
-<!-- COMPACT INPUT BAR -->
-<div id="inputPanel" class="panel flash" style="padding:12px 16px;margin-bottom:8px;border-width:2px">
-  <div id="inputSummary" style="display:none;cursor:pointer;align-items:center;justify-content:space-between;padding:4px 0" onclick="toggleInputs()">
-    <div style="display:flex;align-items:center;gap:16px">
-      <span class="chakra" style="font-size:14px;font-weight:700;color:var(--white)" id="inputSummaryText">SPX -- | VIX -- | --pt</span>
-      <span style="font-size:10px;color:var(--textDim);letter-spacing:1px">IBKR LIVE</span>
-    </div>
-    <span style="font-size:11px;color:var(--cyan);letter-spacing:1px;cursor:pointer">EXPAND &#9660;</span>
-  </div>
-  <div id="inputFields">
-    <div class="scanner-inputs" style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1.5fr 1fr;gap:10px;align-items:end">
-      <div>
-        <div class="label" style="margin-bottom:4px">SPX PRICE</div>
-        <div style="display:flex;height:42px">
-          <span style="display:flex;align-items:center;padding:0 10px;background:var(--panelAlt);border:1px solid var(--borderBright);border-right:none;color:var(--textDim);font-size:13px">$</span>
-          <input id="spxInput" type="number" value="5800" style="width:100%;background:var(--panelAlt);border:1px solid var(--borderBright);color:var(--white);padding:0 10px;font-size:18px;font-weight:700;height:100%;box-sizing:border-box" onkeydown="if(event.key==='Enter')todaysSetup()">
-        </div>
-      </div>
-      <div>
-        <div class="label" style="margin-bottom:4px">VIX</div>
-        <div style="display:flex;height:42px">
-          <span style="display:flex;align-items:center;padding:0 10px;background:var(--panelAlt);border:1px solid var(--borderBright);border-right:none;color:var(--textDim);font-size:13px">V</span>
-          <input id="vixInput" type="number" step="0.1" value="22" style="width:100%;background:var(--panelAlt);border:1px solid var(--borderBright);color:var(--white);padding:0 10px;font-size:18px;font-weight:700;height:100%;box-sizing:border-box" onkeydown="if(event.key==='Enter')todaysSetup()">
-        </div>
-      </div>
-      <div>
-        <div class="label" style="margin-bottom:4px">WIDTH</div>
-        <select id="widthSelect" style="width:100%;background:var(--panelAlt);border:1px solid var(--borderBright);color:var(--white);padding:0 10px;font-size:14px;font-weight:700;height:42px;cursor:pointer;box-sizing:border-box">
-          <option value="10">10 pts</option>
-          <option value="15" selected>15 pts &#9733;</option>
-          <option value="20">20 pts</option>
-          <option value="25">25 pts</option>
-        </select>
-      </div>
-      <div>
-        <div class="label" style="margin-bottom:4px">200DMA</div>
-        <div style="display:flex;height:42px">
-          <span style="display:flex;align-items:center;padding:0 8px;background:var(--panelAlt);border:1px solid var(--borderBright);border-right:none;color:var(--textDim);font-size:11px">MA</span>
-          <input id="dma200Input" type="number" value="" placeholder="5700" style="width:100%;background:var(--panelAlt);border:1px solid var(--borderBright);color:var(--white);padding:0 8px;font-size:14px;font-weight:700;height:100%;box-sizing:border-box" onkeydown="if(event.key==='Enter'){state.dma200=parseFloat(this.value)||0;localStorage.setItem('spx_dma200',state.dma200);}" onchange="state.dma200=parseFloat(this.value)||0;localStorage.setItem('spx_dma200',state.dma200);">
-        </div>
-      </div>
-      <div>
-        <div class="label" style="margin-bottom:4px">MODE / STRATEGY</div>
-        <div style="display:flex;height:42px" id="modeStratRow">
-          <button class="mode-btn active" data-mode="morning" style="flex:1;border:none;cursor:pointer;font-size:11px;font-family:'IBM Plex Mono',monospace;background:rgba(240,180,41,0.15);color:var(--gold);border-top:1px solid var(--borderBright);border-left:1px solid var(--borderBright);border-right:1px solid var(--borderBright);border-bottom:3px solid var(--gold)" onclick="setMode('morning')">MORN</button>
-          <button class="mode-btn" data-mode="arvo" style="flex:1;border:none;cursor:pointer;font-size:11px;font-family:'IBM Plex Mono',monospace;background:var(--panelAlt);color:var(--textDim);border-top:1px solid var(--borderBright);border-left:1px solid var(--borderBright);border-right:1px solid var(--borderBright);border-bottom:3px solid var(--border)" onclick="setMode('arvo')">ARVO</button>
-          <div style="width:1px;background:var(--borderBright)"></div>
-          <button class="strat-btn active" data-strat="auto" onclick="setStrategy('auto')" style="flex:1;border:none;cursor:pointer;font-size:10px;font-family:'IBM Plex Mono',monospace;background:rgba(0,229,255,0.15);color:var(--cyan);border-bottom:3px solid var(--cyan);border-top:1px solid var(--borderBright);border-right:1px solid var(--borderBright)">AUTO</button>
-          <button class="strat-btn" data-strat="put" onclick="setStrategy('put')" style="flex:1;border:none;cursor:pointer;font-size:10px;font-family:'IBM Plex Mono',monospace;background:var(--panelAlt);color:var(--textDim);border-bottom:3px solid var(--border);border-top:1px solid var(--borderBright);border-right:1px solid var(--borderBright)">PUT</button>
-          <button class="strat-btn" data-strat="call" onclick="setStrategy('call')" style="flex:1;border:none;cursor:pointer;font-size:10px;font-family:'IBM Plex Mono',monospace;background:var(--panelAlt);color:var(--textDim);border-bottom:3px solid var(--border);border-top:1px solid var(--borderBright);border-right:1px solid var(--borderBright)">CALL</button>
-          <button class="strat-btn" data-strat="ic" onclick="setStrategy('ic')" style="flex:1;border:none;cursor:pointer;font-size:10px;font-family:'IBM Plex Mono',monospace;background:var(--panelAlt);color:var(--textDim);border-bottom:3px solid var(--border);border-top:1px solid var(--borderBright);border-right:1px solid var(--borderBright)">IC</button>
-        </div>
-      </div>
-      <div>
-        <div class="label" style="margin-bottom:4px">BIAS</div>
-        <div style="display:flex;height:42px" id="biasButtons">
-          <button class="bias-btn" data-bias="bull" onclick="setBias('bull')" style="flex:1;border:none;cursor:pointer;font-size:11px;font-family:'IBM Plex Mono',monospace;background:var(--panelAlt);color:var(--textDim);border-bottom:3px solid var(--border);border-top:1px solid var(--borderBright);border-left:1px solid var(--borderBright);border-right:1px solid var(--borderBright)">&#8593; BULL</button>
-          <button class="bias-btn active" data-bias="neutral" onclick="setBias('neutral')" style="flex:1;border:none;cursor:pointer;font-size:11px;font-family:'IBM Plex Mono',monospace;background:rgba(0,229,255,0.15);color:var(--cyan);border-bottom:3px solid var(--cyan);border-top:1px solid var(--borderBright);border-left:1px solid var(--borderBright);border-right:1px solid var(--borderBright)">&#8594; NEUT</button>
-          <button class="bias-btn" data-bias="bear" onclick="setBias('bear')" style="flex:1;border:none;cursor:pointer;font-size:11px;font-family:'IBM Plex Mono',monospace;background:var(--panelAlt);color:var(--textDim);border-bottom:3px solid var(--border);border-top:1px solid var(--borderBright);border-left:1px solid var(--borderBright);border-right:1px solid var(--borderBright)">&#8595; BEAR</button>
-        </div>
-      </div>
-    </div>
-    <div style="display:flex;align-items:center;gap:8px;padding-top:6px">
-      <div id="scanInfo" style="font-size:10px;color:var(--textDim);flex:1">Enter SPX &amp; VIX then press SCAN</div>
-      <button id="setupBtn" onclick="todaysSetup()" style="padding:6px 20px;font-size:11px;font-weight:700;font-family:'IBM Plex Mono',monospace;letter-spacing:2px;cursor:pointer;border:1px solid var(--cyan);background:rgba(0,229,255,0.08);color:var(--cyan)">SCAN</button>
-    </div>
-  </div>
-</div>
-
-<!-- UNIFIED PLAYBOOK -->
+<!-- UNIFIED PLAYBOOK (renders first — trades box on top) -->
 <div id="playbook-unified">
   <div style="margin-bottom:8px">
     <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:4px;margin-bottom:8px" id="playbook-day-btns"></div>
     <div id="playbook-day-content"></div>
+  </div>
+</div>
+
+<!-- INPUT + MARKET ANALYSIS GRID (side by side after scan) -->
+<div id="inputMarketGrid" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+  <!-- LEFT: INPUT PANEL -->
+  <div id="inputPanel" class="panel flash" style="padding:12px 16px;border-width:2px">
+    <div id="inputSummary" style="display:none;cursor:pointer;align-items:center;justify-content:space-between;padding:4px 0" onclick="toggleInputs()">
+      <div style="display:flex;align-items:center;gap:16px">
+        <span class="chakra" style="font-size:14px;font-weight:700;color:var(--white)" id="inputSummaryText">SPX -- | VIX -- | --pt</span>
+        <span style="font-size:10px;color:var(--textDim);letter-spacing:1px">IBKR LIVE</span>
+      </div>
+      <span style="font-size:11px;color:var(--cyan);letter-spacing:1px;cursor:pointer">EXPAND &#9660;</span>
+    </div>
+    <div id="inputFields">
+      <div class="scanner-inputs" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;align-items:end">
+        <div>
+          <div class="label" style="margin-bottom:4px">SPX PRICE</div>
+          <div style="display:flex;height:38px">
+            <span style="display:flex;align-items:center;padding:0 8px;background:var(--panelAlt);border:1px solid var(--borderBright);border-right:none;color:var(--textDim);font-size:12px">$</span>
+            <input id="spxInput" type="number" value="5800" style="width:100%;background:var(--panelAlt);border:1px solid var(--borderBright);color:var(--white);padding:0 8px;font-size:16px;font-weight:700;height:100%;box-sizing:border-box" onkeydown="if(event.key==='Enter')todaysSetup()">
+          </div>
+        </div>
+        <div>
+          <div class="label" style="margin-bottom:4px">VIX</div>
+          <div style="display:flex;height:38px">
+            <span style="display:flex;align-items:center;padding:0 8px;background:var(--panelAlt);border:1px solid var(--borderBright);border-right:none;color:var(--textDim);font-size:12px">V</span>
+            <input id="vixInput" type="number" step="0.1" value="22" style="width:100%;background:var(--panelAlt);border:1px solid var(--borderBright);color:var(--white);padding:0 8px;font-size:16px;font-weight:700;height:100%;box-sizing:border-box" onkeydown="if(event.key==='Enter')todaysSetup()">
+          </div>
+        </div>
+        <div>
+          <div class="label" style="margin-bottom:4px">200DMA</div>
+          <div style="display:flex;height:38px">
+            <span style="display:flex;align-items:center;padding:0 6px;background:var(--panelAlt);border:1px solid var(--borderBright);border-right:none;color:var(--textDim);font-size:10px">MA</span>
+            <input id="dma200Input" type="number" value="" placeholder="5700" style="width:100%;background:var(--panelAlt);border:1px solid var(--borderBright);color:var(--white);padding:0 8px;font-size:14px;font-weight:700;height:100%;box-sizing:border-box" onkeydown="if(event.key==='Enter'){state.dma200=parseFloat(this.value)||0;localStorage.setItem('spx_dma200',state.dma200);}" onchange="state.dma200=parseFloat(this.value)||0;localStorage.setItem('spx_dma200',state.dma200);">
+          </div>
+        </div>
+      </div>
+      <div class="scanner-inputs" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;align-items:end;margin-top:8px">
+        <div>
+          <div class="label" style="margin-bottom:4px">WIDTH</div>
+          <select id="widthSelect" style="width:100%;background:var(--panelAlt);border:1px solid var(--borderBright);color:var(--white);padding:0 8px;font-size:13px;font-weight:700;height:38px;cursor:pointer;box-sizing:border-box">
+            <option value="10">10 pts</option>
+            <option value="15" selected>15 pts &#9733;</option>
+            <option value="20">20 pts</option>
+            <option value="25">25 pts</option>
+          </select>
+        </div>
+        <div>
+          <div class="label" style="margin-bottom:4px">MODE / STRATEGY</div>
+          <div style="display:flex;height:38px" id="modeStratRow">
+            <button class="mode-btn active" data-mode="morning" style="flex:1;border:none;cursor:pointer;font-size:10px;font-family:'IBM Plex Mono',monospace;background:rgba(240,180,41,0.15);color:var(--gold);border-top:1px solid var(--borderBright);border-left:1px solid var(--borderBright);border-right:1px solid var(--borderBright);border-bottom:3px solid var(--gold)" onclick="setMode('morning')">MORN</button>
+            <button class="mode-btn" data-mode="arvo" style="flex:1;border:none;cursor:pointer;font-size:10px;font-family:'IBM Plex Mono',monospace;background:var(--panelAlt);color:var(--textDim);border-top:1px solid var(--borderBright);border-left:1px solid var(--borderBright);border-right:1px solid var(--borderBright);border-bottom:3px solid var(--border)" onclick="setMode('arvo')">ARVO</button>
+            <div style="width:1px;background:var(--borderBright)"></div>
+            <button class="strat-btn active" data-strat="auto" onclick="setStrategy('auto')" style="flex:1;border:none;cursor:pointer;font-size:9px;font-family:'IBM Plex Mono',monospace;background:rgba(0,229,255,0.15);color:var(--cyan);border-bottom:3px solid var(--cyan);border-top:1px solid var(--borderBright);border-right:1px solid var(--borderBright)">AUTO</button>
+            <button class="strat-btn" data-strat="put" onclick="setStrategy('put')" style="flex:1;border:none;cursor:pointer;font-size:9px;font-family:'IBM Plex Mono',monospace;background:var(--panelAlt);color:var(--textDim);border-bottom:3px solid var(--border);border-top:1px solid var(--borderBright);border-right:1px solid var(--borderBright)">PUT</button>
+            <button class="strat-btn" data-strat="call" onclick="setStrategy('call')" style="flex:1;border:none;cursor:pointer;font-size:9px;font-family:'IBM Plex Mono',monospace;background:var(--panelAlt);color:var(--textDim);border-bottom:3px solid var(--border);border-top:1px solid var(--borderBright);border-right:1px solid var(--borderBright)">CALL</button>
+            <button class="strat-btn" data-strat="ic" onclick="setStrategy('ic')" style="flex:1;border:none;cursor:pointer;font-size:9px;font-family:'IBM Plex Mono',monospace;background:var(--panelAlt);color:var(--textDim);border-bottom:3px solid var(--border);border-top:1px solid var(--borderBright);border-right:1px solid var(--borderBright)">IC</button>
+          </div>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px;align-items:end">
+        <div>
+          <div class="label" style="margin-bottom:4px">BIAS</div>
+          <div style="display:flex;height:38px" id="biasButtons">
+            <button class="bias-btn" data-bias="bull" onclick="setBias('bull')" style="flex:1;border:none;cursor:pointer;font-size:10px;font-family:'IBM Plex Mono',monospace;background:var(--panelAlt);color:var(--textDim);border-bottom:3px solid var(--border);border-top:1px solid var(--borderBright);border-left:1px solid var(--borderBright);border-right:1px solid var(--borderBright)">&#8593; BULL</button>
+            <button class="bias-btn active" data-bias="neutral" onclick="setBias('neutral')" style="flex:1;border:none;cursor:pointer;font-size:10px;font-family:'IBM Plex Mono',monospace;background:rgba(0,229,255,0.15);color:var(--cyan);border-bottom:3px solid var(--cyan);border-top:1px solid var(--borderBright);border-left:1px solid var(--borderBright);border-right:1px solid var(--borderBright)">&#8594; NEUT</button>
+            <button class="bias-btn" data-bias="bear" onclick="setBias('bear')" style="flex:1;border:none;cursor:pointer;font-size:10px;font-family:'IBM Plex Mono',monospace;background:var(--panelAlt);color:var(--textDim);border-bottom:3px solid var(--border);border-top:1px solid var(--borderBright);border-left:1px solid var(--borderBright);border-right:1px solid var(--borderBright)">&#8595; BEAR</button>
+          </div>
+        </div>
+        <div>
+          <button id="setupBtn" onclick="todaysSetup()" style="width:100%;padding:8px;font-size:11px;font-weight:700;font-family:'IBM Plex Mono',monospace;letter-spacing:2px;cursor:pointer;border:1px solid var(--cyan);background:rgba(0,229,255,0.08);color:var(--cyan);height:38px">SCAN</button>
+        </div>
+      </div>
+      <div id="scanInfo" style="font-size:10px;color:var(--textDim);margin-top:6px">Enter SPX &amp; VIX then press SCAN</div>
+    </div>
+  </div>
+
+  <!-- RIGHT: MARKET ANALYSIS (populated by scan) -->
+  <div id="marketAnalysisPanel" class="panel" style="padding:12px 16px">
+    <div style="font-size:10px;color:var(--textDim);letter-spacing:2px">MARKET ANALYSIS</div>
+    <div style="font-size:11px;color:var(--textDim);margin-top:20px;text-align:center">Press SCAN to analyze</div>
   </div>
 </div>
 
@@ -1639,6 +1652,39 @@ function renderUnifiedPlaybook(d) {
           </div>
         </div>
 
+        <!-- TODAY'S ORDER — compact inline -->
+        <div style="padding:10px 12px;border:1px solid ${orderColor};margin-bottom:6px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+            <span class="chakra" style="font-size:14px;font-weight:700;color:${orderColor}">${orderIcon} ${orderType}</span>
+            <span class="chakra" style="font-size:14px;font-weight:700;color:${convColor}">${conviction}</span>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1fr;gap:6px">
+            <div style="border:1px solid var(--border);padding:6px;text-align:center">
+              <div style="font-size:8px;color:var(--textDim);margin-bottom:2px">SELL / BUY</div>
+              <div class="mono" style="font-size:12px;font-weight:700;color:var(--white)">${useCall ? recRow.sC : recRow.sP} / ${useCall ? recRow.lC : recRow.lP}</div>
+              <div style="font-size:8px;color:var(--textDim);margin-top:1px">${useCall ? 'CALL' : 'PUT'} ${state.width}pt</div>
+            </div>
+            <div style="border:1px solid var(--border);padding:6px;text-align:center">
+              <div style="font-size:8px;color:var(--textDim);margin-bottom:2px">SIZE</div>
+              <div class="chakra" style="font-size:16px;font-weight:700;color:var(--green)">${adjContracts}ct</div>
+            </div>
+            <div style="border:1px solid var(--border);padding:6px;text-align:center">
+              <div style="font-size:8px;color:var(--textDim);margin-bottom:2px">CREDIT</div>
+              <div class="chakra" style="font-size:16px;font-weight:700;color:${orderColor}">$${f2(orderCredit)}</div>
+              <div style="font-size:8px;color:var(--textDim)">${fmt$(adjIncome)} total</div>
+            </div>
+            <div style="border:1px solid var(--gold);padding:6px;text-align:center">
+              <div style="font-size:8px;color:var(--gold);margin-bottom:2px">2\u00D7 (0-2hr)</div>
+              <div class="mono" style="font-size:14px;font-weight:700;color:var(--gold)">$${f2(orderCredit*2)}</div>
+            </div>
+            <div style="border:1px solid var(--red);padding:6px;text-align:center">
+              <div style="font-size:8px;color:var(--red);margin-bottom:2px">1.5\u00D7 (2hr+)</div>
+              <div class="mono" style="font-size:14px;font-weight:700;color:var(--red)">$${f2(orderCredit*1.5)}</div>
+            </div>
+          </div>
+          <div style="margin-top:4px;font-size:9px;color:var(--textDim)">\u0394${recDelta} \u00B7 Hold to expiry \u00B7 Max loss -${fmt$(orderCredit * adjContracts * 100)} @ 2\u00D7</div>
+        </div>
+
         <!-- Scheduled trades from playbook -->
         ${scheduledHtml}
 
@@ -1654,75 +1700,30 @@ function renderUnifiedPlaybook(d) {
       </div>
     </div>
 
-    <!-- ORDER + MARKET ANALYSIS — side by side -->
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
-      <!-- LEFT: TODAY'S ORDER -->
-      <div class="panel" style="padding:12px 16px">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-          <span class="chakra" style="font-size:15px;font-weight:700;color:${orderColor}">${orderIcon} ${orderType}</span>
-          <span class="chakra" style="font-size:15px;font-weight:700;color:${convColor}">${conviction}</span>
-        </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px">
-          <div style="border:1px solid var(--border);padding:8px;text-align:center">
-            <div style="font-size:9px;color:var(--textDim);margin-bottom:3px">SELL / BUY</div>
-            <div class="mono" style="font-size:13px;font-weight:700;color:var(--white)">${useCall ? recRow.sC : recRow.sP} / ${useCall ? recRow.lC : recRow.lP}</div>
-            <div style="font-size:9px;color:var(--textDim);margin-top:2px">${useCall ? 'CALL' : 'PUT'} \u00B7 ${state.width}pt</div>
-          </div>
-          <div style="border:1px solid var(--border);padding:8px;text-align:center">
-            <div style="font-size:9px;color:var(--textDim);margin-bottom:3px">SIZE</div>
-            <div class="chakra" style="font-size:20px;font-weight:700;color:var(--green)">${adjContracts}ct</div>
-            ${adjContracts !== contracts ? '<div style="font-size:9px;color:var(--gold);margin-top:2px">sized down</div>' : ''}
-          </div>
-          <div style="border:1px solid var(--border);padding:8px;text-align:center">
-            <div style="font-size:9px;color:var(--textDim);margin-bottom:3px">CREDIT</div>
-            <div class="chakra" style="font-size:20px;font-weight:700;color:${orderColor}">$${f2(orderCredit)}</div>
-            <div style="font-size:9px;color:var(--textDim);margin-top:2px">${fmt$(adjIncome)} total</div>
-          </div>
-          <div style="border:1px solid var(--border);padding:8px;text-align:center">
-            <div style="font-size:9px;color:var(--textDim);margin-bottom:3px">MAX LOSS</div>
-            <div style="font-size:12px;color:var(--gold);font-weight:700">-${fmt$(orderCredit * adjContracts * 100)}</div>
-            <div style="font-size:9px;color:var(--textDim)">@ 2\u00D7 stop</div>
-          </div>
-        </div>
-        <!-- Stop tiers -->
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
-          <div style="border:1px solid var(--gold);padding:6px 8px;text-align:center">
-            <div style="font-size:9px;color:var(--gold);margin-bottom:2px">2\u00D7 STOP (0-2hr)</div>
-            <div class="mono" style="font-size:14px;font-weight:700;color:var(--gold)">$${f2(orderCredit*2)}</div>
-          </div>
-          <div style="border:1px solid var(--red);padding:6px 8px;text-align:center">
-            <div style="font-size:9px;color:var(--red);margin-bottom:2px">1.5\u00D7 STOP (2hr+)</div>
-            <div class="mono" style="font-size:14px;font-weight:700;color:var(--red)">$${f2(orderCredit*1.5)}</div>
-          </div>
-        </div>
-        <div style="margin-top:6px;font-size:10px;color:var(--textDim)">\u0394${recDelta} \u00B7 Hold to expiry \u00B7 ${stopInfo.tier === 'EARLY' ? '\u23F1 ' : stopInfo.tier === 'LATE' ? '\uD83D\uDD12 ' : ''}${stopInfo.window}</div>
-      </div>
-
-      <!-- RIGHT: MARKET ANALYSIS -->
-      <div class="panel" style="padding:12px 16px">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-          <div style="font-size:10px;color:var(--textDim);letter-spacing:2px">MARKET ANALYSIS</div>
-          <div style="display:flex;align-items:center;gap:6px">
-            <span style="font-size:9px;padding:2px 8px;border:1px solid ${regime.color};color:${regime.color};font-weight:700">${regime.level}</span>
-            <span style="font-size:9px;padding:2px 8px;border:1px solid ${isBearish ? 'var(--red)' : isBullish ? 'var(--green)' : 'var(--cyan)'};color:${isBearish ? 'var(--red)' : isBullish ? 'var(--green)' : 'var(--cyan)'};font-weight:700">${isBearish ? '\u2193 BEAR' : isBullish ? '\u2191 BULL' : '\u2192 NEUT'}</span>
-          </div>
-        </div>
-        <!-- Key numbers in outline boxes -->
-        <div style="display:grid;grid-template-columns:repeat(${Math.min(regimeItems.length, 3)},1fr);gap:4px;margin-bottom:6px">
-          ${regimeItems.slice(0, 3).map(function(s) { return '<div style="border:1px solid var(--border);padding:6px 8px;text-align:center"><div style="font-size:8px;color:var(--textDim);letter-spacing:1px;margin-bottom:1px">' + s.l + '</div><div class="chakra" style="font-size:14px;font-weight:700;color:' + s.c + '">' + s.v + '</div></div>'; }).join('')}
-        </div>
-        ${regimeItems.length > 3 ? '<div style="display:grid;grid-template-columns:repeat(' + (regimeItems.length - 3) + ',1fr);gap:4px;margin-bottom:6px">' + regimeItems.slice(3).map(function(s) { return '<div style="border:1px solid var(--border);padding:6px 8px;text-align:center"><div style="font-size:8px;color:var(--textDim);letter-spacing:1px;margin-bottom:1px">' + s.l + '</div><div class="chakra" style="font-size:14px;font-weight:700;color:' + s.c + '">' + s.v + '</div></div>'; }).join('') + '</div>' : ''}
-        <!-- Reasoning as table -->
-        ${state.reasoning.length > 0 ? '<table style="width:100%;border-collapse:collapse;font-size:11px">' + state.reasoning.map(function(r) { return '<tr style="border-bottom:1px solid var(--border)"><td style="padding:3px 0;width:20px;color:var(--textMid)">' + r.icon + '</td><td style="padding:3px 6px;color:var(--text)">' + r.text + '</td><td style="padding:3px 0;text-align:right;font-weight:700;color:' + (r.bullish ? 'var(--green)' : 'var(--red)') + '">' + (r.bullish ? '\u2191' : '\u2193') + '</td></tr>'; }).join('') + '</table>' : ''}
-        ${state.prevHigh ? '<div style="margin-top:4px;padding-top:4px;border-top:1px solid var(--border);font-size:9px;color:var(--textDim)">\uD83D\uDD11 Prev ' + state.prevLow.toFixed(0) + '-' + state.prevHigh.toFixed(0) + (state.pivot ? ' \u00B7 P ' + state.pivot.toFixed(0) + ' \u00B7 S1 ' + state.s1.toFixed(0) + ' \u00B7 R1 ' + state.r1.toFixed(0) : '') + (state.weeklyLow ? ' \u00B7 Wk ' + state.weeklyLow.toFixed(0) + '-' + state.weeklyHigh.toFixed(0) : '') + '</div>' : ''}
-      </div>
-    </div>
+    <!-- (market analysis is rendered separately into #marketAnalysisPanel) -->
   `;
 
   // Include hidden placeholders for renderPlaybook() compat
   document.getElementById('playbook-unified').innerHTML = html +
     '<div id="playbook-day-btns" style="display:none"></div>' +
     '<div id="playbook-day-content" style="display:none"></div>';
+
+  // Populate market analysis panel (right side of input grid)
+  document.getElementById('marketAnalysisPanel').innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <div style="font-size:10px;color:var(--textDim);letter-spacing:2px">MARKET ANALYSIS</div>
+      <div style="display:flex;align-items:center;gap:6px">
+        <span style="font-size:9px;padding:2px 8px;border:1px solid ${regime.color};color:${regime.color};font-weight:700">${regime.level}</span>
+        <span style="font-size:9px;padding:2px 8px;border:1px solid ${isBearish ? 'var(--red)' : isBullish ? 'var(--green)' : 'var(--cyan)'};color:${isBearish ? 'var(--red)' : isBullish ? 'var(--green)' : 'var(--cyan)'};font-weight:700">${isBearish ? '\u2193 BEAR' : isBullish ? '\u2191 BULL' : '\u2192 NEUT'}</span>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(${Math.min(regimeItems.length, 3)},1fr);gap:4px;margin-bottom:6px">
+      ${regimeItems.slice(0, 3).map(function(s) { return '<div style="border:1px solid var(--border);padding:6px 8px;text-align:center"><div style="font-size:8px;color:var(--textDim);letter-spacing:1px;margin-bottom:1px">' + s.l + '</div><div class="chakra" style="font-size:14px;font-weight:700;color:' + s.c + '">' + s.v + '</div></div>'; }).join('')}
+    </div>
+    ${regimeItems.length > 3 ? '<div style="display:grid;grid-template-columns:repeat(' + (regimeItems.length - 3) + ',1fr);gap:4px;margin-bottom:6px">' + regimeItems.slice(3).map(function(s) { return '<div style="border:1px solid var(--border);padding:6px 8px;text-align:center"><div style="font-size:8px;color:var(--textDim);letter-spacing:1px;margin-bottom:1px">' + s.l + '</div><div class="chakra" style="font-size:14px;font-weight:700;color:' + s.c + '">' + s.v + '</div></div>'; }).join('') + '</div>' : ''}
+    ${state.reasoning.length > 0 ? '<table style="width:100%;border-collapse:collapse;font-size:11px">' + state.reasoning.map(function(r) { return '<tr style="border-bottom:1px solid var(--border)"><td style="padding:3px 0;width:20px;color:var(--textMid)">' + r.icon + '</td><td style="padding:3px 6px;color:var(--text)">' + r.text + '</td><td style="padding:3px 0;text-align:right;font-weight:700;color:' + (r.bullish ? 'var(--green)' : 'var(--red)') + '">' + (r.bullish ? '\u2191' : '\u2193') + '</td></tr>'; }).join('') + '</table>' : ''}
+    ${state.prevHigh ? '<div style="margin-top:4px;padding-top:4px;border-top:1px solid var(--border);font-size:9px;color:var(--textDim)">\uD83D\uDD11 Prev ' + state.prevLow.toFixed(0) + '-' + state.prevHigh.toFixed(0) + (state.pivot ? ' \u00B7 P ' + state.pivot.toFixed(0) + ' \u00B7 S1 ' + state.s1.toFixed(0) + ' \u00B7 R1 ' + state.r1.toFixed(0) : '') + (state.weeklyLow ? ' \u00B7 Wk ' + state.weeklyLow.toFixed(0) + '-' + state.weeklyHigh.toFixed(0) : '') + '</div>' : ''}
+  `;
 }
 
 // ── SCAN / RENDER SCANNER ──
