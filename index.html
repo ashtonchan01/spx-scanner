@@ -2090,7 +2090,13 @@ function renderPlaybook() {
                 </div>
                 <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr 1fr;gap:6px;align-items:stretch">
                   <div style="border:1px solid var(--border);padding:10px 8px;text-align:center;display:flex;flex-direction:column;justify-content:center;align-items:center">
-                    <div style="font-size:9px;color:var(--textDim);margin-bottom:6px;letter-spacing:1px">SELL / BUY · ${o.useCall ? 'CALL' : 'PUT'} ${state.width}pt</div>
+                    <div style="margin-bottom:6px">
+                      <select id="log-type-${isMorn?'m':'a'}" style="background:var(--panelAlt);border:1px solid var(--borderBright);color:var(--cyan);font-size:9px;font-weight:700;font-family:'IBM Plex Mono',monospace;padding:2px 4px;cursor:pointer;letter-spacing:1px;text-align:center">
+                        <option value="Put Spread" ${!o.useCall && !o.useIC ? 'selected' : ''}>PUT SPREAD</option>
+                        <option value="Call Spread" ${o.useCall && !o.useIC ? 'selected' : ''}>CALL SPREAD</option>
+                        <option value="IC" ${o.useIC ? 'selected' : ''}>IRON CONDOR</option>
+                      </select>
+                    </div>
                     <div style="display:flex;align-items:center;justify-content:center;gap:4px">
                       <input id="log-sell-${isMorn?'m':'a'}" type="number" value="${o.useCall ? o.recRow.sC : o.recRow.sP}" style="width:80px;text-align:center;background:var(--panelAlt);border:1px solid var(--borderBright);color:var(--white);font-size:18px;font-weight:700;font-family:'IBM Plex Mono',monospace;padding:6px 4px">
                       <span style="color:var(--textDim);font-size:14px;font-weight:700">/</span>
@@ -2605,21 +2611,24 @@ function logTradeFromOrder(session, suffix) {
   const winEl = document.getElementById('log-win-' + sfx);
   const sellEl = document.getElementById('log-sell-' + sfx);
   const buyEl = document.getElementById('log-buy-' + sfx);
+  const typeEl = document.getElementById('log-type-' + sfx);
   const cts = ctsEl ? parseInt(ctsEl.value) || o.adjContracts : o.adjContracts;
   const credit = creditEl ? parseFloat(creditEl.value) || o.orderCredit : o.orderCredit;
   const pnl = pnlEl ? parseFloat(pnlEl.value) || 0 : o.adjIncome;
   const win = winEl ? winEl.value === 'true' : true;
   const sell = sellEl ? parseInt(sellEl.value) : (o.useCall ? o.recRow.sC : o.recRow.sP);
   const buy = buyEl ? parseInt(buyEl.value) : (o.useCall ? o.recRow.lC : o.recRow.lP);
+  const tradeType = typeEl ? typeEl.value : (o.useIC ? 'IC' : o.useCall ? 'Call Spread' : 'Put Spread');
+  const typeSuffix = tradeType === 'Call Spread' ? ' C' : tradeType === 'IC' ? ' IC' : ' P';
   const ny = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }));
   const dateStr = ny.getFullYear() + '-' + String(ny.getMonth()+1).padStart(2,'0') + '-' + String(ny.getDate()).padStart(2,'0');
   const dayName = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][ny.getDay()];
-  const strikeLabel = sell + '/' + buy + (o.useCall ? ' C' : ' P');
+  const strikeLabel = sell + '/' + buy + typeSuffix;
   const trade = {
     id: Date.now().toString(36) + Math.random().toString(36).slice(2,6),
     date: dateStr,
     day: dayName,
-    type: o.useIC ? 'IC' : o.useCall ? 'Call Spread' : 'Put Spread',
+    type: tradeType,
     credit: credit,
     contracts: cts,
     result: pnl,
