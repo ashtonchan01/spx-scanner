@@ -1130,9 +1130,11 @@ async function fetchLivePrices() {
 
   async function yahooFetch(ticker, interval = '1m', range = '1d') {
     const url = `${YAHOO}${encodeURIComponent(ticker)}?interval=${interval}&range=${range}`;
-    for (const base of [url, `${PROXY}${encodeURIComponent(url)}`]) {
+    // Always use corsproxy first (direct Yahoo fetch blocked by CORS on GitHub Pages)
+    const proxied = `${PROXY}${encodeURIComponent(url)}`;
+    for (const base of [proxied, url]) {
       try {
-        const r = await fetch(base, { signal: AbortSignal.timeout(10000) });
+        const r = await fetch(base, { signal: AbortSignal.timeout(12000) });
         if (!r.ok) continue;
         const d = await r.json();
         const result = d?.chart?.result?.[0];
