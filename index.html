@@ -1118,7 +1118,72 @@ function getRegime(vix) {
 const f2 = n => (n || 0).toFixed(2);
 const fmt$ = (n, dec=0) => n < 0 ? `-$${Math.abs(n).toFixed(dec)}` : `$${Number(n).toFixed(dec)}`;
 
-// ── STANDALONE SETUP (no IBKR proxy) ──
+// ── LIVE PRICES via Yahoo Finance ──
+async function fetchLivePrices() {
+  const btn = document.getElementById('setupBtn');
+  const scanInfo = document.getElementById('scanInfo');
+  if (scanInfo) scanInfo.innerHTML = '⏳ Fetching live prices...';
+
+  // Yahoo Finance URLs for SPX and VIX
+  const YAHOO = 'https://query1.finance.yahoo.com/v8/finance/chart/';
+  const PROXY = 'https://corsproxy.io/?';
+
+  async function yahooFetch(ticker) {
+    const url = `${YAHOO}${encodeURIComponent(ticker)}?interval=1m&range=1d`;
+    // Try direct first, fallback to CORS proxy
+    for (const base of [url, `${PROXY}${encodeURIComponent(url)}`]) {
+      try {
+        const r = await fetch(base, { signal: AbortSignal.timeout(6000) });
+        if (!r.ok) continue;
+        const d = await r.json();
+        const meta = d?.chart?.result?.[0]?.meta;
+        if (meta?.regularMarketPrice) return meta;
+      } catch {}
+    }
+    return null;
+  }
+
+  try {
+    const [spxMeta, vixMeta] = await Promise.all([
+      yahooFetch('^GSPC'),
+      yahooFetch('^VIX')
+    ]);
+
+    if (spxMeta?.regularMarketPrice) {
+      const price = parseFloat(spxMeta.regularMarketPrice.toFixed(2));
+      state.spx = price;
+      state.spxOpen = spxMeta.chartPreviousClose || price;
+      document.getElementById('spxInput').value = price;
+    }
+    if (vixMeta?.regularMarketPrice) {
+      const vix = parseFloat(vixMeta.regularMarketPrice.toFixed(2));
+      state.vix = vix;
+      document.getElementById('vixInput').value = vix;
+    }
+
+    state.lastUpdated = new Date().toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: 'Australia/Sydney' }) + ' AEDT (live)';
+    if (scanInfo) scanInfo.innerHTML = `✅ ${state.lastUpdated} · SPX ${state.spx?.toLocaleString()} · VIX ${state.vix}`;
+  } catch(e) {
+    if (scanInfo) scanInfo.innerHTML = '⚠️ Live fetch failed — using manual values';
+  }
+}
+
+// Auto-refresh prices every 5 min during market hours
+function startPriceAutoRefresh() {
+  setInterval(async function() {
+    const now = new Date();
+    const etH = parseInt(now.toLocaleString('en-US', { timeZone: 'America/New_York', hour: 'numeric', hour12: false }));
+    const etM = parseInt(now.toLocaleString('en-US', { timeZone: 'America/New_York', minute: '2-digit' }));
+    const etT = etH + etM / 60;
+    if (etT >= 9.5 && etT <= 16.25) {
+      await fetchLivePrices();
+      fetchPrices(); // rebuild S/R, reasoning
+      scan();
+    }
+  }, 5 * 60 * 1000); // every 5 minutes
+}
+
+// ── STANDALONE SETUP (S/R levels, reasoning, macro risk) ──
 function fetchPrices() {
     // Auto-calculate 200 DMA from HIST_DATA
     if (HIST_DATA.length >= 200 && !state.dma200) {
@@ -1361,12 +1426,15 @@ async function todaysSetup() {
   btn.style.opacity = '0.6';
   btn.disabled = true;
 
-  fetchPrices();
-  scan();
-
-  btn.textContent = 'SCAN';
-  btn.style.opacity = '1';
-  btn.disabled = false;
+  try {
+    await fetchLivePrices();
+    fetchPrices();
+    scan();
+  } finally {
+    btn.textContent = 'SCAN';
+    btn.style.opacity = '1';
+    btn.disabled = false;
+  }
 }
 
 
@@ -2972,6 +3040,14 @@ renderProjections();
 renderEconHeadline();
 scan();
 updateStopDesc();
+
+// Auto-fetch live prices on load then start refresh
+(async () => {
+  await fetchLivePrices();
+  fetchPrices();
+  scan();
+  startPriceAutoRefresh();
+})();
 
 // Auto-load from cloud on startup if configured
 (async () => {
