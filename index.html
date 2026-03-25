@@ -2091,7 +2091,11 @@ function renderPlaybook() {
                 <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1fr;gap:6px">
                   <div style="border:1px solid var(--border);padding:5px;text-align:center">
                     <div style="font-size:8px;color:var(--textDim);margin-bottom:1px">SELL / BUY</div>
-                    <div class="mono" style="font-size:12px;font-weight:700;color:var(--white)">${o.useCall ? o.recRow.sC : o.recRow.sP} / ${o.useCall ? o.recRow.lC : o.recRow.lP}</div>
+                    <div style="display:flex;align-items:center;justify-content:center;gap:2px">
+                      <input id="log-sell-${isMorn?'m':'a'}" type="number" value="${o.useCall ? o.recRow.sC : o.recRow.sP}" style="width:48px;text-align:center;background:var(--panelAlt);border:1px solid var(--borderBright);color:var(--white);font-size:12px;font-weight:700;font-family:'IBM Plex Mono',monospace;padding:2px">
+                      <span style="color:var(--textDim);font-size:10px">/</span>
+                      <input id="log-buy-${isMorn?'m':'a'}" type="number" value="${o.useCall ? o.recRow.lC : o.recRow.lP}" style="width:48px;text-align:center;background:var(--panelAlt);border:1px solid var(--borderBright);color:var(--white);font-size:12px;font-weight:700;font-family:'IBM Plex Mono',monospace;padding:2px">
+                    </div>
                     <div style="font-size:8px;color:var(--textDim)">${o.useCall ? 'CALL' : 'PUT'} ${state.width}pt</div>
                   </div>
                   <div style="border:1px solid var(--border);padding:5px;text-align:center">
@@ -2600,14 +2604,18 @@ function logTradeFromOrder(session, suffix) {
   const creditEl = document.getElementById('log-credit-' + sfx);
   const pnlEl = document.getElementById('log-pnl-' + sfx);
   const winEl = document.getElementById('log-win-' + sfx);
+  const sellEl = document.getElementById('log-sell-' + sfx);
+  const buyEl = document.getElementById('log-buy-' + sfx);
   const cts = ctsEl ? parseInt(ctsEl.value) || o.adjContracts : o.adjContracts;
   const credit = creditEl ? parseFloat(creditEl.value) || o.orderCredit : o.orderCredit;
   const pnl = pnlEl ? parseFloat(pnlEl.value) || 0 : o.adjIncome;
   const win = winEl ? winEl.value === 'true' : true;
+  const sell = sellEl ? parseInt(sellEl.value) : (o.useCall ? o.recRow.sC : o.recRow.sP);
+  const buy = buyEl ? parseInt(buyEl.value) : (o.useCall ? o.recRow.lC : o.recRow.lP);
   const now = new Date();
   const dateStr = now.toISOString().split('T')[0];
   const dayName = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][now.getDay()];
-  const strikeLabel = o.useCall ? (o.recRow.sC + '/' + o.recRow.lC + ' C') : (o.recRow.sP + '/' + o.recRow.lP + ' P');
+  const strikeLabel = sell + '/' + buy + (o.useCall ? ' C' : ' P');
   const trade = {
     id: Date.now().toString(36) + Math.random().toString(36).slice(2,6),
     date: dateStr,
