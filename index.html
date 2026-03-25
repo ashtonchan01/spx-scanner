@@ -2207,9 +2207,20 @@ function renderPlaybook() {
         <span style="font-size:10px;padding:4px 8px;background:${dual?'rgba(0,229,255,0.1)':'rgba(255,215,0,0.1)'};border:1px solid ${dual?'rgba(0,229,255,0.3)':'rgba(255,215,0,0.3)'};color:${dual?'var(--cyan)':'var(--gold)'}">${dual?'DUAL SESSION: MORN + ARVO':'MORNING PRIMARY'}</span>
       </div>
 
-      <!-- Scheduled Trades (left) + Rules & Timing (right) -->
+      <!-- Timing (left) + Scheduled Trades (center) + Rules (right) -->
       <div style="display:flex;flex-wrap:wrap;gap:12px">
-        <div style="flex:1 1 50%;min-width:260px">
+        <div style="flex:0 0 160px;min-width:140px">
+          <div class="label" style="margin-bottom:6px">TIMING <span style="font-size:9px;color:var(--textDim)">(AEDT)</span></div>
+          ${(day.timing||[]).map(ti => {
+            const isOpen = ti.e.toLowerCase().includes('opens') || ti.e.toLowerCase().includes('entry window');
+            const isDeadline = ti.e.toLowerCase().includes('deadline') || ti.e.toLowerCase().includes('hard close') || ti.e.toLowerCase().includes('close');
+            const isScan = ti.e.toLowerCase().includes('scan') || ti.e.toLowerCase().includes('check');
+            const dotColor = isOpen ? 'var(--green)' : isDeadline ? 'var(--red)' : isScan ? 'var(--cyan)' : 'var(--gold)';
+            const textColor = isOpen ? 'var(--green)' : isDeadline ? 'var(--red)' : isScan ? 'var(--cyan)' : 'var(--gold)';
+            return `<div style="padding:4px 0;font-size:11px;display:flex;align-items:center;gap:6px;border-bottom:1px solid var(--border)"><span style="width:5px;height:5px;border-radius:50%;background:${dotColor};flex-shrink:0"></span><span style="color:${textColor};font-weight:600;white-space:nowrap;min-width:55px">${ti.t}</span><span style="color:var(--textMid);font-size:10px">${ti.e}</span></div>`;
+          }).join('')}
+        </div>
+        <div style="flex:1 1 260px;min-width:0">
           <div class="label" style="margin-bottom:6px">SCHEDULED TRADES</div>
           ${day.trades.map(t => {
             const ctDisplay = t.contracts === '-' ? '-' : (t.contracts === '1ct' ? '1ct' : t.contracts === 'phase' ? pbContracts + 'ct' : t.contracts);
@@ -2258,15 +2269,9 @@ function renderPlaybook() {
           }).join('')}
 
         </div>
-        <div style="flex:0 0 calc(50% - 12px);display:flex;flex-direction:column;gap:12px;border-left:1px solid var(--border);padding-left:12px;min-width:200px">
-          <div>
-            <div class="label" style="margin-bottom:6px">RULES</div>
-            ${day.rules.map(r => `<div style="padding:4px 0;font-size:11px;color:var(--textMid);border-bottom:1px solid var(--border)">\u2022 ${r}</div>`).join('')}
-          </div>
-          <div>
-            <div class="label" style="margin-bottom:6px">TIMING <span style="font-size:9px;color:var(--textDim)">(AEDT)</span></div>
-            ${(day.timing||[]).map(ti => `<div style="padding:3px 0;font-size:11px;display:flex;gap:8px;border-bottom:1px solid var(--border)"><span style="color:var(--cyan);font-weight:600;white-space:nowrap;min-width:62px">${ti.t}</span><span style="color:var(--textMid)">${ti.e}</span></div>`).join('')}
-          </div>
+        <div style="flex:0 0 200px;border-left:1px solid var(--border);padding-left:12px">
+          <div class="label" style="margin-bottom:6px">RULES</div>
+          ${day.rules.map(r => `<div style="padding:4px 0;font-size:11px;color:var(--textMid);border-bottom:1px solid var(--border)">\u2022 ${r}</div>`).join('')}
         </div>
       </div>
 
