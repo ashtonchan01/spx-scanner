@@ -2096,25 +2096,27 @@ function renderPlaybook() {
                   </div>
                   <div style="border:1px solid var(--border);padding:5px;text-align:center">
                     <div style="font-size:8px;color:var(--textDim);margin-bottom:1px">SIZE</div>
-                    <div class="chakra" style="font-size:16px;font-weight:700;color:var(--green)">${o.adjContracts}ct</div>
+                    <input id="log-cts-${isMorn?'m':'a'}" type="number" value="${o.adjContracts}" style="width:50px;text-align:center;background:var(--panelAlt);border:1px solid var(--borderBright);color:var(--green);font-size:16px;font-weight:700;font-family:'Chakra Petch',sans-serif;padding:2px">
                   </div>
                   <div style="border:1px solid var(--border);padding:5px;text-align:center">
-                    <div style="font-size:8px;color:var(--textDim);margin-bottom:1px">CREDIT</div>
-                    <div class="chakra" style="font-size:16px;font-weight:700;color:${o.orderColor}">$${f2(o.orderCredit)}</div>
-                    <div style="font-size:8px;color:var(--textDim)">${fmt$(o.adjIncome)} total</div>
+                    <div style="font-size:8px;color:var(--textDim);margin-bottom:1px">FILL CREDIT</div>
+                    <input id="log-credit-${isMorn?'m':'a'}" type="number" step="0.01" value="${f2(o.orderCredit)}" style="width:60px;text-align:center;background:var(--panelAlt);border:1px solid var(--borderBright);color:${o.orderColor};font-size:16px;font-weight:700;font-family:'Chakra Petch',sans-serif;padding:2px">
                   </div>
-                  <div style="border:1px solid rgba(255,165,0,0.3);background:rgba(255,165,0,0.05);padding:5px;text-align:center">
-                    <div style="font-size:8px;color:rgba(255,165,0,0.7);margin-bottom:1px">2\u00D7 (0-2hr)</div>
-                    <div class="mono" style="font-size:14px;font-weight:700;color:var(--white)">$${f2(o.orderCredit*2)}</div>
+                  <div style="border:1px solid var(--border);padding:5px;text-align:center">
+                    <div style="font-size:8px;color:var(--textDim);margin-bottom:1px">P&L ($)</div>
+                    <input id="log-pnl-${isMorn?'m':'a'}" type="number" step="1" value="${Math.round(o.adjIncome)}" style="width:60px;text-align:center;background:var(--panelAlt);border:1px solid var(--borderBright);color:var(--green);font-size:16px;font-weight:700;font-family:'Chakra Petch',sans-serif;padding:2px">
                   </div>
-                  <div style="border:1px solid rgba(255,71,87,0.3);background:rgba(255,71,87,0.05);padding:5px;text-align:center">
-                    <div style="font-size:8px;color:rgba(255,71,87,0.7);margin-bottom:1px">1.5\u00D7 (2hr+)</div>
-                    <div class="mono" style="font-size:14px;font-weight:700;color:var(--white)">$${f2(o.orderCredit*1.5)}</div>
+                  <div style="border:1px solid var(--border);padding:5px;text-align:center">
+                    <div style="font-size:8px;color:var(--textDim);margin-bottom:1px">WIN/LOSS</div>
+                    <select id="log-win-${isMorn?'m':'a'}" style="width:60px;text-align:center;background:var(--panelAlt);border:1px solid var(--borderBright);color:var(--green);font-size:12px;font-weight:700;font-family:'IBM Plex Mono',monospace;padding:2px;cursor:pointer" onchange="this.style.color=this.value==='true'?'var(--green)':'var(--red)'">
+                      <option value="true" style="color:var(--green)">WIN</option>
+                      <option value="false" style="color:var(--red)">LOSS</option>
+                    </select>
                   </div>
                 </div>
                 <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px">
-                  <span style="font-size:9px;color:var(--textDim)">\u0394${o.recDelta} \u00B7 Hold to expiry \u00B7 Max loss -${fmt$(o.orderCredit * o.adjContracts * 100)} @ 2\u00D7</span>
-                  <button onclick="logTradeFromOrder('${isMorn ? 'morning' : 'arvo'}')" style="padding:4px 14px;font-size:10px;font-weight:700;font-family:'IBM Plex Mono',monospace;letter-spacing:2px;cursor:pointer;border:1px solid var(--green);background:rgba(0,208,132,0.1);color:var(--green)">LOG \u2713</button>
+                  <span style="font-size:9px;color:var(--textDim)">\u0394${o.recDelta} \u00B7 Stop: 2\u00D7 $${f2(o.orderCredit*2)} (0-2hr) \u2192 1.5\u00D7 $${f2(o.orderCredit*1.5)} (2hr+)</span>
+                  <button onclick="logTradeFromOrder('${isMorn ? 'morning' : 'arvo'}', '${isMorn?'m':'a'}')" style="padding:4px 14px;font-size:10px;font-weight:700;font-family:'IBM Plex Mono',monospace;letter-spacing:2px;cursor:pointer;border:1px solid var(--green);background:rgba(0,208,132,0.1);color:var(--green)">LOG \u2713</button>
                 </div>
               </div>` : '';
             return `
@@ -2589,9 +2591,19 @@ function addTrade() {
   renderTradeHistory();
 }
 
-function logTradeFromOrder(session) {
+function logTradeFromOrder(session, suffix) {
   const o = state._order;
   if (!o || !o.recRow) { alert('No order to log — run scan first'); return; }
+  // Read from editable input fields
+  const sfx = suffix || (session === 'morning' ? 'm' : 'a');
+  const ctsEl = document.getElementById('log-cts-' + sfx);
+  const creditEl = document.getElementById('log-credit-' + sfx);
+  const pnlEl = document.getElementById('log-pnl-' + sfx);
+  const winEl = document.getElementById('log-win-' + sfx);
+  const cts = ctsEl ? parseInt(ctsEl.value) || o.adjContracts : o.adjContracts;
+  const credit = creditEl ? parseFloat(creditEl.value) || o.orderCredit : o.orderCredit;
+  const pnl = pnlEl ? parseFloat(pnlEl.value) || 0 : o.adjIncome;
+  const win = winEl ? winEl.value === 'true' : true;
   const now = new Date();
   const dateStr = now.toISOString().split('T')[0];
   const dayName = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][now.getDay()];
@@ -2601,10 +2613,10 @@ function logTradeFromOrder(session) {
     date: dateStr,
     day: dayName,
     type: o.useIC ? 'IC' : o.useCall ? 'Call Spread' : 'Put Spread',
-    credit: o.orderCredit,
-    contracts: o.adjContracts,
-    result: o.adjIncome,
-    win: true,
+    credit: credit,
+    contracts: cts,
+    result: pnl,
+    win: win,
     notes: session.toUpperCase() + ' | ' + strikeLabel + ' | \u0394' + o.recDelta + ' | ' + o.conviction + ' | ' + o.stopInfo.window
   };
   traderData.trades.push(trade);
