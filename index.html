@@ -1243,8 +1243,8 @@ async function fetchPrices() {
           const web = await fetch(`${proxyUrl}/web/snapshot`, {
             headers: { 'ngrok-skip-browser-warning': 'true', 'Accept': 'application/json' }
           }).then(r => r.json());
-          if (web.spx && !state.spx) { state.spx = web.spx; state.liveSpx = web.spx; document.getElementById('spxInput').value = web.spx; }
-          if (web.vix && !state.vix) { state.vix = web.vix; state.liveVix = web.vix; document.getElementById('vixInput').value = web.vix; }
+          if (web.spx) { state.spx = web.spx; state.liveSpx = web.spx; document.getElementById('spxInput').value = web.spx; }
+          if (web.vix) { state.vix = web.vix; state.liveVix = web.vix; document.getElementById('vixInput').value = web.vix; }
           if (web.dma200) {
             state.dma200 = web.dma200;
             document.getElementById('dma200Input').value = web.dma200;
