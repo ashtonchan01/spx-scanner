@@ -1603,58 +1603,24 @@ function scan() {
   else { sessionStatus = 'MARKET CLOSED'; sessionColor = 'var(--textDim)'; sessionNote = 'US market not open'; }
   const canTrade = sessionStatus === 'MORNING ENTRY' || sessionStatus === 'ARVO ENTRY';
 
+  // ── STORE SCAN RESULTS FOR PLAYBOOK ──
+  state._order = {
+    orderType, orderIcon, orderColor, orderCredit, profitTgt, stopInfo,
+    conviction, convColor, convLabel, adjContracts, adjIncome, contracts,
+    useIC, useCall, isBearish, isBullish, recRow, recDelta, regime,
+    sessionStatus, sessionColor, canTrade, phase,
+    pF, cF
+  };
+
   // ── RENDER PLAYBOOK + ORDER PANEL ──
   renderPlaybook();
 
-  // Banners
+  // Order panel now merged into playbook trade cards — just show blackout banner if needed
   let bannerHtml = '';
   if (state.macroRisk === 'blackout') {
     bannerHtml = '<div style="border:2px solid var(--red);border-left:4px solid var(--red);padding:10px 16px;display:flex;align-items:center;gap:12px;background:rgba(255,71,87,0.08);margin-bottom:8px"><span style="font-size:20px">\u26D4</span><div><div style="font-size:13px;color:var(--red);font-weight:700;letter-spacing:1px">NO TRADE TODAY</div><div style="font-size:11px;color:var(--textMid);margin-top:2px">FOMC / Market Holiday \u2014 capital preservation day</div></div></div>';
   }
-
-  // Order panel
-  document.getElementById('orderPanel').innerHTML = `
-    ${bannerHtml}
-    <div class="panel" style="padding:12px 16px">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-        <span style="font-size:10px;color:var(--textDim);letter-spacing:2px">TODAY'S ORDER</span>
-        <div style="display:flex;gap:6px;align-items:center">
-          <span style="font-size:10px;padding:3px 8px;border:1px solid ${sessionColor};color:${sessionColor}">${sessionStatus}</span>
-        </div>
-      </div>
-      <div style="padding:10px 12px;border:1px solid var(--border);border-left:3px solid ${orderColor}">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
-          <span class="chakra" style="font-size:14px;font-weight:700;color:var(--white)">${orderIcon} ${orderType}</span>
-          <span class="chakra" style="font-size:14px;font-weight:700;color:${convColor}">${conviction}</span>
-        </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1fr;gap:6px">
-          <div style="border:1px solid var(--border);padding:6px;text-align:center">
-            <div style="font-size:8px;color:var(--textDim);margin-bottom:2px">SELL / BUY</div>
-            <div class="mono" style="font-size:12px;font-weight:700;color:var(--white)">${useCall ? recRow.sC : recRow.sP} / ${useCall ? recRow.lC : recRow.lP}</div>
-            <div style="font-size:8px;color:var(--textDim);margin-top:1px">${useCall ? 'CALL' : 'PUT'} ${state.width}pt</div>
-          </div>
-          <div style="border:1px solid var(--border);padding:6px;text-align:center">
-            <div style="font-size:8px;color:var(--textDim);margin-bottom:2px">SIZE</div>
-            <div class="chakra" style="font-size:16px;font-weight:700;color:var(--green)">${adjContracts}ct</div>
-          </div>
-          <div style="border:1px solid var(--border);padding:6px;text-align:center">
-            <div style="font-size:8px;color:var(--textDim);margin-bottom:2px">CREDIT</div>
-            <div class="chakra" style="font-size:16px;font-weight:700;color:var(--white)">$${f2(orderCredit)}</div>
-            <div style="font-size:8px;color:var(--textDim)">${fmt$(adjIncome)} total</div>
-          </div>
-          <div style="border:1px solid rgba(255,165,0,0.3);background:rgba(255,165,0,0.05);padding:6px;text-align:center">
-            <div style="font-size:8px;color:rgba(255,165,0,0.7);margin-bottom:2px">2\u00D7 (0-2hr)</div>
-            <div class="mono" style="font-size:14px;font-weight:700;color:var(--white)">$${f2(orderCredit*2)}</div>
-          </div>
-          <div style="border:1px solid rgba(255,71,87,0.3);background:rgba(255,71,87,0.05);padding:6px;text-align:center">
-            <div style="font-size:8px;color:rgba(255,71,87,0.7);margin-bottom:2px">1.5\u00D7 (2hr+)</div>
-            <div class="mono" style="font-size:14px;font-weight:700;color:var(--white)">$${f2(orderCredit*1.5)}</div>
-          </div>
-        </div>
-        <div style="margin-top:4px;font-size:9px;color:var(--textDim)">\u0394${recDelta} \u00B7 Hold to expiry \u00B7 Max loss -${fmt$(orderCredit * adjContracts * 100)} @ 2\u00D7</div>
-      </div>
-    </div>
-  `;
+  document.getElementById('orderPanel').innerHTML = bannerHtml;
 
   // Market analysis panel
   document.getElementById('marketAnalysisPanel').innerHTML = `
@@ -2100,49 +2066,87 @@ function renderPlaybook() {
       <!-- Trades + Rules (left) | Timing (right) -->
       <div style="display:flex;flex-wrap:wrap;gap:12px">
         <div style="flex:1 1 260px;min-width:0">
-          <div class="label" style="margin-bottom:6px">SCHEDULED TRADES</div>
+          <div class="label" style="margin-bottom:6px">TRADES</div>
           ${day.trades.map(t => {
-            const ctDisplay = t.contracts === '-' ? '-' : (t.contracts === '1ct' ? '1ct' : t.contracts === 'phase' ? adjContracts + 'ct' : t.contracts);
-            const showStagger = t.contracts === 'phase' && pbPhase.id >= 3 && adjContracts >= 4;
+            const o = state._order || {};
+            const is0DTE = t.dte === '0DTE';
+            const isMorn = t.name.toLowerCase().includes('morning');
+            const isArvo = t.name.toLowerCase().includes('arvo');
+            const hasOrder = is0DTE && o.recRow && ((isMorn && state.mode === 'morning') || (isArvo && state.mode === 'arvo') || (!isMorn && !isArvo));
+            const ctDisplay = hasOrder ? o.adjContracts + 'ct' : (t.contracts === '-' ? '-' : (t.contracts === '1ct' ? '1ct' : t.contracts === 'phase' ? adjContracts + 'ct' : t.contracts));
+            const showStagger = (hasOrder ? o.adjContracts : adjContracts) >= 4 && pbPhase.id >= 3 && t.contracts === 'phase';
+            const cts = hasOrder ? o.adjContracts : adjContracts;
             const batches3 = pbPhase.id >= 4;
-            const b1 = showStagger ? (batches3 ? Math.floor(adjContracts / 3) : Math.floor(adjContracts / 2)) : 0;
-            const b2 = showStagger ? (batches3 ? Math.floor(adjContracts / 3) : adjContracts - Math.floor(adjContracts / 2)) : 0;
-            const b3 = showStagger && batches3 ? adjContracts - b1 - b2 : 0;
-            const tColor = t.type === 'call' ? 'var(--orange)' : t.type === 'put' ? 'var(--green)' : t.type === 'close' ? 'var(--red)' : 'var(--textDim)';
-            const tBg = 'var(--panel)';
+            const b1 = showStagger ? (batches3 ? Math.floor(cts / 3) : Math.floor(cts / 2)) : 0;
+            const b2 = showStagger ? (batches3 ? Math.floor(cts / 3) : cts - Math.floor(cts / 2)) : 0;
+            const b3 = showStagger && batches3 ? cts - b1 - b2 : 0;
+            const tColor = hasOrder ? o.orderColor : (t.type === 'call' ? 'var(--orange)' : t.type === 'put' ? 'var(--green)' : t.type === 'close' ? 'var(--red)' : 'var(--textDim)');
+            // Order details row for 0DTE trades
+            const orderHtml = hasOrder ? `
+              <div style="margin-top:8px;padding:8px 10px;background:${o.orderColor}08;border:1px solid ${o.orderColor}30">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+                  <span style="font-size:12px;font-weight:700;color:${o.orderColor}">${o.orderIcon} ${o.orderType}</span>
+                  <span class="chakra" style="font-size:14px;font-weight:700;color:${o.convColor}">${o.conviction}</span>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1fr;gap:6px">
+                  <div style="border:1px solid var(--border);padding:5px;text-align:center">
+                    <div style="font-size:8px;color:var(--textDim);margin-bottom:1px">SELL / BUY</div>
+                    <div class="mono" style="font-size:12px;font-weight:700;color:var(--white)">${o.useCall ? o.recRow.sC : o.recRow.sP} / ${o.useCall ? o.recRow.lC : o.recRow.lP}</div>
+                    <div style="font-size:8px;color:var(--textDim)">${o.useCall ? 'CALL' : 'PUT'} ${state.width}pt</div>
+                  </div>
+                  <div style="border:1px solid var(--border);padding:5px;text-align:center">
+                    <div style="font-size:8px;color:var(--textDim);margin-bottom:1px">SIZE</div>
+                    <div class="chakra" style="font-size:16px;font-weight:700;color:var(--green)">${o.adjContracts}ct</div>
+                  </div>
+                  <div style="border:1px solid var(--border);padding:5px;text-align:center">
+                    <div style="font-size:8px;color:var(--textDim);margin-bottom:1px">CREDIT</div>
+                    <div class="chakra" style="font-size:16px;font-weight:700;color:${o.orderColor}">$${f2(o.orderCredit)}</div>
+                    <div style="font-size:8px;color:var(--textDim)">${fmt$(o.adjIncome)} total</div>
+                  </div>
+                  <div style="border:1px solid rgba(255,165,0,0.3);background:rgba(255,165,0,0.05);padding:5px;text-align:center">
+                    <div style="font-size:8px;color:rgba(255,165,0,0.7);margin-bottom:1px">2\u00D7 (0-2hr)</div>
+                    <div class="mono" style="font-size:14px;font-weight:700;color:var(--white)">$${f2(o.orderCredit*2)}</div>
+                  </div>
+                  <div style="border:1px solid rgba(255,71,87,0.3);background:rgba(255,71,87,0.05);padding:5px;text-align:center">
+                    <div style="font-size:8px;color:rgba(255,71,87,0.7);margin-bottom:1px">1.5\u00D7 (2hr+)</div>
+                    <div class="mono" style="font-size:14px;font-weight:700;color:var(--white)">$${f2(o.orderCredit*1.5)}</div>
+                  </div>
+                </div>
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px">
+                  <span style="font-size:9px;color:var(--textDim)">\u0394${o.recDelta} \u00B7 Hold to expiry \u00B7 Max loss -${fmt$(o.orderCredit * o.adjContracts * 100)} @ 2\u00D7</span>
+                  <button onclick="logTradeFromOrder('${isMorn ? 'morning' : 'arvo'}')" style="padding:4px 14px;font-size:10px;font-weight:700;font-family:'IBM Plex Mono',monospace;letter-spacing:2px;cursor:pointer;border:1px solid var(--green);background:rgba(0,208,132,0.1);color:var(--green)">LOG \u2713</button>
+                </div>
+              </div>` : '';
             return `
-            <div style="padding:8px 10px;border-left:3px solid ${tColor};background:${tBg};font-size:11px;margin-bottom:4px;border-radius:0 3px 3px 0">
+            <div style="padding:8px 10px;border-left:3px solid ${tColor};background:var(--panel);font-size:11px;margin-bottom:4px;border-radius:0 3px 3px 0">
               <div style="display:flex;justify-content:space-between;margin-bottom:3px">
                 <span style="font-size:12px;font-weight:600;color:var(--white)">${t.name}</span>
                 <span style="font-size:10px;color:var(--cyan)">${t.dte}</span>
               </div>
               <div style="display:flex;gap:16px;flex-wrap:wrap">
                 <span style="color:var(--textDim)">Time: <span style="color:var(--textMid)">${t.time}</span></span>
-                <span style="color:var(--textDim)">Delta: <span style="color:var(--cyan)">${t.delta}</span></span>
-                <span style="color:var(--textDim)">Credit: <span style="color:var(--green)">${t.credit}</span></span>
+                <span style="color:var(--textDim)">Delta: <span style="color:var(--cyan)">${hasOrder ? '\u0394' + o.recDelta : t.delta}</span></span>
+                <span style="color:var(--textDim)">Credit: <span style="color:var(--green)">${hasOrder ? '$' + f2(o.orderCredit) : t.credit}</span></span>
                 <span style="color:var(--textDim)">Size: <span style="color:var(--white);font-weight:600">${ctDisplay}</span></span>
               </div>
-              ${showStagger ? `
+              ${orderHtml}
+              ${showStagger && !hasOrder ? `
               <div style="margin-top:8px;padding:8px 10px;background:rgba(0,229,255,0.05);border:1px solid rgba(0,229,255,0.15);border-radius:4px">
-                <div style="font-size:10px;color:var(--cyan);letter-spacing:2px;margin-bottom:6px;font-weight:700">STAGGER PLAN — ${adjContracts} CONTRACTS (${batches3?'3':'2'} BATCHES)</div>
+                <div style="font-size:10px;color:var(--cyan);letter-spacing:2px;margin-bottom:6px;font-weight:700">STAGGER PLAN \u2014 ${cts} CONTRACTS (${batches3?'3':'2'} BATCHES)</div>
                 <div style="display:grid;grid-template-columns:${batches3?'1fr 1fr 1fr':'1fr 1fr'};gap:6px">
                   <div style="text-align:center;padding:6px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:3px">
                     <div style="font-size:9px;color:var(--textDim);margin-bottom:2px">BATCH 1</div>
                     <div style="font-size:16px;font-weight:700;color:var(--green)">${b1}ct</div>
-                    <div style="font-size:9px;color:var(--textDim)">Enter first</div>
                   </div>
                   <div style="text-align:center;padding:6px;background:rgba(255,215,0,0.08);border:1px solid rgba(255,215,0,0.2);border-radius:3px">
                     <div style="font-size:9px;color:var(--textDim);margin-bottom:2px">BATCH 2</div>
                     <div style="font-size:16px;font-weight:700;color:var(--gold)">${b2}ct</div>
-                    <div style="font-size:9px;color:var(--textDim)">+2 min wait</div>
                   </div>
                   ${batches3 ? `<div style="text-align:center;padding:6px;background:rgba(0,229,255,0.08);border:1px solid rgba(0,229,255,0.2);border-radius:3px">
                     <div style="font-size:9px;color:var(--textDim);margin-bottom:2px">BATCH 3</div>
                     <div style="font-size:16px;font-weight:700;color:var(--cyan)">${b3}ct</div>
-                    <div style="font-size:9px;color:var(--textDim)">+2 min wait</div>
                   </div>` : ''}
                 </div>
-                <div style="margin-top:6px;font-size:10px;color:var(--textDim)">\u26A0 If fill slips below min credit after Batch 1 — STOP. Do not force remaining batches.</div>
               </div>` : ''}
             </div>`;
           }).join('')}
@@ -2583,6 +2587,38 @@ function addTrade() {
   document.getElementById('trade-notes').value = '';
 
   renderTradeHistory();
+}
+
+function logTradeFromOrder(session) {
+  const o = state._order;
+  if (!o || !o.recRow) { alert('No order to log — run scan first'); return; }
+  const now = new Date();
+  const dateStr = now.toISOString().split('T')[0];
+  const dayName = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][now.getDay()];
+  const strikeLabel = o.useCall ? (o.recRow.sC + '/' + o.recRow.lC + ' C') : (o.recRow.sP + '/' + o.recRow.lP + ' P');
+  const trade = {
+    id: Date.now().toString(36) + Math.random().toString(36).slice(2,6),
+    date: dateStr,
+    day: dayName,
+    type: o.useIC ? 'IC' : o.useCall ? 'Call Spread' : 'Put Spread',
+    credit: o.orderCredit,
+    contracts: o.adjContracts,
+    result: o.adjIncome,
+    win: true,
+    notes: session.toUpperCase() + ' | ' + strikeLabel + ' | \u0394' + o.recDelta + ' | ' + o.conviction + ' | ' + o.stopInfo.window
+  };
+  traderData.trades.push(trade);
+  traderData.currentCapital += trade.result;
+  saveData(traderData);
+  renderTradeHistory();
+  // Visual feedback
+  const btn = event.target;
+  btn.textContent = 'LOGGED \u2713';
+  btn.style.borderColor = 'var(--green)';
+  btn.style.background = 'rgba(0,208,132,0.3)';
+  btn.disabled = true;
+  // Switch to log tab after brief delay
+  setTimeout(() => switchTab('log'), 800);
 }
 
 function deleteTrade(id) {
