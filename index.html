@@ -1187,7 +1187,6 @@ function disconnect() {
 }
 
 async function fetchPrices() {
-  if (!state.connected) return;
   document.getElementById('btnRefresh').textContent = '⏳ LOADING...';
   try {
     // Fetch all data in parallel
@@ -1236,7 +1235,21 @@ async function fetchPrices() {
       state.avgVolume = levelsData.avg_volume_5d;
     }
 
-    // Auto-calculate 200 DMA from HIST_DATA
+    // Web fallback: fetch SPX/VIX/200DMA from Yahoo Finance when IBKR offline
+    if (!snapshot.spx || !snapshot.vix) {
+      try {
+        const web = await ibkrFetch('/web/snapshot');
+        if (web.spx && !state.spx) { state.spx = web.spx; state.liveSpx = web.spx; document.getElementById('spxInput').value = web.spx; }
+        if (web.vix && !state.vix) { state.vix = web.vix; state.liveVix = web.vix; document.getElementById('vixInput').value = web.vix; }
+        if (web.dma200 && !state.dma200) {
+          state.dma200 = web.dma200;
+          document.getElementById('dma200Input').value = web.dma200;
+          localStorage.setItem('spx_dma200', web.dma200);
+        }
+      } catch(e) { console.warn('web price fallback failed:', e); }
+    }
+
+    // Auto-calculate 200 DMA from HIST_DATA (last resort if web also unavailable)
     if (HIST_DATA.length >= 200 && !state.dma200) {
       const last200 = HIST_DATA.slice(-200);
       const dma = last200.reduce((s, d) => s + d[4], 0) / 200;
@@ -2166,7 +2179,7 @@ function renderPlaybook() {
                 <span style="color:var(--textDim)">Size: <span style="color:var(--white);font-weight:600">${ctDisplay}</span></span>
               </div>
               ${showStagger ? `
-              <div style="margin-top:8px;padding:8px 10px;background:rgba(0,229,255,0.05);border:1px solid rgba(0,229,255,0.15);border-radius:4px">
+              <div style="margin-top:8px;padding:8px 10px;background:var(--bg);border:1px solid var(--border);border-radius:4px">
                 <div style="font-size:10px;color:var(--cyan);letter-spacing:2px;margin-bottom:6px;font-weight:700">STAGGER PLAN — ${pbContracts} CONTRACTS (${batches3?'3':'2'} BATCHES)</div>
                 <div style="display:grid;grid-template-columns:${batches3?'1fr 1fr 1fr':'1fr 1fr'};gap:6px">
                   <div style="text-align:center;padding:6px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:3px">
