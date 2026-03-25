@@ -2088,31 +2088,31 @@ function renderPlaybook() {
                   <span style="font-size:12px;font-weight:700;color:${o.orderColor}">${o.orderIcon} ${o.orderType}</span>
                   <span class="chakra" style="font-size:14px;font-weight:700;color:${o.convColor}">${o.conviction}</span>
                 </div>
-                <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1fr;gap:6px">
-                  <div style="border:1px solid var(--border);padding:5px;text-align:center">
-                    <div style="font-size:8px;color:var(--textDim);margin-bottom:1px">SELL / BUY</div>
-                    <div style="display:flex;align-items:center;justify-content:center;gap:2px">
-                      <input id="log-sell-${isMorn?'m':'a'}" type="number" value="${o.useCall ? o.recRow.sC : o.recRow.sP}" style="width:48px;text-align:center;background:var(--panelAlt);border:1px solid var(--borderBright);color:var(--white);font-size:12px;font-weight:700;font-family:'IBM Plex Mono',monospace;padding:2px">
-                      <span style="color:var(--textDim);font-size:10px">/</span>
-                      <input id="log-buy-${isMorn?'m':'a'}" type="number" value="${o.useCall ? o.recRow.lC : o.recRow.lP}" style="width:48px;text-align:center;background:var(--panelAlt);border:1px solid var(--borderBright);color:var(--white);font-size:12px;font-weight:700;font-family:'IBM Plex Mono',monospace;padding:2px">
+                <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1fr;gap:6px;align-items:stretch">
+                  <div style="border:1px solid var(--border);padding:8px 6px;text-align:center;display:flex;flex-direction:column;justify-content:center">
+                    <div style="font-size:9px;color:var(--textDim);margin-bottom:4px;letter-spacing:1px">SELL / BUY</div>
+                    <div style="display:flex;align-items:center;justify-content:center;gap:3px">
+                      <input id="log-sell-${isMorn?'m':'a'}" type="number" value="${o.useCall ? o.recRow.sC : o.recRow.sP}" style="width:52px;text-align:center;background:var(--panelAlt);border:1px solid var(--borderBright);color:var(--white);font-size:14px;font-weight:700;font-family:'IBM Plex Mono',monospace;padding:4px 2px">
+                      <span style="color:var(--textDim);font-size:12px">/</span>
+                      <input id="log-buy-${isMorn?'m':'a'}" type="number" value="${o.useCall ? o.recRow.lC : o.recRow.lP}" style="width:52px;text-align:center;background:var(--panelAlt);border:1px solid var(--borderBright);color:var(--white);font-size:14px;font-weight:700;font-family:'IBM Plex Mono',monospace;padding:4px 2px">
                     </div>
-                    <div style="font-size:8px;color:var(--textDim)">${o.useCall ? 'CALL' : 'PUT'} ${state.width}pt</div>
+                    <div style="font-size:8px;color:var(--textDim);margin-top:3px">${o.useCall ? 'CALL' : 'PUT'} ${state.width}pt</div>
                   </div>
-                  <div style="border:1px solid var(--border);padding:5px;text-align:center">
-                    <div style="font-size:8px;color:var(--textDim);margin-bottom:1px">SIZE</div>
-                    <input id="log-cts-${isMorn?'m':'a'}" type="number" value="${o.adjContracts}" style="width:50px;text-align:center;background:var(--panelAlt);border:1px solid var(--borderBright);color:var(--green);font-size:16px;font-weight:700;font-family:'Chakra Petch',sans-serif;padding:2px">
+                  <div style="border:1px solid var(--border);padding:8px 6px;text-align:center;display:flex;flex-direction:column;justify-content:center">
+                    <div style="font-size:9px;color:var(--textDim);margin-bottom:4px;letter-spacing:1px">SIZE</div>
+                    <input id="log-cts-${isMorn?'m':'a'}" type="number" value="${o.adjContracts}" style="width:56px;text-align:center;background:var(--panelAlt);border:1px solid var(--borderBright);color:var(--green);font-size:18px;font-weight:700;font-family:'Chakra Petch',sans-serif;padding:4px 2px">
                   </div>
-                  <div style="border:1px solid var(--border);padding:5px;text-align:center">
-                    <div style="font-size:8px;color:var(--textDim);margin-bottom:1px">FILL CREDIT</div>
-                    <input id="log-credit-${isMorn?'m':'a'}" type="number" step="0.01" value="${f2(o.orderCredit)}" style="width:60px;text-align:center;background:var(--panelAlt);border:1px solid var(--borderBright);color:${o.orderColor};font-size:16px;font-weight:700;font-family:'Chakra Petch',sans-serif;padding:2px">
+                  <div style="border:1px solid var(--border);padding:8px 6px;text-align:center;display:flex;flex-direction:column;justify-content:center">
+                    <div style="font-size:9px;color:var(--textDim);margin-bottom:4px;letter-spacing:1px">FILL CREDIT</div>
+                    <input id="log-credit-${isMorn?'m':'a'}" type="number" step="0.01" value="${f2(o.orderCredit)}" style="width:68px;text-align:center;background:var(--panelAlt);border:1px solid var(--borderBright);color:${o.orderColor};font-size:18px;font-weight:700;font-family:'Chakra Petch',sans-serif;padding:4px 2px">
                   </div>
-                  <div style="border:1px solid var(--border);padding:5px;text-align:center">
-                    <div style="font-size:8px;color:var(--textDim);margin-bottom:1px">P&L ($)</div>
-                    <input id="log-pnl-${isMorn?'m':'a'}" type="number" step="1" value="${Math.round(o.adjIncome)}" style="width:60px;text-align:center;background:var(--panelAlt);border:1px solid var(--borderBright);color:var(--green);font-size:16px;font-weight:700;font-family:'Chakra Petch',sans-serif;padding:2px">
+                  <div style="border:1px solid var(--border);padding:8px 6px;text-align:center;display:flex;flex-direction:column;justify-content:center">
+                    <div style="font-size:9px;color:var(--textDim);margin-bottom:4px;letter-spacing:1px">P&L ($)</div>
+                    <input id="log-pnl-${isMorn?'m':'a'}" type="number" step="1" value="${Math.round(o.adjIncome)}" style="width:68px;text-align:center;background:var(--panelAlt);border:1px solid var(--borderBright);color:var(--green);font-size:18px;font-weight:700;font-family:'Chakra Petch',sans-serif;padding:4px 2px">
                   </div>
-                  <div style="border:1px solid var(--border);padding:5px;text-align:center">
-                    <div style="font-size:8px;color:var(--textDim);margin-bottom:1px">WIN/LOSS</div>
-                    <select id="log-win-${isMorn?'m':'a'}" style="width:60px;text-align:center;background:var(--panelAlt);border:1px solid var(--borderBright);color:var(--green);font-size:12px;font-weight:700;font-family:'IBM Plex Mono',monospace;padding:2px;cursor:pointer" onchange="this.style.color=this.value==='true'?'var(--green)':'var(--red)'">
+                  <div style="border:1px solid var(--border);padding:8px 6px;text-align:center;display:flex;flex-direction:column;justify-content:center">
+                    <div style="font-size:9px;color:var(--textDim);margin-bottom:4px;letter-spacing:1px">WIN/LOSS</div>
+                    <select id="log-win-${isMorn?'m':'a'}" style="width:68px;text-align:center;background:var(--panelAlt);border:1px solid var(--borderBright);color:var(--green);font-size:14px;font-weight:700;font-family:'IBM Plex Mono',monospace;padding:4px 2px;cursor:pointer" onchange="this.style.color=this.value==='true'?'var(--green)':'var(--red)'">
                       <option value="true" style="color:var(--green)">WIN</option>
                       <option value="false" style="color:var(--red)">LOSS</option>
                     </select>
