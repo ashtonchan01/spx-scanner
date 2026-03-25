@@ -1473,9 +1473,17 @@ function setBias(b) {
 }
 
 // ── COMPUTE ──
+function getT() {
+  const nowET = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }));
+  const closeET = new Date(nowET); closeET.setHours(16, 0, 0, 0);
+  let hoursLeft = (closeET - nowET) / 3600000;
+  if (hoursLeft <= 0 || hoursLeft > 7) hoursLeft = 6.5;
+  return Math.max(hoursLeft, 0.25) / 24 / 365;
+}
+
 function computeRows() {
   const S = state.spx, iv = state.vix / 100, w = state.width;
-  const T = state.mode === 'arvo' ? (3.5 / 24) / 365 : 1 / 365;
+  const T = getT();
   const sb = state.mode === 'arvo' ? 10 : 15;
   return DELTA_ROWS.map(dl => {
     const sP = findStrike(S, iv, T, dl.delta, 'put'), lP = sP - w;
