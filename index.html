@@ -2052,7 +2052,7 @@ function renderPlaybook() {
   const pbRegime = getRegime(state.vix);
   const pbSizeNote = pbRegime.size < 1 ? ` (${Math.round(pbRegime.size*100)}% — ${pbRegime.level} VIX)` : '';
   const pbContractsRaw = pbPhase.perK ? Math.max(1, Math.floor(traderData.currentCapital / pbPhase.perK)) : 2;
-  const adjContracts = Math.max(1, Math.round(pbContractsRaw * pbRegime.size));
+  const adjContracts = state._order ? state._order.adjContracts : Math.max(1, Math.round(pbContractsRaw * pbRegime.size));
 
   document.getElementById('playbook-day-content').innerHTML = `
     <div class="day-card ${selectedPlaybookDay===todayName?'today':''}">
