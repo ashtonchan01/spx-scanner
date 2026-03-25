@@ -395,7 +395,6 @@ input, select, button, textarea { font-family: 'IBM Plex Mono', monospace; outli
 
 <!-- Scanner output panels -->
 <div id="regimeRow" style="display:none"></div>
-<div id="orderPanel"></div>
 <div id="mainArea"></div>
 
 <!-- DELTA TABLE -->
@@ -2084,7 +2083,10 @@ function renderPlaybook() {
 
   const day = PLAYBOOK[selectedPlaybookDay];
   const pbPhase = getPhase(traderData.currentCapital);
-  const pbSizeNote = regime.size < 1 ? ` (${Math.round(regime.size*100)}% — ${regime.level} VIX)` : '';
+  const pbRegime = getRegime(state.vix);
+  const pbSizeNote = pbRegime.size < 1 ? ` (${Math.round(pbRegime.size*100)}% — ${pbRegime.level} VIX)` : '';
+  const pbContractsRaw = pbPhase.perK ? Math.max(1, Math.floor(traderData.currentCapital / pbPhase.perK)) : 2;
+  const adjContracts = Math.max(1, Math.round(pbContractsRaw * pbRegime.size));
 
   document.getElementById('playbook-day-content').innerHTML = `
     <div class="day-card ${selectedPlaybookDay===todayName?'today':''}">
