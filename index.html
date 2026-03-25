@@ -2144,7 +2144,7 @@ function renderPlaybook() {
             const b2 = showStagger ? (batches3 ? Math.floor(pbContracts / 3) : pbContracts - Math.floor(pbContracts / 2)) : 0;
             const b3 = showStagger && batches3 ? pbContracts - b1 - b2 : 0;
             const tColor = t.type === 'call' ? 'var(--orange)' : t.type === 'put' ? 'var(--green)' : t.type === 'close' ? 'var(--red)' : 'var(--textDim)';
-            const tBg = t.type === 'call' ? 'rgba(255,165,0,0.04)' : t.type === 'put' ? 'rgba(0,208,132,0.04)' : 'transparent';
+            const tBg = t.type === 'call' ? 'rgba(255,165,0,0.07)' : t.type === 'put' ? 'rgba(0,208,132,0.07)' : 'transparent';
             return `
             <div style="padding:6px 8px;border-bottom:1px solid var(--border);border-left:2px solid ${tColor};background:${tBg};font-size:11px;margin-bottom:2px">
               <div style="display:flex;justify-content:space-between;margin-bottom:3px">
