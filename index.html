@@ -2065,12 +2065,12 @@ function getPlaybook() {
         ...(dual ? [...tieredArvoRules, sizeNote].filter(Boolean) : ['Arvo is optional — skip if morning fills well']),
       ],
       timing: [
-        { t: '12:30 AM', e: 'Pre-market scan + levels' },
-        { t: '12:45 AM', e: 'Enter weekly spread' },
-        { t: '1:00 AM', e: 'Morning entry window opens' },
-        { t: '1:15 AM', e: 'Morning entry deadline' },
-        ...(dual ? [{ t: '3:00 AM', e: 'Arvo entry window opens' }, { t: '4:00 AM', e: 'Arvo entry deadline' }] : []),
-        { t: '6:00 AM', e: 'Hard close / market close' },
+        { t: '12:30-12:45 AM', e: 'Opening — wait for direction' },
+        { t: '12:45-1:15 AM', e: 'MORNING ENTRY (+ weekly)' },
+        { t: '1:15-3:00 AM', e: 'Mid-session — direction clearing' },
+        ...(dual ? [{ t: '3:00-4:00 AM', e: 'ARVO ENTRY WINDOW' }] : []),
+        { t: dual ? '4:00-5:30 AM' : '1:15-5:30 AM', e: 'Theta zone — close only' },
+        { t: '5:30-6:00 AM', e: 'Hard close all positions' },
       ],
       hardClose: '6:00 AM AEDT',
     },
@@ -2088,11 +2088,12 @@ function getPlaybook() {
         ].filter(Boolean) : ['Arvo optional if morning wins and A+ setup available']),
       ],
       timing: [
-        { t: '12:30 AM', e: 'Pre-market scan + levels' },
-        { t: '1:00 AM', e: 'Morning entry window opens' },
-        { t: '1:15 AM', e: 'Morning entry deadline' },
-        ...(dual ? [{ t: '3:00 AM', e: 'Arvo entry window opens' }, { t: '4:00 AM', e: 'Arvo entry deadline' }] : []),
-        { t: '6:00 AM', e: 'Hard close / market close' },
+        { t: '12:30-12:45 AM', e: 'Opening — wait for direction' },
+        { t: '12:45-1:15 AM', e: 'MORNING ENTRY' },
+        { t: '1:15-3:00 AM', e: 'Mid-session — direction clearing' },
+        ...(dual ? [{ t: '3:00-4:00 AM', e: 'ARVO ENTRY WINDOW' }] : []),
+        { t: dual ? '4:00-5:30 AM' : '1:15-5:30 AM', e: 'Theta zone — close only' },
+        { t: '5:30-6:00 AM', e: 'Hard close all positions' },
       ],
       hardClose: '6:00 AM AEDT',
     },
@@ -2111,11 +2112,12 @@ function getPlaybook() {
         ].filter(Boolean) : [isFomcWeek ? 'If no FOMC: morning session only' : 'Morning session only']),
       ],
       timing: [
-        { t: '12:30 AM', e: 'Pre-market scan + levels' },
-        { t: '1:00 AM', e: 'Morning entry window opens' },
-        { t: '1:15 AM', e: 'Morning entry deadline' },
-        ...(dual ? [{ t: '3:00 AM', e: 'Arvo entry window opens' }, { t: '4:00 AM', e: 'Arvo entry deadline' }] : []),
-        { t: '5:30 AM', e: 'Hard close (Wed early)' },
+        { t: '12:30-12:45 AM', e: 'Opening — wait for direction' },
+        { t: '12:45-1:15 AM', e: 'MORNING ENTRY' },
+        { t: '1:15-3:00 AM', e: 'Mid-session — direction clearing' },
+        ...(dual ? [{ t: '3:00-4:00 AM', e: 'ARVO ENTRY WINDOW' }] : []),
+        { t: dual ? '4:00-5:00 AM' : '1:15-5:00 AM', e: 'Theta zone — close only' },
+        { t: '5:00-5:30 AM', e: 'Hard close all positions' },
       ],
       hardClose: '5:30 AM AEDT',
     },
@@ -2135,12 +2137,12 @@ function getPlaybook() {
         ].filter(Boolean) : []),
       ],
       timing: [
-        { t: '12:30 AM', e: 'Pre-market scan + levels' },
-        { t: '12:45 AM', e: 'Check weekly spread health' },
-        { t: '1:00 AM', e: 'Morning entry window opens' },
-        { t: '1:15 AM', e: 'Morning entry deadline' },
-        ...(dual ? [{ t: '3:00 AM', e: 'Arvo entry window opens' }, { t: '4:00 AM', e: 'Arvo entry deadline' }] : []),
-        { t: '5:45 AM', e: 'Hard close' },
+        { t: '12:30-12:45 AM', e: 'Opening — check weekly health' },
+        { t: '12:45-1:15 AM', e: 'MORNING ENTRY' },
+        { t: '1:15-3:00 AM', e: 'Mid-session — direction clearing' },
+        ...(dual ? [{ t: '3:00-4:00 AM', e: 'ARVO ENTRY WINDOW' }] : []),
+        { t: dual ? '4:00-5:15 AM' : '1:15-5:15 AM', e: 'Theta zone — close only' },
+        { t: '5:15-5:45 AM', e: 'Hard close all positions' },
       ],
       hardClose: '5:45 AM AEDT',
     },
@@ -2161,12 +2163,12 @@ function getPlaybook() {
         ].filter(Boolean) : ['Max 1 loss on Fridays — protect the week\'s gains']),
       ],
       timing: [
-        { t: '12:30 AM', e: 'Pre-market scan + levels' },
-        { t: '12:45 AM', e: 'Close weekly spread' },
-        { t: '1:00 AM', e: 'Morning entry (tight window)' },
-        { t: '1:10 AM', e: 'Morning entry deadline (early)' },
-        ...(dual ? [{ t: '3:00 AM', e: 'Arvo entry (careful)' }, { t: '3:45 AM', e: 'Arvo deadline (early)' }] : []),
-        { t: '5:30 AM', e: 'Hard close / protect weekly P&L' },
+        { t: '12:30-12:45 AM', e: 'Opening — close weekly first' },
+        { t: '12:45-1:10 AM', e: 'MORNING ENTRY (tight)' },
+        { t: '1:10-3:00 AM', e: 'Mid-session — direction clearing' },
+        ...(dual ? [{ t: '3:00-3:45 AM', e: 'ARVO ENTRY (careful)' }] : []),
+        { t: dual ? '3:45-5:00 AM' : '1:10-5:00 AM', e: 'Theta zone — close only' },
+        { t: '5:00-5:30 AM', e: 'Hard close — protect weekly P&L' },
       ],
       hardClose: '5:30 AM AEDT',
     },
@@ -2207,19 +2209,8 @@ function renderPlaybook() {
         <span style="font-size:10px;padding:4px 8px;background:${dual?'rgba(0,229,255,0.1)':'rgba(255,215,0,0.1)'};border:1px solid ${dual?'rgba(0,229,255,0.3)':'rgba(255,215,0,0.3)'};color:${dual?'var(--cyan)':'var(--gold)'}">${dual?'DUAL SESSION: MORN + ARVO':'MORNING PRIMARY'}</span>
       </div>
 
-      <!-- Timing (left) + Scheduled Trades (center) + Rules (right) -->
+      <!-- Trades + Rules (left) | Timing (right) -->
       <div style="display:flex;flex-wrap:wrap;gap:12px">
-        <div style="flex:0 0 160px;min-width:140px">
-          <div class="label" style="margin-bottom:6px">TIMING <span style="font-size:9px;color:var(--textDim)">(AEDT)</span></div>
-          ${(day.timing||[]).map(ti => {
-            const isOpen = ti.e.toLowerCase().includes('opens') || ti.e.toLowerCase().includes('entry window');
-            const isDeadline = ti.e.toLowerCase().includes('deadline') || ti.e.toLowerCase().includes('hard close') || ti.e.toLowerCase().includes('close');
-            const isScan = ti.e.toLowerCase().includes('scan') || ti.e.toLowerCase().includes('check');
-            const dotColor = isOpen ? 'var(--green)' : isDeadline ? 'var(--red)' : isScan ? 'var(--cyan)' : 'var(--gold)';
-            const textColor = isOpen ? 'var(--green)' : isDeadline ? 'var(--red)' : isScan ? 'var(--cyan)' : 'var(--gold)';
-            return `<div style="padding:4px 0;font-size:11px;display:flex;align-items:center;gap:6px;border-bottom:1px solid var(--border)"><span style="width:5px;height:5px;border-radius:50%;background:${dotColor};flex-shrink:0"></span><span style="color:${textColor};font-weight:600;white-space:nowrap;min-width:55px">${ti.t}</span><span style="color:var(--textMid);font-size:10px">${ti.e}</span></div>`;
-          }).join('')}
-        </div>
         <div style="flex:1 1 260px;min-width:0">
           <div class="label" style="margin-bottom:6px">SCHEDULED TRADES</div>
           ${day.trades.map(t => {
@@ -2268,10 +2259,23 @@ function renderPlaybook() {
             </div>`;
           }).join('')}
 
+          <div class="label" style="margin-top:10px;margin-bottom:4px">RULES</div>
+          ${day.rules.map(r => `<div style="padding:3px 0;font-size:11px;color:var(--textMid);border-bottom:1px solid var(--border)">\u2022 ${r}</div>`).join('')}
         </div>
-        <div style="flex:0 0 200px;border-left:1px solid var(--border);padding-left:12px">
-          <div class="label" style="margin-bottom:6px">RULES</div>
-          ${day.rules.map(r => `<div style="padding:4px 0;font-size:11px;color:var(--textMid);border-bottom:1px solid var(--border)">\u2022 ${r}</div>`).join('')}
+        <div style="flex:0 0 250px;border-left:1px solid var(--border);padding-left:12px">
+          <div class="label" style="margin-bottom:6px">\u23F0 TODAY'S ENTRY WINDOWS <span style="font-size:9px;color:var(--textDim)">(AEDT)</span></div>
+          ${(day.timing||[]).map(ti => {
+            const el = ti.e.toLowerCase();
+            const isEntry = el.includes('entry');
+            const isClose = el.includes('hard close');
+            const isTheta = el.includes('theta');
+            const isMid = el.includes('mid-session') || el.includes('direction');
+            const isOpen = el.includes('opening');
+            const icon = isEntry ? '\u2734' : isClose ? '\u26D4' : isTheta ? '\u26A1' : isMid ? '' : isOpen ? '\u26A0' : '';
+            const rowColor = isEntry ? 'var(--green)' : isClose ? 'var(--red)' : isTheta ? 'var(--gold)' : isOpen ? 'var(--gold)' : 'var(--textMid)';
+            const highlight = isEntry ? 'border-left:3px solid var(--green);background:rgba(0,208,132,0.06);padding-left:8px;' : isClose ? 'border-left:3px solid var(--red);padding-left:8px;' : '';
+            return `<div style="padding:6px 4px;font-size:11px;border-bottom:1px solid var(--border);${highlight}"><div style="display:flex;justify-content:space-between;align-items:center"><span style="color:var(--white);font-weight:600">${ti.t}</span><span style="color:${rowColor};font-size:10px;text-align:right">${icon} ${ti.e}</span></div></div>`;
+          }).join('')}
         </div>
       </div>
 
