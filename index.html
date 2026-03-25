@@ -2035,10 +2035,13 @@ function getPlaybook() {
   const now = new Date();
   const weekStart = new Date(now); weekStart.setDate(now.getDate() - now.getDay());
   const weekEnd = new Date(weekStart); weekEnd.setDate(weekStart.getDate() + 6);
-  const isFomcWeek = (typeof FOMC_DATES_2026 !== 'undefined') && FOMC_DATES_2026.some(([m, d]) => {
-    const fd = new Date(now.getFullYear(), m, d);
-    return fd >= weekStart && fd <= weekEnd;
-  });
+  let isFomcWeek = false;
+  try {
+    isFomcWeek = FOMC_DATES_2026.some(([m, d]) => {
+      const fd = new Date(now.getFullYear(), m, d);
+      return fd >= weekStart && fd <= weekEnd;
+    });
+  } catch(e) {}
   // Tiered arvo sizing rules (Phase 3+)
   const tieredArvoRules = [
     'Hold morning trade to expiry (do NOT close early)',
