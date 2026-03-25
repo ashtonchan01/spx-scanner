@@ -1583,10 +1583,10 @@ function scan() {
   const sizeNote = regime.size < 1 ? ' \u00B7 ' + Math.round(regime.size * 100) + '% size (VIX)' : '';
   convLabel += sizeNote;
   if (state.macroRisk === 'blackout') { conviction = 'X'; convColor = 'var(--red)'; convLabel = 'NO TRADE \u2014 FOMC/Holiday'; adjContracts = 0; }
-  else if (state.macroRisk === 'high') { if (conviction === 'A+') { conviction = 'B'; convColor = 'var(--gold)'; convLabel = 'REDUCED \u2014 High-impact event'; adjContracts = Math.max(1, Math.round(contracts * 0.5)); } else { conviction = 'C'; convColor = 'var(--red)'; convLabel = 'MINIMAL \u2014 High-impact event'; adjContracts = 1; } }
-  else if (state.macroRisk === 'caution' && conviction === 'A+') { conviction = 'B'; convColor = 'var(--gold)'; convLabel = 'MODERATE \u2014 Caution day'; adjContracts = Math.max(1, Math.round(contracts * 0.75)); }
+  else if (state.macroRisk === 'high') { if (conviction === 'A+') { conviction = 'B'; convColor = 'var(--gold)'; convLabel = 'REDUCED \u2014 High-impact event'; adjContracts = Math.max(1, Math.round(adjContracts * 0.5)); } else { conviction = 'C'; convColor = 'var(--red)'; convLabel = 'MINIMAL \u2014 High-impact event'; adjContracts = 1; } }
+  else if (state.macroRisk === 'caution' && conviction === 'A+') { conviction = 'B'; convColor = 'var(--gold)'; convLabel = 'MODERATE \u2014 Caution day'; adjContracts = Math.max(1, Math.round(adjContracts * 0.75)); }
   if (state.gexProxy === 'negative' && conviction !== 'X') { conviction = 'C'; convColor = 'var(--red)'; convLabel = 'MINIMAL \u2014 Negative GEX'; adjContracts = 1; }
-  else if (state.gexProxy === 'cautious' && conviction === 'A+') { conviction = 'B'; convColor = 'var(--gold)'; convLabel = 'MODERATE \u2014 Cautious GEX'; adjContracts = Math.max(1, Math.round(contracts * 0.5)); }
+  else if (state.gexProxy === 'cautious' && conviction === 'A+') { conviction = 'B'; convColor = 'var(--gold)'; convLabel = 'MODERATE \u2014 Cautious GEX'; adjContracts = Math.max(1, Math.round(adjContracts * 0.5)); }
   const adjIncome = orderCredit * adjContracts * 100;
 
   // Session check
