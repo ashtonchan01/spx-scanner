@@ -1695,8 +1695,8 @@ function scan() {
         <div style="font-size:13px;color:var(--white);font-weight:600">${row.sC}</div>
         <div style="font-size:12px;color:var(--textDim)">${row.lP}</div>
         <div style="font-size:12px;color:var(--textDim)">${row.lC}</div>
-        <div><span style="font-size:14px;color:${pOK?'var(--green)':'var(--red)'};font-weight:700">\$${f2(pf)}</span> <span style="font-size:9px;color:${pOK?'var(--green)':'var(--red)'}">${lP?'\u26A1':pOK?'\u2713':'\u2717'}</span></div>
-        <div><span style="font-size:14px;color:${cOK?'var(--orange)':'var(--red)'};font-weight:700">\$${f2(cf)}</span> <span style="font-size:9px;color:${cOK?'var(--orange)':'var(--red)'}">${lC?'\u26A1':cOK?'\u2713':'\u2717'}</span></div>
+        <div><span style="font-size:14px;color:${pOK?'var(--green)':'var(--red)'};font-weight:700">\$${f2(pf)}</span> <span style="font-size:9px;color:${pOK?'var(--green)':'var(--red)'}">${pOK?'\u2713':'\u2717'}</span></div>
+        <div><span style="font-size:14px;color:${cOK?'var(--orange)':'var(--red)'};font-weight:700">\$${f2(cf)}</span> <span style="font-size:9px;color:${cOK?'var(--orange)':'var(--red)'}">${cOK?'\u2713':'\u2717'}</span></div>
         <div><span style="font-size:14px;color:${row.icOK?'var(--cyan)':'var(--red)'};font-weight:700">\$${f2(row.icFill)}</span></div>
         <div style="font-size:12px;color:var(--red)">\u2264${row.putStop}</div>
         <div style="font-size:12px;color:var(--red)">\u2265${row.callStop}</div>
