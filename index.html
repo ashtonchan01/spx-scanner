@@ -1704,7 +1704,7 @@ function scan() {
           <span style="font-size:10px;padding:3px 8px;border:1px solid ${sessionColor};color:${sessionColor}">${sessionStatus}</span>
         </div>
       </div>
-      <div style="padding:10px 12px;border:1px solid var(--border)">
+      <div style="padding:10px 12px;border:1px solid var(--border);border-left:3px solid ${orderColor}">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
           <span class="chakra" style="font-size:14px;font-weight:700;color:var(--white)">${orderIcon} ${orderType}</span>
           <span class="chakra" style="font-size:14px;font-weight:700;color:${convColor}">${conviction}</span>
@@ -1724,12 +1724,12 @@ function scan() {
             <div class="chakra" style="font-size:16px;font-weight:700;color:var(--white)">$${f2(orderCredit)}</div>
             <div style="font-size:8px;color:var(--textDim)">${fmt$(adjIncome)} total</div>
           </div>
-          <div style="border:1px solid var(--border);padding:6px;text-align:center">
-            <div style="font-size:8px;color:var(--textDim);margin-bottom:2px">2\u00D7 (0-2hr)</div>
+          <div style="border:1px solid rgba(255,165,0,0.3);background:rgba(255,165,0,0.05);padding:6px;text-align:center">
+            <div style="font-size:8px;color:rgba(255,165,0,0.7);margin-bottom:2px">2\u00D7 (0-2hr)</div>
             <div class="mono" style="font-size:14px;font-weight:700;color:var(--white)">$${f2(orderCredit*2)}</div>
           </div>
-          <div style="border:1px solid var(--border);padding:6px;text-align:center">
-            <div style="font-size:8px;color:var(--textDim);margin-bottom:2px">1.5\u00D7 (2hr+)</div>
+          <div style="border:1px solid rgba(255,71,87,0.3);background:rgba(255,71,87,0.05);padding:6px;text-align:center">
+            <div style="font-size:8px;color:rgba(255,71,87,0.7);margin-bottom:2px">1.5\u00D7 (2hr+)</div>
             <div class="mono" style="font-size:14px;font-weight:700;color:var(--white)">$${f2(orderCredit*1.5)}</div>
           </div>
         </div>
