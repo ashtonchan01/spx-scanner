@@ -167,10 +167,6 @@ input, select, button, textarea { font-family: 'IBM Plex Mono', monospace; outli
   .top-bar { grid-template-columns: 1fr; gap: 6px; }
   .top-bar > div { flex-wrap: wrap; gap: 8px; }
 
-  /* IBKR connection — full width */
-  #connInput { flex-direction: column; width: 100%; }
-  #connInput input { width: 100% !important; font-size: 14px; }
-
   /* Scanner input row — stack to 2 columns */
   .scanner-inputs { grid-template-columns: 1fr 1fr !important; gap: 8px !important; }
   .scanner-inputs > *:nth-child(n+5) { grid-column: span 1; }
@@ -273,30 +269,15 @@ input, select, button, textarea { font-family: 'IBM Plex Mono', monospace; outli
 <div class="glow"></div>
 <div class="container" style="position:relative;z-index:1">
 
-<!-- MASTHEAD: Title + IBKR connection + Clock (always visible) -->
+<!-- MASTHEAD: Title + Clock (always visible) -->
 <div class="top-bar">
   <div style="display:flex;align-items:center;gap:24px">
     <div>
       <div class="label" style="letter-spacing:5px;margin-bottom:2px;font-size:10px">SYSTEMATIC OPTIONS INCOME · 0DTE SPX</div>
-      <div class="chakra" style="font-size:26px;font-weight:700;color:var(--white);letter-spacing:2px">LIVE SCANNER</div>
-    </div>
-    <div style="display:flex;gap:16px;align-items:center">
-      <div id="connPanel" class="flash" style="display:flex;align-items:center;gap:8px;padding:6px 14px;background:var(--panel);border:1px solid var(--borderBright);border-radius:4px">
-        <div id="statusDot" class="status-dot" style="background:var(--textDim)"></div>
-        <div id="statusText" style="font-size:12px;color:var(--textDim);font-weight:700;letter-spacing:1px">DISCONNECTED</div>
-      </div>
-      <div id="connButtons" style="display:none;gap:6px">
-        <button class="btn" id="btnRefresh" style="color:var(--green);border-color:rgba(0,208,132,0.5);background:rgba(0,208,132,0.12);font-size:11px;padding:6px 14px" onclick="fetchPrices()">&#8635; PRICES</button>
-        <button class="btn" id="btnQuotes" style="color:var(--cyan);border-color:rgba(0,229,255,0.5);background:rgba(0,229,255,0.12);font-size:11px;padding:6px 14px" onclick="fetchAllQuotes()">&#x2B21; QUOTES</button>
-        <button class="btn" style="color:var(--red);border-color:rgba(255,71,87,0.4);font-size:10px;padding:6px 10px" onclick="disconnect()">&#x2715;</button>
-      </div>
+      <div class="chakra" style="font-size:26px;font-weight:700;color:var(--white);letter-spacing:2px">SPX SCANNER</div>
     </div>
   </div>
   <div style="display:flex;align-items:center;gap:20px">
-    <div id="connInput" style="display:flex;gap:6px;align-items:center">
-      <input id="urlInput" type="text" placeholder="https://xxxx.ngrok-free.app" style="width:320px;background:var(--panelAlt);border:1px solid var(--borderBright);color:var(--white);padding:8px 12px;font-size:13px" onkeydown="if(event.key==='Enter')connect()">
-      <button class="btn" style="border:1px solid var(--green);color:var(--green);font-size:11px;padding:7px 16px;font-weight:700" onclick="connect()">CONNECT</button>
-    </div>
     <div style="text-align:right;flex-shrink:0">
       <div id="clock" style="font-family:'Inter',sans-serif;font-size:22px;font-weight:300;color:var(--gold);letter-spacing:2px"></div>
       <div style="font-size:9px;color:var(--textDim);letter-spacing:1px">SYDNEY</div>
@@ -305,8 +286,6 @@ input, select, button, textarea { font-family: 'IBM Plex Mono', monospace; outli
     </div>
   </div>
 </div>
-<div id="connError" style="display:none;margin-bottom:8px;padding:8px 12px;background:rgba(255,71,87,0.06);border:1px solid rgba(255,71,87,0.2);font-size:9px"></div>
-
 <!-- TAB BAR -->
 <div class="tab-bar">
   <button class="tab-btn active" data-tab="dashboard" onclick="switchTab('dashboard')">DASHBOARD</button>
@@ -1074,8 +1053,7 @@ function switchTab(tab) {
 let state = {
   spx: 5800, vix: 22, width: 15, mode: 'morning', strategy: 'auto',
   bias: 'neutral', dma200: parseFloat(localStorage.getItem('spx_dma200')) || 0,
-  ibkrUrl: '', connected: false, fetching: false,
-  liveSpx: null, liveVix: null, liveQuotes: {},
+  liveSpx: null, liveVix: null,
   lastUpdated: null,
   // Enhanced market data
   vix9d: null, vwap: null, aboveVwap: null,
@@ -1140,121 +1118,9 @@ function getRegime(vix) {
 const f2 = n => (n || 0).toFixed(2);
 const fmt$ = (n, dec=0) => n < 0 ? `-$${Math.abs(n).toFixed(dec)}` : `$${Number(n).toFixed(dec)}`;
 
-// ── IBKR CONNECTION ──
-function cleanUrl(url) { return url.trim().replace(/\/$/, ''); }
-
-async function ibkrFetch(endpoint) {
-  const base = cleanUrl(state.ibkrUrl);
-  const resp = await fetch(`${base}${endpoint}`, {
-    headers: { 'ngrok-skip-browser-warning': 'true', 'Accept': 'application/json' }
-  });
-  if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-  return resp.json();
-}
-
-async function connect() {
-  const url = cleanUrl(document.getElementById('urlInput').value);
-  if (!url) return;
-  setConnStatus('connecting');
-  hideError();
-  try {
-    const d = await fetch(`${url}/ping`, {
-      headers: { 'ngrok-skip-browser-warning': 'true', 'Accept': 'application/json' }
-    }).then(r => r.json());
-    if (d.status === 'ok') {
-      state.ibkrUrl = url;
-      state.connected = true;
-      localStorage.setItem('ibkr_url', url);
-      setConnStatus('connected');
-      fetchPrices();
-    } else {
-      showError(`Response: ${JSON.stringify(d)}`);
-      setConnStatus('error');
-    }
-  } catch (e) {
-    showError(e.message);
-    setConnStatus('error');
-  }
-}
-
-function disconnect() {
-  state.connected = false;
-  state.ibkrUrl = '';
-  state.liveSpx = null;
-  state.liveVix = null;
-  state.liveQuotes = {};
-  setConnStatus('disconnected');
-}
-
-async function fetchPrices() {
-  document.getElementById('btnRefresh').textContent = '⏳ LOADING...';
-  try {
-    // Fetch all data in parallel
-    const [snapshot, vwapData, levelsData] = await Promise.all([
-      ibkrFetch('/market/snapshot').catch(e => { console.warn('snapshot err:', e); return {}; }),
-      ibkrFetch('/market/vwap').catch(e => { console.warn('vwap err:', e); return {}; }),
-      ibkrFetch('/market/levels').catch(e => { console.warn('levels err:', e); return {}; }),
-    ]);
-
-    // Core prices
-    if (snapshot.spx) { state.liveSpx = snapshot.spx; document.getElementById('spxInput').value = snapshot.spx; state.spx = snapshot.spx; }
-    if (snapshot.vix) { state.liveVix = snapshot.vix; document.getElementById('vixInput').value = snapshot.vix; state.vix = snapshot.vix; }
-    if (snapshot.spx_open) state.spxOpen = snapshot.spx_open;
-    if (snapshot.spx_high) state.spxHigh = snapshot.spx_high;
-    if (snapshot.spx_low) state.spxLow = snapshot.spx_low;
-
-    // VIX9D + term structure
-    if (snapshot.vix9d) {
-      state.vix9d = snapshot.vix9d;
-      if (snapshot.vix && snapshot.vix9d) {
-        state.vixTermStructure = snapshot.vix9d < snapshot.vix ? 'backwardation' : 'contango';
-        // GEX proxy from term structure + VIX level
-        if (state.vixTermStructure === 'contango' && snapshot.vix < 18) state.gexProxy = 'positive';
-        else if (state.vixTermStructure === 'backwardation' && snapshot.vix > 25) state.gexProxy = 'negative';
-        else if (snapshot.vix > 22) state.gexProxy = 'cautious';
-        else state.gexProxy = 'neutral';
-      }
-    }
-
-    // VWAP
-    if (vwapData.vwap) {
-      state.vwap = vwapData.vwap;
-      state.aboveVwap = vwapData.above_vwap;
-    }
-
-    // Key levels
-    if (levelsData.prev_high) {
-      state.prevHigh = levelsData.prev_high;
-      state.prevLow = levelsData.prev_low;
-      state.prevClose = levelsData.prev_close;
-      state.weeklyHigh = levelsData.weekly_high;
-      state.weeklyLow = levelsData.weekly_low;
-      state.pivot = levelsData.pivot;
-      state.r1 = levelsData.r1; state.r2 = levelsData.r2;
-      state.s1 = levelsData.s1; state.s2 = levelsData.s2;
-      state.avgVolume = levelsData.avg_volume_5d;
-    }
-
-    // Web fallback: fetch SPX/VIX/200DMA from Yahoo Finance when IBKR offline
-    if (!snapshot.spx || !snapshot.vix) {
-      try {
-        const proxyUrl = state.ibkrUrl || cleanUrl(localStorage.getItem('ibkr_url') || '');
-        if (proxyUrl) {
-          const web = await fetch(`${proxyUrl}/web/snapshot`, {
-            headers: { 'ngrok-skip-browser-warning': 'true', 'Accept': 'application/json' }
-          }).then(r => r.json());
-          if (web.spx) { state.spx = web.spx; state.liveSpx = web.spx; document.getElementById('spxInput').value = web.spx; }
-          if (web.vix) { state.vix = web.vix; state.liveVix = web.vix; document.getElementById('vixInput').value = web.vix; }
-          if (web.dma200) {
-            state.dma200 = web.dma200;
-            document.getElementById('dma200Input').value = web.dma200;
-            localStorage.setItem('spx_dma200', web.dma200);
-          }
-        }
-      } catch(e) { console.warn('web price fallback failed:', e); }
-    }
-
-    // Auto-calculate 200 DMA from HIST_DATA (last resort if web also unavailable)
+// ── STANDALONE SETUP (no IBKR proxy) ──
+function fetchPrices() {
+    // Auto-calculate 200 DMA from HIST_DATA
     if (HIST_DATA.length >= 200 && !state.dma200) {
       const last200 = HIST_DATA.slice(-200);
       const dma = last200.reduce((s, d) => s + d[4], 0) / 200;
@@ -1263,7 +1129,7 @@ async function fetchPrices() {
       localStorage.setItem('spx_dma200', state.dma200);
     }
 
-    // Fallback S/R levels from HIST_DATA when IBKR disconnected
+    // S/R levels from HIST_DATA
     if (!state.prevHigh && HIST_DATA.length >= 6) {
       const last5 = HIST_DATA.slice(-6, -1); // last 5 completed days
       const prev = HIST_DATA[HIST_DATA.length - 2]; // yesterday
@@ -1287,8 +1153,6 @@ async function fetchPrices() {
     state.lastUpdated = new Date().toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: 'Australia/Sydney' }) + ' AEDT';
     flashPanel('inputPanel');
     scan();
-  } catch (e) { showError(`Fetch: ${e.message}`); }
-  finally { document.getElementById('btnRefresh').textContent = '\u21BB PRICES'; }
 }
 
 // ── MACRO RISK from economic calendar ──
@@ -1399,54 +1263,6 @@ function buildReasoning() {
   return reasons;
 }
 
-async function fetchAllQuotes() {
-  if (!state.connected) return;
-  document.getElementById('btnQuotes').textContent = '...';
-  const rows = computeRows();
-  const quotes = {};
-  const today = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-  for (let i = 1; i < Math.min(5, rows.length); i++) {
-    const row = rows[i];
-    try { const q = await ibkrFetch(`/options/spread?short_strike=${row.sP}&long_strike=${row.lP}&right=P&expiry=${today}`); if (q) quotes[`${row.sP}_${row.lP}_P`] = q; } catch {}
-    try { const q = await ibkrFetch(`/options/spread?short_strike=${row.sC}&long_strike=${row.lC}&right=C&expiry=${today}`); if (q) quotes[`${row.sC}_${row.lC}_C`] = q; } catch {}
-  }
-  state.liveQuotes = quotes;
-  document.getElementById('btnQuotes').textContent = '\u2B21 QUOTES';
-  scan();
-}
-
-function setConnStatus(s) {
-  const dot = document.getElementById('statusDot');
-  const text = document.getElementById('statusText');
-  const panel = document.getElementById('connPanel');
-  const input = document.getElementById('connInput');
-  const btns = document.getElementById('connButtons');
-  if (s === 'connected') {
-    dot.style.background = 'var(--green)'; dot.style.boxShadow = '0 0 8px var(--green)';
-    text.textContent = '\u26A1 LIVE'; text.style.color = 'var(--green)';
-    panel.style.borderColor = 'var(--green)';
-    input.style.display = 'none'; btns.style.display = 'flex';
-  } else if (s === 'connecting') {
-    dot.style.background = 'var(--gold)'; dot.style.boxShadow = 'none'; dot.classList.add('pulsing');
-    text.textContent = 'CONNECTING...'; text.style.color = 'var(--gold)'; panel.style.borderColor = 'var(--gold)';
-  } else if (s === 'error') {
-    dot.style.background = 'var(--red)'; dot.style.boxShadow = 'none'; dot.classList.remove('pulsing');
-    text.textContent = 'FAILED'; text.style.color = 'var(--red)'; panel.style.borderColor = 'var(--red)';
-    input.style.display = 'flex'; btns.style.display = 'none';
-  } else {
-    dot.style.background = 'var(--textDim)'; dot.style.boxShadow = 'none'; dot.classList.remove('pulsing');
-    text.textContent = 'DISCONNECTED'; text.style.color = 'var(--textDim)';
-    panel.style.borderColor = 'var(--borderBright)';
-    input.style.display = 'flex'; btns.style.display = 'none';
-  }
-}
-
-function showError(msg) {
-  const el = document.getElementById('connError');
-  el.style.display = 'block';
-  el.innerHTML = `<span style="color:var(--red)">\u2717 ${msg}</span> <span style="color:var(--textDim);margin-left:12px">Open ${document.getElementById('urlInput').value}/ping in browser to test</span>`;
-}
-function hideError() { document.getElementById('connError').style.display = 'none'; }
 function flashPanel(id) {
   const el = document.getElementById(id);
   el.style.borderColor = 'var(--green)';
@@ -1545,28 +1361,12 @@ async function todaysSetup() {
   btn.style.opacity = '0.6';
   btn.disabled = true;
 
-  try {
-    if (state.connected) {
-      await fetchPrices();
-      await fetchAllQuotes();
-    }
-    scan();
-  } finally {
-    btn.textContent = 'SCAN';
-    btn.style.opacity = '1';
-    btn.disabled = false;
-  }
+  fetchPrices();
+  scan();
 
-  // Auto-collapse inputs when IBKR connected
-  if (state.connected) {
-    updateInputSummary();
-    const fields = document.getElementById('inputFields');
-    const summary = document.getElementById('inputSummary');
-    if (fields && summary) {
-      fields.style.display = 'none';
-      summary.style.display = 'flex';
-    }
-  }
+  btn.textContent = 'SCAN';
+  btn.style.opacity = '1';
+  btn.disabled = false;
 }
 
 
@@ -1649,12 +1449,15 @@ function scan() {
   if (state.vwap) regimeItems.push({ l:'VWAP', v:`${state.aboveVwap?'\u2191':'\u2193'} ${state.vwap.toFixed(0)}`, c: state.aboveVwap?'var(--green)':'var(--red)' });
   if (state.gexProxy) regimeItems.push({ l:'GEX', v:gexLabelsShort[state.gexProxy], c: gexColors[state.gexProxy] });
   regimeItems.push({ l:'MACRO', v:macroLabelsShort[state.macroRisk], c: macroColors[state.macroRisk] });
+  const expLow = Math.round(state.spx - dailyMove);
+  const expHigh = Math.round(state.spx + dailyMove);
+  regimeItems.push({ l:'EXP LOW', v:expLow.toLocaleString(), c:'var(--red)' });
+  regimeItems.push({ l:'EXP HIGH', v:expHigh.toLocaleString(), c:'var(--green)' });
 
   // ── LIVE PRICE RESOLUTION ──
-  const liveP = state.liveQuotes[`${recRow.sP}_${recRow.lP}_P`];
-  const liveC = state.liveQuotes[`${recRow.sC}_${recRow.lC}_C`];
-  const pF = liveP && liveP.credit_bid !== undefined ? liveP.credit_bid : recRow.putFill;
-  const cF = liveC && liveC.credit_bid !== undefined ? liveC.credit_bid : recRow.callFill;
+  const liveP = null, liveC = null;
+  const pF = recRow.putFill;
+  const cF = recRow.callFill;
 
   // ── ORDER RECOMMENDATION ──
   const orderType = useIC ? 'IRON CONDOR' : useCall ? 'CALL CREDIT SPREAD' : 'PUT CREDIT SPREAD';
@@ -1777,7 +1580,7 @@ function scan() {
       ${regimeItems.slice(0, 3).map(function(s) { return '<div style="border:1px solid var(--border);padding:6px 8px;text-align:center"><div style="font-size:8px;color:var(--textDim);letter-spacing:1px;margin-bottom:1px">' + s.l + '</div><div class="chakra" style="font-size:14px;font-weight:700;color:' + s.c + '">' + s.v + '</div></div>'; }).join('')}
     </div>
     ${regimeItems.length > 3 ? '<div style="display:grid;grid-template-columns:repeat(' + (regimeItems.length - 3) + ',1fr);gap:4px;margin-bottom:6px">' + regimeItems.slice(3).map(function(s) { return '<div style="border:1px solid var(--border);padding:6px 8px;text-align:center"><div style="font-size:8px;color:var(--textDim);letter-spacing:1px;margin-bottom:1px">' + s.l + '</div><div class="chakra" style="font-size:14px;font-weight:700;color:' + s.c + '">' + s.v + '</div></div>'; }).join('') + '</div>' : ''}
-    ${state.reasoning.length > 0 ? '<table style="width:100%;border-collapse:collapse;font-size:11px">' + state.reasoning.map(function(r) { return '<tr style="border-bottom:1px solid var(--border)"><td style="padding:3px 0;width:20px;color:var(--textMid)">' + r.icon + '</td><td style="padding:3px 6px;color:var(--text)">' + r.text + '</td><td style="padding:3px 0;text-align:right;font-weight:700;color:' + (r.bullish ? 'var(--green)' : 'var(--red)') + '">' + (r.bullish ? '\u2191' : '\u2193') + '</td></tr>'; }).join('') + '</table>' : ''}
+    ${state.reasoning.length > 0 ? '<div style="display:flex;flex-direction:column;gap:4px">' + state.reasoning.map(function(r) { return '<div style="border:1px solid ' + (r.bullish ? 'rgba(0,208,132,0.3)' : 'rgba(255,71,87,0.3)') + ';padding:5px 8px;display:flex;align-items:flex-start;gap:6px;background:' + (r.bullish ? 'rgba(0,208,132,0.04)' : 'rgba(255,71,87,0.04)') + '">' + '<span style="font-size:12px;flex-shrink:0">' + r.icon + '</span>' + '<span style="font-size:11px;color:var(--text);flex:1">' + r.text + '</span>' + '<span style="font-size:11px;font-weight:700;color:' + (r.bullish ? 'var(--green)' : 'var(--red)') + '">' + (r.bullish ? '\u2191' : '\u2193') + '</span>' + '</div>'; }).join('') + '</div>' : ''}
     ${state.prevHigh ? '<div style="margin-top:4px;padding-top:4px;border-top:1px solid var(--border);font-size:9px;color:var(--textDim)">\uD83D\uDD11 Prev ' + state.prevLow.toFixed(0) + '-' + state.prevHigh.toFixed(0) + (state.pivot ? ' \u00B7 P ' + state.pivot.toFixed(0) + ' \u00B7 S1 ' + state.s1.toFixed(0) + ' \u00B7 R1 ' + state.r1.toFixed(0) : '') + (state.weeklyLow ? ' \u00B7 Wk ' + state.weeklyLow.toFixed(0) + '-' + state.weeklyHigh.toFixed(0) : '') + '</div>' : ''}
   `;
 
@@ -1794,10 +1597,7 @@ function scan() {
     </div>
     ${rows.map((row, i) => {
       const isRec = row.delta === recDelta;
-      const lP = state.liveQuotes[`${row.sP}_${row.lP}_P`];
-      const lC = state.liveQuotes[`${row.sC}_${row.lC}_C`];
-      const pf = lP ? lP.credit_bid : row.putFill;
-      const cf = lC ? lC.credit_bid : row.callFill;
+      const pf = row.putFill; const cf = row.callFill;
       const pOK = pf >= 0.60, cOK = cf >= 0.60;
       return `<div style="display:grid;grid-template-columns:${cols};padding:9px 16px;background:${isRec?`color-mix(in srgb, ${activeColor} 5%, transparent)`:i%2===0?'var(--panelAlt)':'var(--panel)'};border-left:${isRec?`3px solid ${activeColor}`:'3px solid transparent'};border-bottom:1px solid var(--border);align-items:center">
         <div style="font-size:13px;color:${isRec?activeColor:'var(--textMid)'};font-weight:${isRec?700:400}">\u0394${row.label}</div>
@@ -2194,18 +1994,14 @@ function renderPlaybook() {
 
   const day = PLAYBOOK[selectedPlaybookDay];
   const pbPhase = getPhase(traderData.currentCapital);
-  const pbContractsRaw = pbPhase.perK ? Math.max(1, Math.floor(traderData.currentCapital / pbPhase.perK)) : 2;
-  // Apply regime size adjustment (same as order panel)
-  const pbRegime = getRegime(state.vix);
-  const pbContracts = Math.max(1, Math.round(pbContractsRaw * pbRegime.size));
-  const pbSizeNote = pbRegime.size < 1 ? ` (${Math.round(pbRegime.size*100)}% — ${pbRegime.level} VIX)` : '';
+  const pbSizeNote = regime.size < 1 ? ` (${Math.round(regime.size*100)}% — ${regime.level} VIX)` : '';
 
   document.getElementById('playbook-day-content').innerHTML = `
     <div class="day-card ${selectedPlaybookDay===todayName?'today':''}">
       <div class="day-header" style="color:var(--white)">${selectedPlaybookDay.toUpperCase()} PLAYBOOK</div>
       <div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap">
         <span style="font-size:10px;padding:4px 8px;background:rgba(255,71,87,0.1);border:1px solid rgba(255,71,87,0.3);color:var(--red)">HARD CLOSE: ${day.hardClose}</span>
-        <span style="font-size:10px;padding:4px 8px;background:rgba(0,208,132,0.1);border:1px solid rgba(0,208,132,0.3);color:var(--green)">PHASE ${pbPhase.id}: ${pbContracts} CONTRACTS${pbSizeNote}</span>
+        <span style="font-size:10px;padding:4px 8px;background:rgba(0,208,132,0.1);border:1px solid rgba(0,208,132,0.3);color:var(--green)">PHASE ${pbPhase.id}: ${adjContracts} CONTRACTS${pbSizeNote}</span>
         <span style="font-size:10px;padding:4px 8px;background:${dual?'rgba(0,229,255,0.1)':'rgba(255,215,0,0.1)'};border:1px solid ${dual?'rgba(0,229,255,0.3)':'rgba(255,215,0,0.3)'};color:${dual?'var(--cyan)':'var(--gold)'}">${dual?'DUAL SESSION: MORN + ARVO':'MORNING PRIMARY'}</span>
       </div>
 
@@ -2214,12 +2010,12 @@ function renderPlaybook() {
         <div style="flex:1 1 260px;min-width:0">
           <div class="label" style="margin-bottom:6px">SCHEDULED TRADES</div>
           ${day.trades.map(t => {
-            const ctDisplay = t.contracts === '-' ? '-' : (t.contracts === '1ct' ? '1ct' : t.contracts === 'phase' ? pbContracts + 'ct' : t.contracts);
-            const showStagger = t.contracts === 'phase' && pbPhase.id >= 3 && pbContracts >= 4;
+            const ctDisplay = t.contracts === '-' ? '-' : (t.contracts === '1ct' ? '1ct' : t.contracts === 'phase' ? adjContracts + 'ct' : t.contracts);
+            const showStagger = t.contracts === 'phase' && pbPhase.id >= 3 && adjContracts >= 4;
             const batches3 = pbPhase.id >= 4;
-            const b1 = showStagger ? (batches3 ? Math.floor(pbContracts / 3) : Math.floor(pbContracts / 2)) : 0;
-            const b2 = showStagger ? (batches3 ? Math.floor(pbContracts / 3) : pbContracts - Math.floor(pbContracts / 2)) : 0;
-            const b3 = showStagger && batches3 ? pbContracts - b1 - b2 : 0;
+            const b1 = showStagger ? (batches3 ? Math.floor(adjContracts / 3) : Math.floor(adjContracts / 2)) : 0;
+            const b2 = showStagger ? (batches3 ? Math.floor(adjContracts / 3) : adjContracts - Math.floor(adjContracts / 2)) : 0;
+            const b3 = showStagger && batches3 ? adjContracts - b1 - b2 : 0;
             const tColor = t.type === 'call' ? 'var(--orange)' : t.type === 'put' ? 'var(--green)' : t.type === 'close' ? 'var(--red)' : 'var(--textDim)';
             const tBg = 'var(--panel)';
             return `
@@ -2236,7 +2032,7 @@ function renderPlaybook() {
               </div>
               ${showStagger ? `
               <div style="margin-top:8px;padding:8px 10px;background:rgba(0,229,255,0.05);border:1px solid rgba(0,229,255,0.15);border-radius:4px">
-                <div style="font-size:10px;color:var(--cyan);letter-spacing:2px;margin-bottom:6px;font-weight:700">STAGGER PLAN — ${pbContracts} CONTRACTS (${batches3?'3':'2'} BATCHES)</div>
+                <div style="font-size:10px;color:var(--cyan);letter-spacing:2px;margin-bottom:6px;font-weight:700">STAGGER PLAN — ${adjContracts} CONTRACTS (${batches3?'3':'2'} BATCHES)</div>
                 <div style="display:grid;grid-template-columns:${batches3?'1fr 1fr 1fr':'1fr 1fr'};gap:6px">
                   <div style="text-align:center;padding:6px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:3px">
                     <div style="font-size:9px;color:var(--textDim);margin-bottom:2px">BATCH 1</div>
@@ -3170,8 +2966,6 @@ updateClock();
 // ══════════════════════════════════════════════════════════════════════════════
 // INIT
 // ══════════════════════════════════════════════════════════════════════════════
-const savedUrl = localStorage.getItem('ibkr_url');
-if (savedUrl) document.getElementById('urlInput').value = savedUrl;
 if (state.dma200 > 0) document.getElementById('dma200Input').value = state.dma200;
 renderDashboard();
 renderProjections();
