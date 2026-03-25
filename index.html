@@ -2031,6 +2031,14 @@ function getPlaybook() {
   const wklyCt = wklyCtMap[ph.id] || 1;
   const wklyLabel = wklyCt + 'ct';
   const halfCt = Math.max(1, Math.floor(contracts0DTE / 2));
+  // Check if this week has an FOMC meeting
+  const now = new Date();
+  const weekStart = new Date(now); weekStart.setDate(now.getDate() - now.getDay());
+  const weekEnd = new Date(weekStart); weekEnd.setDate(weekStart.getDate() + 6);
+  const isFomcWeek = (typeof FOMC_DATES_2026 !== 'undefined') && FOMC_DATES_2026.some(([m, d]) => {
+    const fd = new Date(now.getFullYear(), m, d);
+    return fd >= weekStart && fd <= weekEnd;
+  });
   // Tiered arvo sizing rules (Phase 3+)
   const tieredArvoRules = [
     'Hold morning trade to expiry (do NOT close early)',
@@ -2076,13 +2084,13 @@ function getPlaybook() {
         ...(dual ? [{ name: '0DTE Arvo', time: '3:00-4:00', dte: '0DTE', delta: arvoDelta, credit: '$0.60 min', contracts: 'phase', type: 'put' }] : []),
       ],
       rules: [
-        'FOMC day = NO TRADE (both sessions)',
+        ...(isFomcWeek ? ['FOMC day = NO TRADE (both sessions)'] : []),
         ...(dual ? [
-          'If no FOMC: morning put spread + arvo session',
+          ...(isFomcWeek ? ['If no FOMC: morning put spread + arvo session'] : ['Morning put spread + arvo session']),
           ...tieredArvoRules,
-          'FOMC week: 50% position size all week',
+          ...(isFomcWeek ? ['FOMC week: 50% position size all week'] : []),
           sizeNote,
-        ].filter(Boolean) : ['If no FOMC: morning session only']),
+        ].filter(Boolean) : [isFomcWeek ? 'If no FOMC: morning session only' : 'Morning session only']),
       ],
       hardClose: '5:30 AM AEDT',
     },
