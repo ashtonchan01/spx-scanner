@@ -2144,9 +2144,9 @@ function renderPlaybook() {
             const b2 = showStagger ? (batches3 ? Math.floor(pbContracts / 3) : pbContracts - Math.floor(pbContracts / 2)) : 0;
             const b3 = showStagger && batches3 ? pbContracts - b1 - b2 : 0;
             const tColor = t.type === 'call' ? 'var(--orange)' : t.type === 'put' ? 'var(--green)' : t.type === 'close' ? 'var(--red)' : 'var(--textDim)';
-            const tBg = 'transparent';
+            const tBg = 'var(--panelBright)';
             return `
-            <div style="padding:6px 8px;border-bottom:1px solid var(--border);border-left:2px solid ${tColor};background:${tBg};font-size:11px;margin-bottom:2px">
+            <div style="padding:8px 10px;border-left:3px solid ${tColor};background:${tBg};font-size:11px;margin-bottom:4px;border-radius:0 3px 3px 0">
               <div style="display:flex;justify-content:space-between;margin-bottom:3px">
                 <span style="font-size:12px;font-weight:600;color:var(--white)">${t.name}</span>
                 <span style="font-size:10px;color:var(--cyan)">${t.dte}</span>
