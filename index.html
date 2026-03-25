@@ -1128,41 +1128,61 @@ async function fetchLivePrices() {
   const YAHOO = 'https://query1.finance.yahoo.com/v8/finance/chart/';
   const PROXY = 'https://corsproxy.io/?';
 
-  async function yahooFetch(ticker) {
-    const url = `${YAHOO}${encodeURIComponent(ticker)}?interval=1m&range=1d`;
-    // Try direct first, fallback to CORS proxy
+  async function yahooFetch(ticker, interval = '1m', range = '1d') {
+    const url = `${YAHOO}${encodeURIComponent(ticker)}?interval=${interval}&range=${range}`;
     for (const base of [url, `${PROXY}${encodeURIComponent(url)}`]) {
       try {
-        const r = await fetch(base, { signal: AbortSignal.timeout(6000) });
+        const r = await fetch(base, { signal: AbortSignal.timeout(10000) });
         if (!r.ok) continue;
         const d = await r.json();
-        const meta = d?.chart?.result?.[0]?.meta;
-        if (meta?.regularMarketPrice) return meta;
+        const result = d?.chart?.result?.[0];
+        if (!result) continue;
+        const meta = result.meta;
+        if (!meta?.regularMarketPrice) continue;
+        // Attach closes array for DMA calculation
+        const closes = result.indicators?.quote?.[0]?.close?.filter(v => v != null) || [];
+        if (closes.length) meta._closes = closes;
+        return meta;
       } catch {}
     }
     return null;
   }
 
   try {
-    const [spxMeta, vixMeta] = await Promise.all([
-      yahooFetch('^GSPC'),
-      yahooFetch('^VIX')
+    // Fetch SPX (1yr daily for 200 DMA), VIX intraday in parallel
+    const [spxHistory, vixMeta] = await Promise.all([
+      yahooFetch('^GSPC', '1d', '1y'),
+      yahooFetch('^VIX', '1m', '1d')
     ]);
 
-    if (spxMeta?.regularMarketPrice) {
-      const price = parseFloat(spxMeta.regularMarketPrice.toFixed(2));
+    // SPX live price
+    if (spxHistory?.regularMarketPrice) {
+      const price = parseFloat(spxHistory.regularMarketPrice.toFixed(2));
       state.spx = price;
-      state.spxOpen = spxMeta.chartPreviousClose || price;
+      state.spxOpen = spxHistory.chartPreviousClose || price;
       document.getElementById('spxInput').value = price;
     }
+
+    // 200 DMA — calculate from historical closes
+    if (spxHistory?._closes?.length >= 200) {
+      const last200 = spxHistory._closes.slice(-200);
+      const dma200 = last200.reduce((a, b) => a + b, 0) / 200;
+      const dma200Rounded = parseFloat(dma200.toFixed(2));
+      state.dma200 = dma200Rounded;
+      document.getElementById('dma200Input').value = dma200Rounded;
+      localStorage.setItem('spx_dma200', dma200Rounded);
+    }
+
+    // VIX
     if (vixMeta?.regularMarketPrice) {
       const vix = parseFloat(vixMeta.regularMarketPrice.toFixed(2));
       state.vix = vix;
       document.getElementById('vixInput').value = vix;
     }
 
+    const dmaStr = state.dma200 ? ` · 200DMA ${state.dma200.toLocaleString()}` : '';
     state.lastUpdated = new Date().toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: 'Australia/Sydney' }) + ' AEDT (live)';
-    if (scanInfo) scanInfo.innerHTML = `✅ ${state.lastUpdated} · SPX ${state.spx?.toLocaleString()} · VIX ${state.vix}`;
+    if (scanInfo) scanInfo.innerHTML = `✅ ${state.lastUpdated} · SPX ${state.spx?.toLocaleString()} · VIX ${state.vix}${dmaStr}`;
   } catch(e) {
     if (scanInfo) scanInfo.innerHTML = '⚠️ Live fetch failed — using manual values';
   }
