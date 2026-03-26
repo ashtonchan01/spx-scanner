@@ -328,7 +328,7 @@ input, select, button, textarea { font-family: 'IBM Plex Mono', monospace; outli
     <div id="inputFields">
       <div style="display:flex;gap:6px;align-items:end;flex-wrap:nowrap">
         <!-- SPX -->
-        <div style="width:100px;flex-shrink:0">
+        <div style="width:120px;flex-shrink:0">
           <div class="label" style="margin-bottom:3px">SPX</div>
           <div style="display:flex;height:30px">
             <span style="display:flex;align-items:center;padding:0 5px;background:var(--panelAlt);border:1px solid var(--borderBright);border-right:none;color:var(--textDim);font-size:10px">$</span>
@@ -336,7 +336,7 @@ input, select, button, textarea { font-family: 'IBM Plex Mono', monospace; outli
           </div>
         </div>
         <!-- VIX -->
-        <div style="width:70px;flex-shrink:0">
+        <div style="width:80px;flex-shrink:0">
           <div class="label" style="margin-bottom:3px">VIX</div>
           <div style="display:flex;height:30px">
             <span style="display:flex;align-items:center;padding:0 5px;background:var(--panelAlt);border:1px solid var(--borderBright);border-right:none;color:var(--textDim);font-size:10px">V</span>
@@ -344,14 +344,14 @@ input, select, button, textarea { font-family: 'IBM Plex Mono', monospace; outli
           </div>
         </div>
         <!-- 200DMA -->
-        <div style="width:100px;flex-shrink:0">
+        <div style="width:120px;flex-shrink:0">
           <div class="label" style="margin-bottom:3px">DMA</div>
           <div style="display:flex;height:30px">
             <input id="dma200Input" type="number" value="" placeholder="6621" style="width:100%;background:var(--panelAlt);border:1px solid var(--borderBright);color:var(--white);padding:0 6px;font-size:12px;font-weight:700;height:100%;box-sizing:border-box;min-width:0" onkeydown="if(event.key==='Enter'){state.dma200=parseFloat(this.value)||0;localStorage.setItem('spx_dma200',state.dma200);}" onchange="state.dma200=parseFloat(this.value)||0;localStorage.setItem('spx_dma200',state.dma200);">
           </div>
         </div>
         <!-- WIDTH -->
-        <div style="width:70px;flex-shrink:0">
+        <div style="width:80px;flex-shrink:0">
           <div class="label" style="margin-bottom:3px">W</div>
           <select id="widthSelect" style="width:100%;background:var(--panelAlt);border:1px solid var(--borderBright);color:var(--white);padding:0 4px;font-size:11px;font-weight:700;height:30px;cursor:pointer;box-sizing:border-box">
             <option value="10">10</option>
@@ -363,7 +363,7 @@ input, select, button, textarea { font-family: 'IBM Plex Mono', monospace; outli
         <!-- divider -->
         <div style="width:1px;height:30px;background:var(--border);flex-shrink:0"></div>
         <!-- MODE/STRATEGY -->
-        <div style="flex:1;min-width:180px">
+        <div style="width:160px;flex-shrink:0">
           <div class="label" style="margin-bottom:3px">MODE / STRATEGY</div>
           <div style="display:flex;height:30px" id="modeStratRow">
             <button class="mode-btn active" data-mode="morning" style="flex:1;border:none;cursor:pointer;font-size:9px;font-family:'IBM Plex Mono',monospace;background:rgba(240,180,41,0.15);color:var(--gold);border-top:1px solid var(--borderBright);border-left:1px solid var(--borderBright);border-right:1px solid var(--borderBright);border-bottom:2px solid var(--gold)" onclick="setMode('morning')">MORN</button>
@@ -376,7 +376,7 @@ input, select, button, textarea { font-family: 'IBM Plex Mono', monospace; outli
           </div>
         </div>
         <!-- BIAS -->
-        <div style="min-width:120px">
+        <div style="width:140px;flex-shrink:0">
           <div class="label" style="margin-bottom:3px">BIAS</div>
           <div style="display:flex;height:30px" id="biasButtons">
             <button class="bias-btn" data-bias="bull" onclick="setBias('bull')" style="flex:1;border:none;cursor:pointer;font-size:9px;font-family:'IBM Plex Mono',monospace;background:var(--panelAlt);color:var(--textDim);border-bottom:2px solid var(--border);border-top:1px solid var(--borderBright);border-left:1px solid var(--borderBright);border-right:1px solid var(--borderBright)">&#8593;B</button>
@@ -387,7 +387,7 @@ input, select, button, textarea { font-family: 'IBM Plex Mono', monospace; outli
         <!-- SCAN -->
         <div>
           <div class="label" style="margin-bottom:3px">&nbsp;</div>
-          <button id="setupBtn" onclick="todaysSetup()" style="padding:0 28px;font-size:10px;font-weight:700;font-family:'IBM Plex Mono',monospace;letter-spacing:1.5px;cursor:pointer;border:1px solid var(--cyan);background:rgba(0,229,255,0.08);color:var(--cyan);height:30px;white-space:nowrap">SCAN</button>
+          <button id="setupBtn" onclick="todaysSetup()" style="padding:0 36px;font-size:10px;font-weight:700;font-family:'IBM Plex Mono',monospace;letter-spacing:1.5px;cursor:pointer;border:1px solid var(--cyan);background:rgba(0,229,255,0.08);color:var(--cyan);height:30px;white-space:nowrap">SCAN</button>
         </div>
       </div>
       <div id="scanInfo" style="font-size:9px;color:var(--textDim);margin-top:4px">Enter SPX &amp; VIX then press SCAN</div>
