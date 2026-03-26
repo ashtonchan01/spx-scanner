@@ -2528,17 +2528,37 @@ function renderCalendarMonth() {
     </div>`;
   }
 
+  // Build trade lookup by date
+  const tradeLookup = {};
+  (traderData.trades || []).forEach(t => {
+    if (!t.date) return;
+    if (!tradeLookup[t.date]) tradeLookup[t.date] = { total: 0, trades: [] };
+    tradeLookup[t.date].total += (t.result || 0);
+    tradeLookup[t.date].trades.push(t);
+  });
+
   // Current month
   for (let d = 1; d <= daysInMonth; d++) {
     const dt = new Date(calViewYear, calViewMonth, d);
     const isToday = isThisMonth && d === today.getDate();
     const isWeekend = dt.getDay() === 0 || dt.getDay() === 6;
     const evts = getEventsForDate(calViewYear, calViewMonth, d).filter(e => e.name !== 'SPX 0DTE Expiry');
+    const dateKey = `${calViewYear}-${String(calViewMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const dayTrade = tradeLookup[dateKey];
+    const hasTrade = dayTrade && dayTrade.trades.length > 0;
+    const dayPnl = hasTrade ? dayTrade.total : 0;
+    const isWin = dayPnl > 0;
+    const isLoss = dayPnl < 0;
+    const tradeBg = isWin ? 'rgba(0,230,118,0.12)' : isLoss ? 'rgba(255,82,82,0.12)' : '';
+    const tradeBorder = isWin ? 'border-left:3px solid var(--green)' : isLoss ? 'border-left:3px solid var(--red)' : '';
+    const cellStyle = [tradeBg ? `background:${tradeBg}` : '', tradeBorder, evts.length || hasTrade ? 'cursor:pointer' : ''].filter(Boolean).join(';');
 
-    html += `<div class="cal-day-cell ${isToday?'today':''} ${isWeekend?'weekend':''}" ${evts.length ? `onclick="showDayDetail(${calViewYear},${calViewMonth},${d})"` : ''} ${evts.length ? 'style="cursor:pointer"' : ''}>
+    html += `<div class="cal-day-cell ${isToday?'today':''} ${isWeekend?'weekend':''}" ${evts.length ? `onclick="showDayDetail(${calViewYear},${calViewMonth},${d})"` : ''} style="${cellStyle}">
       <div class="cal-day-num">${d}</div>
-      ${evts.slice(0,3).map(e => `<div class="cal-event ${e.impact}">${e.name}</div>`).join('')}
-      ${evts.length > 3 ? `<div style="font-size:8px;color:var(--textDim)">+${evts.length-3} more</div>` : ''}
+      ${hasTrade ? `<div style="font-size:11px;font-weight:700;color:${isWin?'var(--green)':'var(--red)'};margin:2px 0;font-family:'IBM Plex Mono',monospace">${isWin?'+':''}$${dayPnl.toFixed(0)}</div>
+      <div style="font-size:8px;color:var(--textDim)">${dayTrade.trades.length} trade${dayTrade.trades.length>1?'s':''}</div>` : ''}
+      ${evts.slice(0,2).map(e => `<div class="cal-event ${e.impact}">${e.name}</div>`).join('')}
+      ${evts.length > 2 ? `<div style="font-size:8px;color:var(--textDim)">+${evts.length-2} more</div>` : ''}
     </div>`;
   }
 
