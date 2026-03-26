@@ -2553,10 +2553,10 @@ function renderCalendarMonth() {
     const tradeBorder = isWin ? 'border-left:3px solid var(--green)' : isLoss ? 'border-left:3px solid var(--red)' : '';
     const cellStyle = [tradeBg ? `background:${tradeBg}` : '', tradeBorder, evts.length || hasTrade ? 'cursor:pointer' : ''].filter(Boolean).join(';');
 
-    html += `<div class="cal-day-cell ${isToday?'today':''} ${isWeekend?'weekend':''}" ${evts.length ? `onclick="showDayDetail(${calViewYear},${calViewMonth},${d})"` : ''} style="${cellStyle}">
+    html += `<div class="cal-day-cell ${isToday?'today':''} ${isWeekend?'weekend':''}" ${evts.length ? `onclick="showDayDetail(${calViewYear},${calViewMonth},${d})"` : ''} style="position:relative;${cellStyle}">
       <div class="cal-day-num">${d}</div>
-      ${hasTrade ? `<div style="font-size:11px;font-weight:700;color:${isWin?'var(--green)':'var(--red)'};margin:2px 0;font-family:'IBM Plex Mono',monospace">${isWin?'+':''}$${dayPnl.toFixed(0)}</div>
-      <div style="font-size:8px;color:var(--textDim)">${dayTrade.trades.length} trade${dayTrade.trades.length>1?'s':''}</div>` : ''}
+      ${hasTrade ? `<div style="position:absolute;top:4px;right:6px;font-size:14px;font-weight:700;color:${isWin?'var(--green)':'var(--red)'};font-family:'IBM Plex Mono',monospace">${isWin?'+':''}$${dayPnl.toFixed(0)}</div>
+      <div style="font-size:8px;color:var(--textDim);margin-top:2px">${dayTrade.trades.length} trade${dayTrade.trades.length>1?'s':''}</div>` : ''}
       ${evts.slice(0,2).map(e => `<div class="cal-event ${e.impact}">${e.name}</div>`).join('')}
       ${evts.length > 2 ? `<div style="font-size:8px;color:var(--textDim)">+${evts.length-2} more</div>` : ''}
     </div>`;
