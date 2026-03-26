@@ -315,7 +315,7 @@ input, select, button, textarea { font-family: 'IBM Plex Mono', monospace; outli
 <div id="orderPanel" style="margin-bottom:8px"></div>
 
 <!-- INPUT + MARKET ANALYSIS GRID (side by side after scan) -->
-<div id="inputMarketGrid" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+<div id="inputMarketGrid" style="margin-bottom:8px">
   <!-- LEFT: INPUT PANEL -->
   <div id="inputPanel" class="panel flash" style="padding:12px 16px;border-width:2px">
     <div id="inputSummary" style="display:none;cursor:pointer;align-items:center;justify-content:space-between;padding:4px 0" onclick="toggleInputs()">
@@ -389,11 +389,6 @@ input, select, button, textarea { font-family: 'IBM Plex Mono', monospace; outli
     </div>
   </div>
 
-  <!-- RIGHT: MARKET ANALYSIS (populated by scan) -->
-  <div id="marketAnalysisPanel" class="panel" style="padding:12px 16px">
-    <div style="font-size:10px;color:var(--textDim);letter-spacing:2px">MARKET ANALYSIS</div>
-    <div style="font-size:11px;color:var(--textDim);margin-top:20px;text-align:center">Press SCAN to analyze</div>
-  </div>
 </div>
 
 <!-- Scanner output panels -->
@@ -1697,22 +1692,7 @@ function scan() {
   }
   document.getElementById('orderPanel').innerHTML = bannerHtml;
 
-  // Market analysis panel
-  document.getElementById('marketAnalysisPanel').innerHTML = `
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-      <div style="font-size:10px;color:var(--textDim);letter-spacing:2px">MARKET ANALYSIS</div>
-      <div style="display:flex;align-items:center;gap:6px">
-        <span style="font-size:9px;padding:2px 8px;border:1px solid ${regime.color};color:${regime.color};font-weight:700">${regime.level}</span>
-        <span style="font-size:9px;padding:2px 8px;border:1px solid ${isBearish ? 'var(--red)' : isBullish ? 'var(--green)' : 'var(--cyan)'};color:${isBearish ? 'var(--red)' : isBullish ? 'var(--green)' : 'var(--cyan)'};font-weight:700">${isBearish ? '\u2193 BEAR' : isBullish ? '\u2191 BULL' : '\u2192 NEUT'}</span>
-      </div>
-    </div>
-    <div style="display:grid;grid-template-columns:repeat(${Math.min(regimeItems.length, 3)},1fr);gap:4px;margin-bottom:6px">
-      ${regimeItems.slice(0, 3).map(function(s) { return '<div style="border:1px solid var(--border);padding:6px 8px;text-align:center"><div style="font-size:8px;color:var(--textDim);letter-spacing:1px;margin-bottom:1px">' + s.l + '</div><div class="chakra" style="font-size:14px;font-weight:700;color:' + s.c + '">' + s.v + '</div></div>'; }).join('')}
-    </div>
-    ${regimeItems.length > 3 ? '<div style="display:grid;grid-template-columns:repeat(' + (regimeItems.length - 3) + ',1fr);gap:4px;margin-bottom:6px">' + regimeItems.slice(3).map(function(s) { return '<div style="border:1px solid var(--border);padding:6px 8px;text-align:center"><div style="font-size:8px;color:var(--textDim);letter-spacing:1px;margin-bottom:1px">' + s.l + '</div><div class="chakra" style="font-size:14px;font-weight:700;color:' + s.c + '">' + s.v + '</div></div>'; }).join('') + '</div>' : ''}
-    ${state.reasoning.length > 0 ? '<div style="display:flex;flex-direction:column;gap:4px">' + state.reasoning.map(function(r) { return '<div style="border:1px solid ' + (r.bullish ? 'rgba(0,208,132,0.3)' : 'rgba(255,71,87,0.3)') + ';padding:5px 8px;display:flex;align-items:flex-start;gap:6px;background:' + (r.bullish ? 'rgba(0,208,132,0.04)' : 'rgba(255,71,87,0.04)') + '">' + '<span style="font-size:12px;flex-shrink:0">' + r.icon + '</span>' + '<span style="font-size:11px;color:var(--text);flex:1">' + r.text + '</span>' + '<span style="font-size:11px;font-weight:700;color:' + (r.bullish ? 'var(--green)' : 'var(--red)') + '">' + (r.bullish ? '\u2191' : '\u2193') + '</span>' + '</div>'; }).join('') + '</div>' : ''}
-    ${state.prevHigh ? '<div style="margin-top:4px;padding-top:4px;border-top:1px solid var(--border);font-size:9px;color:var(--textDim)">\uD83D\uDD11 Prev ' + state.prevLow.toFixed(0) + '-' + state.prevHigh.toFixed(0) + (state.pivot ? ' \u00B7 P ' + state.pivot.toFixed(0) + ' \u00B7 S1 ' + state.s1.toFixed(0) + ' \u00B7 R1 ' + state.r1.toFixed(0) : '') + (state.weeklyLow ? ' \u00B7 Wk ' + state.weeklyLow.toFixed(0) + '-' + state.weeklyHigh.toFixed(0) : '') + '</div>' : ''}
-  `;
+  // Market analysis now on dedicated ANALYSIS tab
 
   // ── DELTA TABLE ──
   const activeColor = useIC ? 'var(--cyan)' : useCall ? 'var(--orange)' : 'var(--green)';
