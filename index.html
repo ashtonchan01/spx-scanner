@@ -152,6 +152,7 @@ input, select, button, textarea { font-family: 'IBM Plex Mono', monospace; outli
   .top-bar { grid-template-columns: 1fr; gap: 8px; }
   .regime-strip { grid-template-columns: 1fr 1fr; gap: 4px; }
   .stat-card .stat-value { font-size: 20px; }
+  .analysis-grid { grid-template-columns: repeat(3, 1fr) !important; }
 }
 
 /* ── MOBILE (<768px) ── */
@@ -238,6 +239,7 @@ input, select, button, textarea { font-family: 'IBM Plex Mono', monospace; outli
 /* ── SMALL PHONE (<480px) ── */
 @media (max-width: 480px) {
   .container { padding: 6px 8px; }
+  .analysis-grid { grid-template-columns: repeat(2, 1fr) !important; }
 
   .tab-btn { padding: 8px 10px; font-size: 9px; }
 
@@ -290,6 +292,7 @@ input, select, button, textarea { font-family: 'IBM Plex Mono', monospace; outli
 <div class="tab-bar">
   <button class="tab-btn active" data-tab="dashboard" onclick="switchTab('dashboard')">DASHBOARD</button>
   <button class="tab-btn" data-tab="scanner" onclick="switchTab('scanner')">SCANNER</button>
+  <button class="tab-btn" data-tab="analysis" onclick="switchTab('analysis')">ANALYSIS</button>
   <button class="tab-btn" data-tab="calendar" onclick="switchTab('calendar')">CALENDAR</button>
   <button class="tab-btn" data-tab="phases" onclick="switchTab('phases')">PHASES</button>
   <button class="tab-btn" data-tab="log" onclick="switchTab('log')">LOG TRADES</button>
@@ -402,6 +405,41 @@ input, select, button, textarea { font-family: 'IBM Plex Mono', monospace; outli
 
 <!-- BOTTOM: Income + Phase -->
 <div id="bottomArea"></div>
+</div>
+
+<!-- ============================================================ -->
+<!-- TAB: ANALYSIS -->
+<!-- ============================================================ -->
+<div id="tab-analysis" class="tab-content">
+  <!-- Header + Refresh -->
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+    <div>
+      <div class="chakra" style="font-size:22px;font-weight:700;color:var(--white)">MARKET ANALYSIS</div>
+      <div id="analysis-timestamp" style="font-size:10px;color:var(--textDim);margin-top:2px">No data — press REFRESH DATA</div>
+    </div>
+    <button id="analysisRefreshBtn" onclick="refreshAnalysis()" style="padding:8px 20px;background:transparent;border:1px solid var(--cyan);color:var(--cyan);font-size:11px;font-weight:700;letter-spacing:1.5px;cursor:pointer;font-family:'IBM Plex Mono',monospace">REFRESH DATA</button>
+  </div>
+
+  <!-- A: Market Dashboard -->
+  <div id="analysis-market-grid" class="analysis-grid" style="display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin-bottom:16px"></div>
+
+  <!-- B: Key Levels -->
+  <div id="analysis-levels" style="border:1px solid var(--border);padding:16px;margin-bottom:12px"></div>
+
+  <!-- C: Regime & Signals -->
+  <div id="analysis-regime" style="border:1px solid var(--border);padding:16px;margin-bottom:12px"></div>
+
+  <!-- D: Trade Verdict -->
+  <div id="analysis-verdict" style="border:1px solid var(--border);padding:16px;margin-bottom:12px"></div>
+
+  <!-- E: Notes -->
+  <div style="border:1px solid var(--border);padding:16px">
+    <div style="font-size:9px;color:var(--textDim);letter-spacing:1.5px;margin-bottom:8px">NOTES — CATALYSTS / NEWS / OBSERVATIONS</div>
+    <textarea id="analysis-notes" style="width:100%;min-height:100px;background:var(--panelAlt);border:1px solid var(--borderBright);color:var(--white);padding:10px;font-size:12px;font-family:'IBM Plex Mono',monospace;resize:vertical;box-sizing:border-box" placeholder="Economic data, news headlines, Fed remarks, geopolitical events..."></textarea>
+    <div style="display:flex;justify-content:flex-end;margin-top:6px">
+      <button onclick="saveAnalysisNotes()" style="padding:4px 12px;background:transparent;border:1px solid var(--green);color:var(--green);font-size:9px;font-weight:700;letter-spacing:1px;cursor:pointer;font-family:'IBM Plex Mono',monospace">SAVE NOTES</button>
+    </div>
+  </div>
 </div>
 
 <!-- ============================================================ -->
@@ -1044,6 +1082,7 @@ function switchTab(tab) {
   if (tab === 'phases') renderPhases();
   if (tab === 'log') renderTradeHistory();
   if (tab === 'settings') renderSettings();
+  if (tab === 'analysis') { maybeRefreshAnalysis(); renderAnalysis(); }
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -1065,6 +1104,13 @@ let state = {
   gexProxy: null, // 'positive', 'neutral', 'cautious', 'negative'
   macroRisk: 'clear', // 'clear', 'caution', 'high', 'blackout'
   reasoning: [],
+  // Analysis tab — additional market data
+  tnx: null, tnxChange: null, tnxPrevClose: null,
+  dxy: null, dxyChange: null, dxyPrevClose: null,
+  oil: null, oilChange: null, oilPrevClose: null,
+  esFutures: null, esChange: null, esPrevClose: null,
+  analysisLastFetch: null,
+  _scanDone: false,
 };
 const SLIPPAGE = 0;
 const DELTA_ROWS = [
@@ -1150,10 +1196,14 @@ async function fetchLivePrices() {
   }
 
   try {
-    // Fetch SPX (1yr daily for 200 DMA), VIX intraday in parallel
-    const [spxHistory, vixMeta] = await Promise.all([
+    // Fetch SPX (1yr daily for 200 DMA), VIX, TNX, DXY, Oil, ES in parallel
+    const [spxHistory, vixMeta, tnxMeta, dxyMeta, oilMeta, esMeta] = await Promise.all([
       yahooFetch('^GSPC', '1d', '1y'),
-      yahooFetch('^VIX', '1m', '1d')
+      yahooFetch('^VIX', '1m', '1d'),
+      yahooFetch('^TNX', '1m', '1d'),
+      yahooFetch('DX-Y.NYB', '1m', '1d'),
+      yahooFetch('CL=F', '1m', '1d'),
+      yahooFetch('ES=F', '1m', '1d'),
     ]);
 
     // SPX live price
@@ -1181,6 +1231,32 @@ async function fetchLivePrices() {
       document.getElementById('vixInput').value = vix;
     }
 
+    // TNX (10-Year Treasury Yield) — quoted as index * 10 (e.g. 43.3 = 4.33%)
+    if (tnxMeta?.regularMarketPrice) {
+      state.tnx = parseFloat((tnxMeta.regularMarketPrice / 10).toFixed(3));
+      state.tnxPrevClose = tnxMeta.chartPreviousClose ? parseFloat((tnxMeta.chartPreviousClose / 10).toFixed(3)) : null;
+      state.tnxChange = state.tnxPrevClose ? parseFloat((state.tnx - state.tnxPrevClose).toFixed(3)) : null;
+    }
+    // DXY (US Dollar Index)
+    if (dxyMeta?.regularMarketPrice) {
+      state.dxy = parseFloat(dxyMeta.regularMarketPrice.toFixed(2));
+      state.dxyPrevClose = dxyMeta.chartPreviousClose ? parseFloat(dxyMeta.chartPreviousClose.toFixed(2)) : null;
+      state.dxyChange = state.dxyPrevClose ? parseFloat((state.dxy - state.dxyPrevClose).toFixed(2)) : null;
+    }
+    // Oil (WTI Crude)
+    if (oilMeta?.regularMarketPrice) {
+      state.oil = parseFloat(oilMeta.regularMarketPrice.toFixed(2));
+      state.oilPrevClose = oilMeta.chartPreviousClose ? parseFloat(oilMeta.chartPreviousClose.toFixed(2)) : null;
+      state.oilChange = state.oilPrevClose ? parseFloat((state.oil - state.oilPrevClose).toFixed(2)) : null;
+    }
+    // ES Futures
+    if (esMeta?.regularMarketPrice) {
+      state.esFutures = parseFloat(esMeta.regularMarketPrice.toFixed(2));
+      state.esPrevClose = esMeta.chartPreviousClose ? parseFloat(esMeta.chartPreviousClose.toFixed(2)) : null;
+      state.esChange = state.esPrevClose ? parseFloat((state.esFutures - state.esPrevClose).toFixed(2)) : null;
+    }
+
+    state.analysisLastFetch = Date.now();
     const dmaStr = state.dma200 ? ` · 200DMA ${state.dma200.toLocaleString()}` : '';
     state.lastUpdated = new Date().toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: 'Australia/Sydney' }) + ' AEDT (live)';
     if (scanInfo) scanInfo.innerHTML = `✅ ${state.lastUpdated} · SPX ${state.spx?.toLocaleString()} · VIX ${state.vix}${dmaStr}`;
@@ -3767,6 +3843,244 @@ function runBacktest() {
       });
     }
   }, 100);
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// ANALYSIS TAB
+// ══════════════════════════════════════════════════════════════════════════════
+
+async function refreshAnalysis() {
+  const btn = document.getElementById('analysisRefreshBtn');
+  btn.textContent = 'FETCHING...';
+  btn.disabled = true;
+  try {
+    await fetchLivePrices();
+    fetchPrices();
+    scan();
+    renderAnalysis();
+  } finally {
+    btn.textContent = 'REFRESH DATA';
+    btn.disabled = false;
+  }
+}
+
+function maybeRefreshAnalysis() {
+  const staleMs = 5 * 60 * 1000;
+  if (!state.analysisLastFetch || (Date.now() - state.analysisLastFetch > staleMs)) {
+    refreshAnalysis();
+  }
+}
+
+function renderAnalysis() {
+  // ── A: Market Dashboard Grid ──
+  const mkts = [
+    { label: 'SPX', val: state.spx, chg: state.prevClose ? state.spx - state.prevClose : null, prev: state.prevClose, dec: 2 },
+    { label: 'ES FUTURES', val: state.esFutures, chg: state.esChange, prev: state.esPrevClose, dec: 2 },
+    { label: 'VIX', val: state.vix, chg: null, prev: null, dec: 2, invert: true },
+    { label: 'DXY', val: state.dxy, chg: state.dxyChange, prev: state.dxyPrevClose, dec: 2 },
+    { label: '10Y YIELD', val: state.tnx, chg: state.tnxChange, prev: state.tnxPrevClose, dec: 3, suffix: '%' },
+    { label: 'CRUDE OIL', val: state.oil, chg: state.oilChange, prev: state.oilPrevClose, dec: 2, prefix: '$' },
+  ];
+  const gridEl = document.getElementById('analysis-market-grid');
+  gridEl.innerHTML = mkts.map(m => {
+    if (m.val == null) return `<div style="border:1px solid var(--border);padding:12px;text-align:center">
+      <div style="font-size:8px;color:var(--textDim);letter-spacing:1.5px;margin-bottom:4px">${m.label}</div>
+      <div class="chakra" style="font-size:20px;color:var(--textDim)">--</div>
+    </div>`;
+    const pct = m.prev ? ((m.val - m.prev) / m.prev * 100).toFixed(2) : null;
+    const chgVal = m.chg != null ? m.chg : 0;
+    const isUp = m.invert ? chgVal < 0 : chgVal > 0;
+    const isDown = m.invert ? chgVal > 0 : chgVal < 0;
+    const color = isUp ? 'var(--green)' : isDown ? 'var(--red)' : 'var(--white)';
+    const arrow = isUp ? '▲' : isDown ? '▼' : '';
+    const prefix = m.prefix || '';
+    const suffix = m.suffix || '';
+    const chgStr = m.chg != null ? `<span style="color:${color};font-size:11px">${arrow} ${m.chg > 0 ? '+' : ''}${m.chg.toFixed(m.dec)}${pct ? ' (' + (pct > 0 ? '+' : '') + pct + '%)' : ''}</span>` : '';
+    return `<div style="border:1px solid var(--border);padding:12px;text-align:center">
+      <div style="font-size:8px;color:var(--textDim);letter-spacing:1.5px;margin-bottom:4px">${m.label}</div>
+      <div class="chakra" style="font-size:20px;font-weight:700;color:${color}">${prefix}${m.val.toFixed(m.dec)}${suffix}</div>
+      <div style="margin-top:2px;min-height:16px">${chgStr}</div>
+    </div>`;
+  }).join('');
+
+  // ── B: Key Levels ──
+  const regime = getRegime(state.vix);
+  const dailyMove = Math.round(state.spx * (state.vix / 100) / Math.sqrt(365));
+  const expLow = Math.round(state.spx - dailyMove);
+  const expHigh = Math.round(state.spx + dailyMove);
+  const dmaAbove = state.dma200 > 0 ? state.spx > state.dma200 : null;
+  const dmaDist = state.dma200 > 0 ? Math.round(state.spx - state.dma200) : null;
+
+  const levelsEl = document.getElementById('analysis-levels');
+  const lvls = [];
+  if (state.dma200 > 0) lvls.push({ l: '200 DMA', v: state.dma200.toFixed(0), sub: `${dmaAbove ? '▲' : '▼'} ${Math.abs(dmaDist)}pts ${dmaAbove ? 'above' : 'below'}`, c: dmaAbove ? 'var(--green)' : 'var(--red)' });
+  lvls.push({ l: 'EXP RANGE', v: `${expLow.toLocaleString()} – ${expHigh.toLocaleString()}`, sub: `±${dailyMove}pts (VIX ${state.vix})`, c: 'var(--cyan)' });
+  if (state.prevHigh) lvls.push({ l: 'PREV DAY', v: `${state.prevLow?.toFixed(0)} – ${state.prevHigh?.toFixed(0)}`, sub: `Close ${state.prevClose?.toFixed(0)}`, c: 'var(--textDim)' });
+  if (state.weeklyHigh) lvls.push({ l: 'WEEKLY', v: `${state.weeklyLow?.toFixed(0)} – ${state.weeklyHigh?.toFixed(0)}`, sub: '', c: 'var(--textDim)' });
+
+  const srLvls = [];
+  if (state.pivot) {
+    srLvls.push({ l: 'S2', v: state.s2?.toFixed(0), c: 'var(--red)' });
+    srLvls.push({ l: 'S1', v: state.s1?.toFixed(0), c: 'var(--red)' });
+    srLvls.push({ l: 'PIVOT', v: state.pivot?.toFixed(0), c: 'var(--gold)' });
+    srLvls.push({ l: 'R1', v: state.r1?.toFixed(0), c: 'var(--green)' });
+    srLvls.push({ l: 'R2', v: state.r2?.toFixed(0), c: 'var(--green)' });
+  }
+
+  levelsEl.innerHTML = `
+    <div style="font-size:9px;color:var(--textDim);letter-spacing:1.5px;margin-bottom:10px">KEY LEVELS</div>
+    <div style="display:grid;grid-template-columns:repeat(${Math.min(lvls.length, 4)},1fr);gap:8px;margin-bottom:${srLvls.length ? '12' : '0'}px">
+      ${lvls.map(l => `<div style="border:1px solid var(--border);padding:10px;text-align:center">
+        <div style="font-size:8px;color:var(--textDim);letter-spacing:1px;margin-bottom:2px">${l.l}</div>
+        <div class="chakra" style="font-size:15px;font-weight:700;color:${l.c}">${l.v}</div>
+        ${l.sub ? `<div style="font-size:9px;color:var(--textDim);margin-top:2px">${l.sub}</div>` : ''}
+      </div>`).join('')}
+    </div>
+    ${srLvls.length ? `
+    <div style="font-size:8px;color:var(--textDim);letter-spacing:1px;margin-bottom:6px">SUPPORT / RESISTANCE</div>
+    <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px">
+      ${srLvls.map(s => `<div style="border:1px solid var(--border);padding:8px;text-align:center">
+        <div style="font-size:7px;color:var(--textDim);letter-spacing:1px">${s.l}</div>
+        <div class="chakra" style="font-size:14px;font-weight:700;color:${s.c}">${s.v}</div>
+      </div>`).join('')}
+    </div>` : ''}
+  `;
+
+  // ── C: Regime & Signals ──
+  const regimeEl = document.getElementById('analysis-regime');
+  const isBearish = state.bias === 'bear' || (state.bias === 'neutral' && dmaAbove === false);
+  const isBullish = state.bias === 'bull' || (state.bias === 'neutral' && dmaAbove === true);
+  const biasLabel = isBearish ? '▼ BEAR' : isBullish ? '▲ BULL' : '→ NEUTRAL';
+  const biasColor = isBearish ? 'var(--red)' : isBullish ? 'var(--green)' : 'var(--cyan)';
+
+  const signals = [
+    { l: 'VIX REGIME', v: regime.level, c: regime.color, sub: `${Math.round(regime.size * 100)}% sizing · ${regime.action}` },
+    { l: 'BIAS', v: biasLabel, c: biasColor, sub: dmaAbove != null ? (dmaAbove ? 'Above 200 DMA → puts' : 'Below 200 DMA → calls') : 'Manual bias' },
+    { l: 'EXP MOVE', v: `±${dailyMove}pts`, c: 'var(--gold)', sub: `${(state.vix / Math.sqrt(365) * 100 / 100).toFixed(1)}% daily` },
+  ];
+
+  regimeEl.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+      <div style="font-size:9px;color:var(--textDim);letter-spacing:1.5px">REGIME & SIGNALS</div>
+      <div style="display:flex;gap:6px">
+        <span style="font-size:9px;padding:2px 8px;border:1px solid ${regime.color};color:${regime.color};font-weight:700">${regime.level}</span>
+        <span style="font-size:9px;padding:2px 8px;border:1px solid ${biasColor};color:${biasColor};font-weight:700">${biasLabel}</span>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px">
+      ${signals.map(s => `<div style="border:1px solid var(--border);padding:10px;text-align:center">
+        <div style="font-size:8px;color:var(--textDim);letter-spacing:1px;margin-bottom:2px">${s.l}</div>
+        <div class="chakra" style="font-size:15px;font-weight:700;color:${s.c}">${s.v}</div>
+        <div style="font-size:9px;color:var(--textDim);margin-top:2px">${s.sub}</div>
+      </div>`).join('')}
+    </div>
+    ${state.reasoning.length > 0 ? `
+    <div style="font-size:8px;color:var(--textDim);letter-spacing:1px;margin-bottom:6px">ANALYSIS</div>
+    <div style="display:flex;flex-direction:column;gap:4px">
+      ${state.reasoning.map(r => `<div style="border:1px solid ${r.bullish ? 'rgba(0,208,132,0.3)' : r.bullish === false ? 'rgba(255,71,87,0.3)' : 'rgba(255,255,255,0.1)'};padding:6px 10px;display:flex;align-items:center;gap:8px;background:${r.bullish ? 'rgba(0,208,132,0.04)' : r.bullish === false ? 'rgba(255,71,87,0.04)' : 'rgba(255,255,255,0.02)'}">
+        <span style="font-size:13px;flex-shrink:0">${r.icon}</span>
+        <span style="font-size:11px;color:var(--text);flex:1">${r.text}</span>
+        <span style="font-size:11px;font-weight:700;color:${r.bullish ? 'var(--green)' : r.bullish === false ? 'var(--red)' : 'var(--textDim)'}">${r.bullish ? '▲' : r.bullish === false ? '▼' : '–'}</span>
+      </div>`).join('')}
+    </div>` : '<div style="color:var(--textDim);font-size:11px">Press REFRESH DATA to load analysis</div>'}
+  `;
+
+  // ── D: Trade Verdict ──
+  const verdictEl = document.getElementById('analysis-verdict');
+  const o = state._order;
+  if (!o || !o.recRow) {
+    verdictEl.innerHTML = `
+      <div style="font-size:9px;color:var(--textDim);letter-spacing:1.5px;margin-bottom:10px">TRADE VERDICT</div>
+      <div style="color:var(--textDim);font-size:12px;text-align:center;padding:20px">Press REFRESH DATA to generate trade recommendation</div>
+    `;
+  } else {
+    const phase = getPhase(traderData.currentCapital);
+    const phaseLabel = `Phase ${phase.id}: ${phase.name}`;
+    verdictEl.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <div style="font-size:9px;color:var(--textDim);letter-spacing:1.5px">TRADE VERDICT</div>
+        <div style="display:flex;gap:6px;align-items:center">
+          <span class="chakra" style="font-size:22px;font-weight:900;color:${o.convColor}">${o.conviction}</span>
+          <span style="font-size:9px;color:var(--textDim)">${o.convLabel}</span>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;padding:10px;border:1px solid ${o.orderColor};background:${o.orderColor}11">
+        <span style="font-size:20px">${o.orderIcon}</span>
+        <span class="chakra" style="font-size:16px;font-weight:700;color:${o.orderColor}">${o.orderType}</span>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px">
+        <div style="border:1px solid var(--border);padding:8px;text-align:center">
+          <div style="font-size:7px;color:var(--textDim);letter-spacing:1px">DELTA</div>
+          <div class="chakra" style="font-size:14px;font-weight:700;color:var(--cyan)">Δ${o.recDelta}</div>
+        </div>
+        <div style="border:1px solid var(--border);padding:8px;text-align:center">
+          <div style="font-size:7px;color:var(--textDim);letter-spacing:1px">WIDTH</div>
+          <div class="chakra" style="font-size:14px;font-weight:700;color:var(--white)">${state.width}pt</div>
+        </div>
+        <div style="border:1px solid var(--border);padding:8px;text-align:center">
+          <div style="font-size:7px;color:var(--textDim);letter-spacing:1px">SIZE</div>
+          <div class="chakra" style="font-size:14px;font-weight:700;color:var(--white)">${o.adjContracts}ct</div>
+        </div>
+        <div style="border:1px solid var(--border);padding:8px;text-align:center">
+          <div style="font-size:7px;color:var(--textDim);letter-spacing:1px">CREDIT</div>
+          <div class="chakra" style="font-size:14px;font-weight:700;color:var(--green)">$${o.orderCredit?.toFixed(2)}</div>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:12px">
+        <div style="border:1px solid var(--border);padding:8px">
+          <div style="font-size:7px;color:var(--textDim);letter-spacing:1px;margin-bottom:4px">STRIKES</div>
+          <div style="font-size:12px;color:var(--white)">
+            ${o.useIC ? `Put: ${o.recRow.sP}/${o.recRow.lP} · Call: ${o.recRow.sC}/${o.recRow.lC}` : o.useCall ? `Sell ${o.recRow.sC} / Buy ${o.recRow.lC}` : `Sell ${o.recRow.sP} / Buy ${o.recRow.lP}`}
+          </div>
+        </div>
+        <div style="border:1px solid var(--border);padding:8px">
+          <div style="font-size:7px;color:var(--textDim);letter-spacing:1px;margin-bottom:4px">INCOME</div>
+          <div style="font-size:12px;color:var(--green)">$${o.adjIncome?.toFixed(0)} (${o.adjContracts}ct × $${o.orderCredit?.toFixed(2)} × 100)</div>
+        </div>
+      </div>
+      <div style="border:1px solid var(--border);padding:8px;margin-bottom:8px">
+        <div style="font-size:7px;color:var(--textDim);letter-spacing:1px;margin-bottom:4px">STOP LEVELS</div>
+        <div style="font-size:11px;color:var(--white);line-height:1.6">
+          ${o.stopInfo ? `<div>Early (0-2hr): <span style="color:var(--gold)">2× $${o.stopInfo.stopSpreadVal}</span></div>
+          <div>Late (2hr+): <span style="color:var(--orange)">1.5× $${(o.orderCredit * 1.5).toFixed(2)}</span></div>
+          <div>Emergency: <span style="color:var(--red)">3× $${o.stopInfo.emergencyStop}</span> · Max loss $${o.stopInfo.maxLoss}</div>` : '—'}
+        </div>
+      </div>
+      <div style="display:flex;gap:8px">
+        <div style="flex:1;border:1px solid var(--border);padding:8px">
+          <div style="font-size:7px;color:var(--textDim);letter-spacing:1px;margin-bottom:2px">SESSION</div>
+          <div style="font-size:11px;color:${o.sessionColor}">${o.sessionStatus}</div>
+        </div>
+        <div style="flex:1;border:1px solid var(--border);padding:8px">
+          <div style="font-size:7px;color:var(--textDim);letter-spacing:1px;margin-bottom:2px">PHASE</div>
+          <div style="font-size:11px;color:var(--white)">${phaseLabel}</div>
+        </div>
+      </div>
+    `;
+  }
+
+  // ── Timestamp ──
+  const ts = document.getElementById('analysis-timestamp');
+  if (state.lastUpdated) {
+    ts.textContent = 'Last updated: ' + state.lastUpdated;
+  }
+
+  // ── Load notes ──
+  const notesEl = document.getElementById('analysis-notes');
+  const saved = localStorage.getItem('spx_analysis_notes');
+  if (saved && !notesEl._loaded) {
+    notesEl.value = saved;
+    notesEl._loaded = true;
+  }
+}
+
+function saveAnalysisNotes() {
+  localStorage.setItem('spx_analysis_notes', document.getElementById('analysis-notes').value);
+  const btn = event.target;
+  const orig = btn.textContent;
+  btn.textContent = 'SAVED ✓';
+  btn.style.borderColor = 'var(--green)';
+  setTimeout(() => { btn.textContent = orig; }, 1500);
 }
 
 // Update stop description on mode change
