@@ -1174,7 +1174,7 @@ async function fetchLivePrices() {
   const PROXY = 'https://corsproxy.io/?';
 
   async function yahooFetch(ticker, interval = '1m', range = '1d') {
-    const url = `${YAHOO}${encodeURIComponent(ticker)}?interval=${interval}&range=${range}`;
+    const url = `${YAHOO}${encodeURIComponent(ticker)}?interval=${interval}&range=${range}&_t=${Date.now()}`;
     // Always use corsproxy first (direct Yahoo fetch blocked by CORS on GitHub Pages)
     const proxied = `${PROXY}${encodeURIComponent(url)}`;
     for (const base of [proxied, url]) {
