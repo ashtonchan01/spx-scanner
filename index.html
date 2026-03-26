@@ -1540,8 +1540,7 @@ function scan() {
   regimeItems.push({ l:'MACRO', v:macroLabelsShort[state.macroRisk], c: macroColors[state.macroRisk] });
   const expLow = Math.round(state.spx - dailyMove);
   const expHigh = Math.round(state.spx + dailyMove);
-  regimeItems.push({ l:'EXP LOW', v:expLow.toLocaleString(), c:'var(--red)' });
-  regimeItems.push({ l:'EXP HIGH', v:expHigh.toLocaleString(), c:'var(--green)' });
+  regimeItems.push({ l:'EXP RANGE', v:`${expLow.toLocaleString()} – ${expHigh.toLocaleString()}`, c:'var(--cyan)' });
 
   // ── LIVE PRICE RESOLUTION ──
   const liveP = null, liveC = null;
