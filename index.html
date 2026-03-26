@@ -363,7 +363,7 @@ input, select, button, textarea { font-family: 'IBM Plex Mono', monospace; outli
         <!-- divider -->
         <div style="width:1px;height:30px;background:var(--border);flex-shrink:0"></div>
         <!-- MODE/STRATEGY -->
-        <div style="width:160px;flex-shrink:0">
+        <div style="flex:2;min-width:140px">
           <div class="label" style="margin-bottom:3px">MODE / STRATEGY</div>
           <div style="display:flex;height:30px" id="modeStratRow">
             <button class="mode-btn active" data-mode="morning" style="flex:1;border:none;cursor:pointer;font-size:9px;font-family:'IBM Plex Mono',monospace;background:rgba(240,180,41,0.15);color:var(--gold);border-top:1px solid var(--borderBright);border-left:1px solid var(--borderBright);border-right:1px solid var(--borderBright);border-bottom:2px solid var(--gold)" onclick="setMode('morning')">MORN</button>
@@ -376,7 +376,7 @@ input, select, button, textarea { font-family: 'IBM Plex Mono', monospace; outli
           </div>
         </div>
         <!-- BIAS -->
-        <div style="width:140px;flex-shrink:0">
+        <div style="flex:1;min-width:100px">
           <div class="label" style="margin-bottom:3px">BIAS</div>
           <div style="display:flex;height:30px" id="biasButtons">
             <button class="bias-btn" data-bias="bull" onclick="setBias('bull')" style="flex:1;border:none;cursor:pointer;font-size:9px;font-family:'IBM Plex Mono',monospace;background:var(--panelAlt);color:var(--textDim);border-bottom:2px solid var(--border);border-top:1px solid var(--borderBright);border-left:1px solid var(--borderBright);border-right:1px solid var(--borderBright)">&#8593;B</button>
@@ -385,7 +385,7 @@ input, select, button, textarea { font-family: 'IBM Plex Mono', monospace; outli
           </div>
         </div>
         <!-- SCAN -->
-        <div>
+        <div style="flex-shrink:0">
           <div class="label" style="margin-bottom:3px">&nbsp;</div>
           <button id="setupBtn" onclick="todaysSetup()" style="padding:0 36px;font-size:10px;font-weight:700;font-family:'IBM Plex Mono',monospace;letter-spacing:1.5px;cursor:pointer;border:1px solid var(--cyan);background:rgba(0,229,255,0.08);color:var(--cyan);height:30px;white-space:nowrap">SCAN</button>
         </div>
