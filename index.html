@@ -432,7 +432,13 @@ input, select, button, textarea { font-family: 'IBM Plex Mono', monospace; outli
   <!-- D: Trade Verdict -->
   <div id="analysis-verdict" style="border:1px solid var(--border);padding:16px;margin-bottom:12px"></div>
 
-  <!-- E: Notes -->
+  <!-- E: Market Headlines -->
+  <div id="analysis-news" style="border:1px solid var(--border);padding:16px;margin-bottom:12px">
+    <div style="font-size:9px;color:var(--textDim);letter-spacing:1.5px">MARKET HEADLINES</div>
+    <div style="color:var(--textDim);font-size:11px;margin-top:8px">Press REFRESH DATA to load headlines</div>
+  </div>
+
+  <!-- F: Notes -->
   <div style="border:1px solid var(--border);padding:16px">
     <div style="font-size:9px;color:var(--textDim);letter-spacing:1.5px;margin-bottom:8px">NOTES — CATALYSTS / NEWS / OBSERVATIONS</div>
     <textarea id="analysis-notes" style="width:100%;min-height:100px;background:var(--panelAlt);border:1px solid var(--borderBright);color:var(--white);padding:10px;font-size:12px;font-family:'IBM Plex Mono',monospace;resize:vertical;box-sizing:border-box" placeholder="Economic data, news headlines, Fed remarks, geopolitical events..."></textarea>
@@ -1195,15 +1201,32 @@ async function fetchLivePrices() {
     return null;
   }
 
+  async function fetchMarketNews() {
+    try {
+      const newsUrl = `https://query1.finance.yahoo.com/v1/finance/search?q=stock%20market%20today%20S%26P%20500&quotesCount=0&newsCount=10&enableFuzzyQuery=false&_t=${Date.now()}`;
+      const proxied = `${PROXY}${encodeURIComponent(newsUrl)}`;
+      for (const base of [proxied, newsUrl]) {
+        try {
+          const r = await fetch(base, { signal: AbortSignal.timeout(10000) });
+          if (!r.ok) continue;
+          const d = await r.json();
+          if (d?.news?.length) return d.news;
+        } catch {}
+      }
+    } catch {}
+    return null;
+  }
+
   try {
     // Fetch SPX (1yr daily for 200 DMA), VIX, TNX, DXY, Oil, ES in parallel
-    const [spxHistory, vixMeta, tnxMeta, dxyMeta, oilMeta, esMeta] = await Promise.all([
+    const [spxHistory, vixMeta, tnxMeta, dxyMeta, oilMeta, esMeta, newsData] = await Promise.all([
       yahooFetch('^GSPC', '1d', '1y'),
       yahooFetch('^VIX', '1m', '1d'),
       yahooFetch('^TNX', '1m', '1d'),
       yahooFetch('DX-Y.NYB', '1m', '1d'),
       yahooFetch('CL=F', '1m', '1d'),
       yahooFetch('ES=F', '1m', '1d'),
+      fetchMarketNews(),
     ]);
 
     // SPX live price
@@ -1255,6 +1278,9 @@ async function fetchLivePrices() {
       state.esPrevClose = esMeta.chartPreviousClose ? parseFloat(esMeta.chartPreviousClose.toFixed(2)) : null;
       state.esChange = state.esPrevClose ? parseFloat((state.esFutures - state.esPrevClose).toFixed(2)) : null;
     }
+
+    // Store news headlines
+    if (newsData?.length) state.newsHeadlines = newsData;
 
     state.analysisLastFetch = Date.now();
     const dmaStr = state.dma200 ? ` · 200DMA ${state.dma200.toLocaleString()}` : '';
@@ -4060,6 +4086,30 @@ function renderAnalysis() {
           <div style="font-size:7px;color:var(--textDim);letter-spacing:1px;margin-bottom:2px">PHASE</div>
           <div style="font-size:11px;color:var(--white)">${phaseLabel}</div>
         </div>
+      </div>
+    `;
+  }
+
+  // ── E: Market Headlines ──
+  const newsEl = document.getElementById('analysis-news');
+  if (state.newsHeadlines?.length) {
+    const now = Math.floor(Date.now() / 1000);
+    newsEl.innerHTML = `
+      <div style="font-size:9px;color:var(--textDim);letter-spacing:1.5px;margin-bottom:10px">MARKET HEADLINES</div>
+      <div style="display:flex;flex-direction:column;gap:6px">
+        ${state.newsHeadlines.slice(0, 8).map(n => {
+          const ago = now - (n.providerPublishTime || 0);
+          const hrs = Math.floor(ago / 3600);
+          const mins = Math.floor(ago / 60);
+          const timeStr = hrs >= 24 ? Math.floor(hrs / 24) + 'd ago' : hrs >= 1 ? hrs + 'h ago' : mins + 'm ago';
+          return `<a href="${n.link}" target="_blank" rel="noopener" style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;padding:8px 10px;border:1px solid var(--border);text-decoration:none;background:rgba(255,255,255,0.02);transition:background 0.2s" onmouseover="this.style.background='rgba(255,255,255,0.06)'" onmouseout="this.style.background='rgba(255,255,255,0.02)'">
+            <div style="flex:1;min-width:0">
+              <div style="font-size:12px;color:var(--white);line-height:1.4;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical">${n.title}</div>
+              <div style="font-size:9px;color:var(--textDim);margin-top:3px">${n.publisher || ''}</div>
+            </div>
+            <div style="font-size:9px;color:var(--textDim);white-space:nowrap;flex-shrink:0;margin-top:2px">${timeStr}</div>
+          </a>`;
+        }).join('')}
       </div>
     `;
   }
