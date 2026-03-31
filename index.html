@@ -1068,11 +1068,11 @@ function findStrike(S, iv, T, targetDelta, type) {
 }
 function getRegime(vix) {
   if (vix >= 40) return { level: 'CRISIS', color: '#FF4757', size: 0, action: 'DO NOT TRADE', ic: false };
-  if (vix >= 30) return { level: 'VERY HIGH', color: '#FF4757', size: 0.25, action: 'PUT ONLY - 25%', ic: false };
-  if (vix >= 25) return { level: 'HIGH', color: '#FF6B35', size: 0.50, action: 'PUT ONLY - 50%', ic: false };
-  if (vix >= 20) return { level: 'ELEVATED', color: '#F0B429', size: 0.75, action: 'PUT/IC - 75%', ic: true };
-  if (vix >= 15) return { level: 'NORMAL', color: '#00D084', size: 1.00, action: 'ALL - 100%', ic: true };
-  return { level: 'LOW', color: '#00D084', size: 1.00, action: 'IC PREF - 100%', ic: true };
+  if (vix >= 30) return { level: 'VERY HIGH', color: '#FF4757', size: 0.25, action: 'directional only, 25% size', ic: false };
+  if (vix >= 25) return { level: 'HIGH', color: '#FF6B35', size: 0.50, action: 'directional only, 50% size', ic: false };
+  if (vix >= 20) return { level: 'ELEVATED', color: '#F0B429', size: 0.75, action: 'directional or IC, 75% size', ic: true };
+  if (vix >= 15) return { level: 'NORMAL', color: '#00D084', size: 1.00, action: 'all strategies, 100% size', ic: true };
+  return { level: 'LOW', color: '#00D084', size: 1.00, action: 'IC preferred, 100% size', ic: true };
 }
 const f2 = n => (n || 0).toFixed(2);
 const fmt$ = (n, dec=0) => n < 0 ? `-$${Math.abs(n).toFixed(dec)}` : `$${Number(n).toFixed(dec)}`;
