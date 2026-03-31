@@ -1125,6 +1125,10 @@ async function fetchLivePrices() {
       const price = parseFloat(spxHistory.regularMarketPrice.toFixed(2));
       state.spx = price;
       state.spxOpen = spxHistory.chartPreviousClose || price;
+      // Use Yahoo's previous close for accurate daily change (HIST_DATA may be stale)
+      if (spxHistory.chartPreviousClose) {
+        state.prevClose = parseFloat(spxHistory.chartPreviousClose.toFixed(2));
+      }
       document.getElementById('spxInput').value = price;
     }
 
