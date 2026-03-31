@@ -419,30 +419,29 @@ input, select, button, textarea { font-family: 'IBM Plex Mono', monospace; outli
     <button id="analysisRefreshBtn" onclick="refreshAnalysis()" style="padding:8px 20px;background:transparent;border:1px solid var(--cyan);color:var(--cyan);font-size:11px;font-weight:700;letter-spacing:1.5px;cursor:pointer;font-family:'IBM Plex Mono',monospace">REFRESH DATA</button>
   </div>
 
-  <!-- A: Market Dashboard -->
-  <div id="analysis-market-grid" class="analysis-grid" style="display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin-bottom:16px"></div>
-
-  <!-- B: Key Levels -->
-  <div id="analysis-levels" style="border:1px solid var(--border);padding:16px;margin-bottom:12px"></div>
-
-  <!-- C: Regime & Signals -->
-  <div id="analysis-regime" style="border:1px solid var(--border);padding:16px;margin-bottom:12px"></div>
-
-  <!-- D: Trade Verdict -->
-  <div id="analysis-verdict" style="border:1px solid var(--border);padding:16px;margin-bottom:12px"></div>
-
-  <!-- E: SPX Price Chart -->
+  <!-- A: SPX Price Chart -->
   <div id="analysis-chart-container" style="border:1px solid var(--border);padding:16px;margin-bottom:12px">
     <div style="font-size:9px;color:var(--textDim);letter-spacing:1.5px;margin-bottom:10px">SPX PRICE CHART — 3 MONTHS</div>
     <canvas id="spxChart" style="width:100%;height:350px"></canvas>
   </div>
 
-  <!-- F: Notes -->
-  <div style="border:1px solid var(--border);padding:16px">
-    <div style="font-size:9px;color:var(--textDim);letter-spacing:1.5px;margin-bottom:8px">NOTES — CATALYSTS / NEWS / OBSERVATIONS</div>
-    <textarea id="analysis-notes" style="width:100%;min-height:100px;background:var(--panelAlt);border:1px solid var(--borderBright);color:var(--white);padding:10px;font-size:12px;font-family:'IBM Plex Mono',monospace;resize:vertical;box-sizing:border-box" placeholder="Economic data, news headlines, Fed remarks, geopolitical events..."></textarea>
-    <div style="display:flex;justify-content:flex-end;margin-top:6px">
-      <button onclick="saveAnalysisNotes()" style="padding:4px 12px;background:transparent;border:1px solid var(--green);color:var(--green);font-size:9px;font-weight:700;letter-spacing:1px;cursor:pointer;font-family:'IBM Plex Mono',monospace">SAVE NOTES</button>
+  <!-- B: Market Dashboard -->
+  <div id="analysis-market-grid" class="analysis-grid" style="display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin-bottom:16px"></div>
+
+  <!-- C: Key Levels -->
+  <div id="analysis-levels" style="border:1px solid var(--border);padding:16px;margin-bottom:12px"></div>
+
+  <!-- D: Regime & Signals -->
+  <div id="analysis-regime" style="border:1px solid var(--border);padding:16px;margin-bottom:12px"></div>
+
+  <!-- E: Trade Verdict -->
+  <div id="analysis-verdict" style="border:1px solid var(--border);padding:16px;margin-bottom:12px"></div>
+
+  <!-- F: Key Findings -->
+  <div id="analysis-findings" style="border:1px solid var(--border);padding:16px">
+    <div style="font-size:9px;color:var(--textDim);letter-spacing:1.5px;margin-bottom:10px">KEY FINDINGS</div>
+    <div id="analysis-findings-list" style="display:flex;flex-direction:column;gap:6px">
+      <div style="color:var(--textDim);font-size:11px">Press REFRESH DATA to generate findings</div>
     </div>
   </div>
 </div>
@@ -1843,14 +1842,14 @@ function drawPnLChart(trades) {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// SPX CANDLESTICK CHART (Analysis Tab)
+// SPX LINE CHART (Analysis Tab)
 // ══════════════════════════════════════════════════════════════════════════════
 function drawSpxChart() {
   const canvas = document.getElementById('spxChart');
   if (!canvas || !HIST_DATA.length) return;
   const container = canvas.parentElement;
   const dpr = window.devicePixelRatio || 1;
-  const W = container.clientWidth - 32; // account for padding
+  const W = container.clientWidth - 32;
   const H = 350;
   canvas.width = W * dpr;
   canvas.height = H * dpr;
@@ -1859,18 +1858,16 @@ function drawSpxChart() {
   const ctx = canvas.getContext('2d');
   ctx.scale(dpr, dpr);
 
-  // Data — last 60 trading days
   const bars = HIST_DATA.slice(-60);
   if (!bars.length) return;
 
-  // Padding
   const pad = { top: 20, bottom: 30, left: 10, right: 75 };
   const cw = W - pad.left - pad.right;
   const ch = H - pad.top - pad.bottom;
 
-  // Collect all level values for Y-axis scaling
+  // Y-axis scaling from all data + levels
   const allPrices = [];
-  bars.forEach(b => { allPrices.push(b[2], b[3]); }); // highs, lows
+  bars.forEach(b => { allPrices.push(b[2], b[3]); });
   if (state.dma200 > 0) allPrices.push(state.dma200);
   if (state.pivot) allPrices.push(state.pivot, state.s1, state.s2, state.r1, state.r2);
   if (state.spx) allPrices.push(state.spx);
@@ -1878,72 +1875,55 @@ function drawSpxChart() {
   const expHigh = state.spx + dailyMove;
   const expLow = state.spx - dailyMove;
   if (state.spx) { allPrices.push(expHigh, expLow); }
-
   const dataMin = Math.min(...allPrices) - 20;
   const dataMax = Math.max(...allPrices) + 20;
   const range = dataMax - dataMin || 1;
 
-  // Mapping functions
-  const barW = cw / bars.length;
-  function xPos(i) { return pad.left + i * barW + barW / 2; }
+  function xPos(i) { return pad.left + (i / (bars.length - 1)) * cw; }
   function yPos(v) { return pad.top + (1 - (v - dataMin) / range) * ch; }
 
-  // ── Background ──
+  // Background
   ctx.fillStyle = '#0D1117';
   ctx.fillRect(0, 0, W, H);
 
-  // ── Grid lines ──
+  // Grid
   ctx.strokeStyle = 'rgba(255,255,255,0.06)';
   ctx.lineWidth = 1;
   const gridStep = Math.pow(10, Math.floor(Math.log10(range / 4)));
   const niceStep = range / 4 > gridStep * 5 ? gridStep * 5 : range / 4 > gridStep * 2 ? gridStep * 2 : gridStep;
-  const gridStart = Math.ceil(dataMin / niceStep) * niceStep;
-  for (let v = gridStart; v <= dataMax; v += niceStep) {
+  for (let v = Math.ceil(dataMin / niceStep) * niceStep; v <= dataMax; v += niceStep) {
     const yy = yPos(v);
     ctx.beginPath(); ctx.moveTo(pad.left, yy); ctx.lineTo(W - pad.right, yy); ctx.stroke();
-    ctx.fillStyle = '#4A6070';
-    ctx.font = '9px IBM Plex Mono';
-    ctx.textAlign = 'right';
+    ctx.fillStyle = '#4A6070'; ctx.font = '9px IBM Plex Mono'; ctx.textAlign = 'right';
     ctx.fillText(v.toFixed(0), W - pad.right + 35, yy + 3);
   }
 
-  // ── X-axis date labels ──
-  ctx.fillStyle = '#4A6070';
-  ctx.font = '8px IBM Plex Mono';
-  ctx.textAlign = 'center';
+  // X-axis dates
+  ctx.fillStyle = '#4A6070'; ctx.font = '8px IBM Plex Mono'; ctx.textAlign = 'center';
   const labelEvery = Math.ceil(bars.length / 6);
   bars.forEach((b, i) => {
     if (i % labelEvery === 0) {
       const d = new Date(b[0]);
-      const lbl = (d.getMonth() + 1) + '/' + d.getDate();
-      ctx.fillText(lbl, xPos(i), H - 6);
+      ctx.fillText((d.getMonth()+1)+'/'+d.getDate(), xPos(i), H - 6);
     }
   });
 
-  // ── Expected range shaded band ──
+  // Expected range band
   if (state.spx && dailyMove) {
-    const yH = yPos(expHigh);
-    const yL = yPos(expLow);
     ctx.fillStyle = 'rgba(240,180,41,0.08)';
-    ctx.fillRect(pad.left, yH, cw, yL - yH);
+    ctx.fillRect(pad.left, yPos(expHigh), cw, yPos(expLow) - yPos(expHigh));
   }
 
-  // ── Level lines ──
-  function drawLevel(val, color, label, dash, lineW) {
+  // Level lines
+  function drawLevel(val, color, label, dash, lw) {
     if (!val || val < dataMin || val > dataMax) return;
     const yy = yPos(val);
-    ctx.strokeStyle = color;
-    ctx.lineWidth = lineW || 1;
-    ctx.setLineDash(dash || []);
+    ctx.strokeStyle = color; ctx.lineWidth = lw || 1; ctx.setLineDash(dash || []);
     ctx.beginPath(); ctx.moveTo(pad.left, yy); ctx.lineTo(W - pad.right, yy); ctx.stroke();
     ctx.setLineDash([]);
-    // Label on right
-    ctx.fillStyle = color;
-    ctx.font = '8px IBM Plex Mono';
-    ctx.textAlign = 'left';
+    ctx.fillStyle = color; ctx.font = '8px IBM Plex Mono'; ctx.textAlign = 'left';
     ctx.fillText(label + ' ' + val.toFixed(0), W - pad.right + 4, yy - 3);
   }
-
   drawLevel(state.dma200, '#00E5FF', '200D', [6, 3], 1.5);
   drawLevel(state.pivot, '#F0B429', 'PVT', [3, 3]);
   drawLevel(state.s1, '#FF4757', 'S1', [3, 3]);
@@ -1955,49 +1935,166 @@ function drawSpxChart() {
   if (state.prevHigh) drawLevel(state.prevHigh, '#5A6A7A', 'PH', [2, 2], 0.5);
   if (state.prevLow) drawLevel(state.prevLow, '#5A6A7A', 'PL', [2, 2], 0.5);
 
-  // ── Candlesticks ──
-  const candleW = Math.max(1, barW * 0.6);
+  // Price line (close prices)
+  ctx.strokeStyle = '#FFFFFF';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
   bars.forEach((b, i) => {
-    const [date, open, high, low, close] = b;
-    const isUp = close >= open;
-    const color = isUp ? '#00D084' : '#FF4757';
-    const cx = xPos(i);
-    const yO = yPos(open);
-    const yC = yPos(close);
-    const yH = yPos(high);
-    const yL = yPos(low);
-
-    // Wick
-    ctx.strokeStyle = color;
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(cx, yH);
-    ctx.lineTo(cx, yL);
-    ctx.stroke();
-
-    // Body
-    const bodyTop = Math.min(yO, yC);
-    const bodyH = Math.max(Math.abs(yC - yO), 1);
-    ctx.fillStyle = isUp ? color : color;
-    ctx.fillRect(cx - candleW / 2, bodyTop, candleW, bodyH);
+    const px = xPos(i), py = yPos(b[4]);
+    i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
   });
+  ctx.stroke();
 
-  // ── Current price line ──
+  // Area fill under line
+  ctx.lineTo(xPos(bars.length - 1), yPos(dataMin));
+  ctx.lineTo(xPos(0), yPos(dataMin));
+  ctx.closePath();
+  const grad = ctx.createLinearGradient(0, pad.top, 0, H - pad.bottom);
+  grad.addColorStop(0, 'rgba(255,255,255,0.08)');
+  grad.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = grad;
+  ctx.fill();
+
+  // Current price label
   if (state.spx) {
     const yy = yPos(state.spx);
-    ctx.strokeStyle = '#FFFFFF';
-    ctx.lineWidth = 1.5;
-    ctx.setLineDash([2, 2]);
+    ctx.strokeStyle = '#FFFFFF'; ctx.lineWidth = 1.5; ctx.setLineDash([2, 2]);
     ctx.beginPath(); ctx.moveTo(pad.left, yy); ctx.lineTo(W - pad.right, yy); ctx.stroke();
     ctx.setLineDash([]);
-    // Price label box
     ctx.fillStyle = '#FFFFFF';
     ctx.fillRect(W - pad.right + 2, yy - 8, 70, 16);
-    ctx.fillStyle = '#0D1117';
-    ctx.font = 'bold 9px IBM Plex Mono';
-    ctx.textAlign = 'left';
+    ctx.fillStyle = '#0D1117'; ctx.font = 'bold 9px IBM Plex Mono'; ctx.textAlign = 'left';
     ctx.fillText('SPX ' + state.spx.toFixed(0), W - pad.right + 5, yy + 4);
   }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// KEY FINDINGS (Analysis Tab)
+// ══════════════════════════════════════════════════════════════════════════════
+function renderFindings() {
+  const el = document.getElementById('analysis-findings-list');
+  if (!el) return;
+
+  const findings = [];
+  const regime = getRegime(state.vix);
+  const dailyMove = Math.round(state.spx * (state.vix / 100) / Math.sqrt(365));
+  const dmaAbove = state.dma200 > 0 ? state.spx > state.dma200 : null;
+  const dmaDist = state.dma200 > 0 ? Math.round(state.spx - state.dma200) : null;
+  const isBearish = state.bias === 'bear' || (state.bias === 'neutral' && dmaAbove === false);
+
+  // 200 DMA
+  if (state.dma200 > 0) {
+    const pct = ((state.spx - state.dma200) / state.dma200 * 100).toFixed(1);
+    findings.push({
+      icon: dmaAbove ? '\u2705' : '\u274C',
+      text: `SPX ${dmaAbove ? 'above' : 'below'} 200 DMA (${state.dma200.toFixed(0)}) by ${Math.abs(dmaDist)}pts (${pct}%) \u2014 ${dmaAbove ? 'structural uptrend, sell puts' : 'structural downtrend, sell calls'}`,
+      bullish: dmaAbove
+    });
+  }
+
+  // VIX regime
+  findings.push({
+    icon: regime.level === 'NORMAL' ? '\u2705' : regime.level === 'ELEVATED' ? '\u26A0\uFE0F' : '\u274C',
+    text: `VIX ${state.vix.toFixed(1)} (${regime.level}) \u2014 ${regime.action}, ${Math.round(regime.size * 100)}% position sizing`,
+    bullish: regime.level === 'NORMAL' ? true : regime.level === 'CRISIS' ? false : null
+  });
+
+  // Expected move
+  findings.push({
+    icon: '\uD83D\uDCCA',
+    text: `Expected daily move: \u00B1${dailyMove}pts (${(state.vix / Math.sqrt(365)).toFixed(1)}%) \u2014 range ${Math.round(state.spx - dailyMove).toLocaleString()} to ${Math.round(state.spx + dailyMove).toLocaleString()}`,
+    bullish: null
+  });
+
+  // S/R proximity
+  if (state.pivot) {
+    const nearS1 = Math.abs(state.spx - state.s1) < dailyMove * 0.5;
+    const nearR1 = Math.abs(state.spx - state.r1) < dailyMove * 0.5;
+    if (nearS1) findings.push({ icon: '\u26A0\uFE0F', text: `Near S1 support (${state.s1.toFixed(0)}) \u2014 potential bounce zone, tighten put stops`, bullish: true });
+    if (nearR1) findings.push({ icon: '\u26A0\uFE0F', text: `Near R1 resistance (${state.r1.toFixed(0)}) \u2014 potential rejection zone, tighten call stops`, bullish: false });
+    const pos = state.spx < state.s1 ? 'below S1' : state.spx < state.pivot ? 'between S1 and Pivot' : state.spx < state.r1 ? 'between Pivot and R1' : 'above R1';
+    findings.push({ icon: '\uD83D\uDCCD', text: `Price position: ${pos} \u2014 Pivot ${state.pivot.toFixed(0)}, S1 ${state.s1.toFixed(0)}, R1 ${state.r1.toFixed(0)}`, bullish: null });
+  }
+
+  // ES Futures direction
+  if (state.esFutures && state.esPrevClose) {
+    const esChg = state.esFutures - state.esPrevClose;
+    const esPct = (esChg / state.esPrevClose * 100).toFixed(2);
+    findings.push({
+      icon: esChg > 0 ? '\uD83D\uDFE2' : '\uD83D\uDD34',
+      text: `ES Futures ${state.esFutures.toFixed(2)} (${esChg > 0 ? '+' : ''}${esPct}%) \u2014 ${Math.abs(esChg) > 20 ? 'strong' : 'modest'} ${esChg > 0 ? 'bullish' : 'bearish'} overnight session`,
+      bullish: esChg > 0
+    });
+  }
+
+  // DXY
+  if (state.dxy && state.dxyPrevClose) {
+    const dxyChg = state.dxy - state.dxyPrevClose;
+    findings.push({
+      icon: dxyChg > 0 ? '\uD83D\uDCB5' : '\uD83D\uDCB5',
+      text: `US Dollar (DXY) ${state.dxy.toFixed(2)} (${dxyChg > 0 ? '+' : ''}${dxyChg.toFixed(2)}) \u2014 ${dxyChg > 0.3 ? 'rising dollar = headwind for equities' : dxyChg < -0.3 ? 'falling dollar = tailwind for equities' : 'stable dollar, neutral impact'}`,
+      bullish: dxyChg < -0.3 ? true : dxyChg > 0.3 ? false : null
+    });
+  }
+
+  // TNX (10Y yield)
+  if (state.tnx && state.tnxPrevClose) {
+    const tnxChg = state.tnx - state.tnxPrevClose;
+    findings.push({
+      icon: '\uD83C\uDFE6',
+      text: `10Y Yield ${state.tnx.toFixed(3)}% (${tnxChg > 0 ? '+' : ''}${tnxChg.toFixed(3)}%) \u2014 ${state.tnx > 4.5 ? 'elevated yields pressuring growth stocks' : tnxChg > 0.03 ? 'rising yields, risk-off tilt' : tnxChg < -0.03 ? 'falling yields, risk-on tilt' : 'stable yields'}`,
+      bullish: tnxChg < -0.03 ? true : tnxChg > 0.03 ? false : null
+    });
+  }
+
+  // Oil
+  if (state.oil && state.oilPrevClose) {
+    const oilChg = state.oil - state.oilPrevClose;
+    findings.push({
+      icon: '\uD83D\uDEE2\uFE0F',
+      text: `Crude Oil $${state.oil.toFixed(2)} (${oilChg > 0 ? '+' : ''}${oilChg.toFixed(2)}) \u2014 ${state.oil > 100 ? 'war premium elevated, inflation risk' : oilChg > 2 ? 'spike = stagflation concern' : oilChg < -2 ? 'drop = de-escalation signal' : 'stable'}`,
+      bullish: oilChg < -2 ? true : oilChg > 2 ? false : null
+    });
+  }
+
+  // GEX proxy
+  if (state.gexProxy && state.gexProxy !== 'positive') {
+    findings.push({
+      icon: '\u26A1',
+      text: `GEX proxy: ${state.gexProxy} \u2014 ${state.gexProxy === 'negative' ? 'dealer hedging amplifies moves, expect wider swings' : 'cautious positioning, moderate vol amplification'}`,
+      bullish: false
+    });
+  }
+
+  // Macro risk
+  if (state.macroRisk && state.macroRisk !== 'clear') {
+    const labels = { caution: 'Economic data release today \u2014 reduced size, delay entry', high: 'High-impact event \u2014 consider skipping or 1ct max', blackout: 'FOMC/Holiday blackout \u2014 NO TRADE' };
+    findings.push({
+      icon: state.macroRisk === 'blackout' ? '\uD83D\uDED1' : '\u26A0\uFE0F',
+      text: labels[state.macroRisk] || state.macroRisk,
+      bullish: null
+    });
+  }
+
+  // Trade direction summary
+  findings.push({
+    icon: isBearish ? '\uD83D\uDFE5' : '\uD83D\uDFE9',
+    text: `Recommended direction: ${isBearish ? 'CALL CREDIT SPREAD (bearish bias)' : 'PUT CREDIT SPREAD (bullish bias)'} \u2014 ${isBearish ? 'sell into resistance above' : 'sell into support below'}`,
+    bullish: !isBearish
+  });
+
+  if (!findings.length) {
+    el.innerHTML = '<div style="color:var(--textDim);font-size:11px">Press REFRESH DATA to generate findings</div>';
+    return;
+  }
+
+  el.innerHTML = findings.map(f => `
+    <div style="display:flex;align-items:flex-start;gap:10px;padding:8px 12px;border:1px solid ${f.bullish === true ? 'rgba(0,208,132,0.25)' : f.bullish === false ? 'rgba(255,71,87,0.25)' : 'rgba(255,255,255,0.08)'};background:${f.bullish === true ? 'rgba(0,208,132,0.04)' : f.bullish === false ? 'rgba(255,71,87,0.04)' : 'rgba(255,255,255,0.02)'}">
+      <span style="font-size:14px;flex-shrink:0;line-height:1.2">${f.icon}</span>
+      <span style="font-size:12px;color:var(--text);line-height:1.5">${f.text}</span>
+      <span style="margin-left:auto;font-size:12px;font-weight:700;color:${f.bullish === true ? 'var(--green)' : f.bullish === false ? 'var(--red)' : 'var(--textDim)'};flex-shrink:0">${f.bullish === true ? '\u25B2' : f.bullish === false ? '\u25BC' : '\u2013'}</span>
+    </div>
+  `).join('');
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -3382,20 +3479,20 @@ function renderAnalysis() {
   }
 
   levelsEl.innerHTML = `
-    <div style="font-size:9px;color:var(--textDim);letter-spacing:1.5px;margin-bottom:10px">KEY LEVELS</div>
-    <div style="display:grid;grid-template-columns:repeat(${Math.min(lvls.length, 4)},1fr);gap:8px;margin-bottom:${srLvls.length ? '12' : '0'}px">
-      ${lvls.map(l => `<div style="border:1px solid var(--border);padding:10px;text-align:center">
-        <div style="font-size:8px;color:var(--textDim);letter-spacing:1px;margin-bottom:2px">${l.l}</div>
-        <div class="chakra" style="font-size:15px;font-weight:700;color:${l.c}">${l.v}</div>
-        ${l.sub ? `<div style="font-size:9px;color:var(--textDim);margin-top:2px">${l.sub}</div>` : ''}
+    <div style="font-size:9px;color:var(--textDim);letter-spacing:1.5px;margin-bottom:12px">KEY LEVELS</div>
+    <div style="display:grid;grid-template-columns:repeat(${Math.min(lvls.length, 4)},1fr);gap:10px;margin-bottom:${srLvls.length ? '16' : '0'}px">
+      ${lvls.map(l => `<div style="border:1px solid var(--border);padding:16px;text-align:center">
+        <div style="font-size:9px;color:var(--textDim);letter-spacing:1.5px;margin-bottom:4px">${l.l}</div>
+        <div class="chakra" style="font-size:22px;font-weight:700;color:${l.c}">${l.v}</div>
+        ${l.sub ? `<div style="font-size:10px;color:var(--textDim);margin-top:4px">${l.sub}</div>` : ''}
       </div>`).join('')}
     </div>
     ${srLvls.length ? `
-    <div style="font-size:8px;color:var(--textDim);letter-spacing:1px;margin-bottom:6px">SUPPORT / RESISTANCE</div>
-    <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px">
-      ${srLvls.map(s => `<div style="border:1px solid var(--border);padding:8px;text-align:center">
-        <div style="font-size:7px;color:var(--textDim);letter-spacing:1px">${s.l}</div>
-        <div class="chakra" style="font-size:14px;font-weight:700;color:${s.c}">${s.v}</div>
+    <div style="font-size:9px;color:var(--textDim);letter-spacing:1.5px;margin-bottom:8px">SUPPORT / RESISTANCE</div>
+    <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px">
+      ${srLvls.map(s => `<div style="border:1px solid var(--border);padding:14px;text-align:center">
+        <div style="font-size:8px;color:var(--textDim);letter-spacing:1.5px;margin-bottom:2px">${s.l}</div>
+        <div class="chakra" style="font-size:20px;font-weight:700;color:${s.c}">${s.v}</div>
       </div>`).join('')}
     </div>` : ''}
   `;
@@ -3513,8 +3610,11 @@ function renderAnalysis() {
     `;
   }
 
-  // ── E: SPX Price Chart ──
+  // ── A: SPX Chart ──
   drawSpxChart();
+
+  // ── F: Key Findings ──
+  renderFindings();
 
   // ── Timestamp ──
   const ts = document.getElementById('analysis-timestamp');
@@ -3522,22 +3622,6 @@ function renderAnalysis() {
     ts.textContent = 'Last updated: ' + state.lastUpdated;
   }
 
-  // ── Load notes ──
-  const notesEl = document.getElementById('analysis-notes');
-  const saved = localStorage.getItem('spx_analysis_notes');
-  if (saved && !notesEl._loaded) {
-    notesEl.value = saved;
-    notesEl._loaded = true;
-  }
-}
-
-function saveAnalysisNotes() {
-  localStorage.setItem('spx_analysis_notes', document.getElementById('analysis-notes').value);
-  const btn = event.target;
-  const orig = btn.textContent;
-  btn.textContent = 'SAVED ✓';
-  btn.style.borderColor = 'var(--green)';
-  setTimeout(() => { btn.textContent = orig; }, 1500);
 }
 
 </script>
