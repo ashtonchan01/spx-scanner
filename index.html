@@ -1894,8 +1894,6 @@ function drawSpxChart() {
   for (let v = Math.ceil(dataMin / niceStep) * niceStep; v <= dataMax; v += niceStep) {
     const yy = yPos(v);
     ctx.beginPath(); ctx.moveTo(pad.left, yy); ctx.lineTo(W - pad.right, yy); ctx.stroke();
-    ctx.fillStyle = '#4A6070'; ctx.font = '11px IBM Plex Mono'; ctx.textAlign = 'right';
-    ctx.fillText(v.toFixed(0), W - pad.right + 42, yy + 4);
   }
 
   // X-axis dates
@@ -1921,8 +1919,8 @@ function drawSpxChart() {
     ctx.strokeStyle = color; ctx.lineWidth = lw || 1; ctx.setLineDash(dash || []);
     ctx.beginPath(); ctx.moveTo(pad.left, yy); ctx.lineTo(W - pad.right, yy); ctx.stroke();
     ctx.setLineDash([]);
-    ctx.fillStyle = color; ctx.font = 'bold 10px IBM Plex Mono'; ctx.textAlign = 'left';
-    ctx.fillText(label + ' ' + val.toFixed(0), W - pad.right + 4, yy - 4);
+    ctx.fillStyle = color; ctx.font = 'bold 11px IBM Plex Mono'; ctx.textAlign = 'left';
+    ctx.fillText(label + ' ' + val.toFixed(0), W - pad.right + 5, yy - 4);
   }
   drawLevel(state.dma200, '#00E5FF', '200D', [6, 3], 1.5);
   drawLevel(state.pivot, '#F0B429', 'PVT', [3, 3]);
