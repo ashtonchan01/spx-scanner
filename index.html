@@ -1488,9 +1488,9 @@ function scan() {
   if (state.bias === 'bear') {
     autoStrat = 'call'; // bearish day → sell call spreads (above market)
   } else if (state.bias === 'bull') {
-    autoStrat = state.vix < 22 && regime.size > 0 ? 'ic' : 'put'; // bullish → normal (put or IC)
+    autoStrat = state.vix < 22 && regime.size > 0 ? 'ic' : 'put'; // bullish day → sell put spreads or IC
   } else {
-    autoStrat = state.vix < 22 && regime.size > 0 ? 'ic' : 'put'; // neutral → normal
+    autoStrat = 'put'; // neutral → default put, user should set bias before trading
   }
   const active = state.strategy === 'auto' ? autoStrat : state.strategy;
   const useIC = active === 'ic', useCall = active === 'call';
@@ -1978,15 +1978,16 @@ function renderFindings() {
   const dailyMove = Math.round(state.spx * (state.vix / 100) / Math.sqrt(365));
   const dmaAbove = state.dma200 > 0 ? state.spx > state.dma200 : null;
   const dmaDist = state.dma200 > 0 ? Math.round(state.spx - state.dma200) : null;
-  const isBearish = state.bias === 'bear' || (state.bias === 'neutral' && dmaAbove === false);
+  const isBearish = state.bias === 'bear';
+  const isBullish = state.bias === 'bull';
 
-  // 200 DMA
+  // 200 DMA — context only, does NOT determine trade direction
   if (state.dma200 > 0) {
     const pct = ((state.spx - state.dma200) / state.dma200 * 100).toFixed(1);
     findings.push({
-      icon: dmaAbove ? '\u2705' : '\u274C',
-      text: `SPX ${dmaAbove ? 'above' : 'below'} 200 DMA (${state.dma200.toFixed(0)}) by ${Math.abs(dmaDist)}pts (${pct}%) \u2014 ${dmaAbove ? 'structural uptrend, sell puts' : 'structural downtrend, sell calls'}`,
-      bullish: dmaAbove
+      icon: '\uD83D\uDCCA',
+      text: `200 DMA at ${state.dma200.toFixed(0)} \u2014 SPX is ${Math.abs(dmaDist)}pts ${dmaAbove ? 'above' : 'below'} (${pct}%). ${dmaAbove ? 'Above = structural support' : 'Below = structural resistance overhead'}`,
+      bullish: null
     });
   }
 
@@ -2074,12 +2075,14 @@ function renderFindings() {
     });
   }
 
-  // Trade direction summary
-  findings.push({
-    icon: isBearish ? '\uD83D\uDFE5' : '\uD83D\uDFE9',
-    text: `Recommended direction: ${isBearish ? 'CALL CREDIT SPREAD (bearish bias)' : 'PUT CREDIT SPREAD (bullish bias)'} \u2014 ${isBearish ? 'sell into resistance above' : 'sell into support below'}`,
-    bullish: !isBearish
-  });
+  // Trade direction summary — based on user's bias selection
+  if (isBearish) {
+    findings.push({ icon: '\uD83D\uDFE5', text: 'Your bias: BEAR \u2014 CALL CREDIT SPREAD (sell above, market falling away)', bullish: false });
+  } else if (isBullish) {
+    findings.push({ icon: '\uD83D\uDFE9', text: 'Your bias: BULL \u2014 PUT CREDIT SPREAD (sell below, market rising away)', bullish: true });
+  } else {
+    findings.push({ icon: '\u26A0\uFE0F', text: 'Bias: NEUTRAL \u2014 Set your bias (Bull/Bear) based on today\'s price action, headlines & ES direction before scanning', bullish: null });
+  }
 
   if (!findings.length) {
     el.innerHTML = '<div style="color:var(--textDim);font-size:11px">Press REFRESH DATA to generate findings</div>';
@@ -3497,14 +3500,14 @@ function renderAnalysis() {
 
   // ── C: Regime & Signals ──
   const regimeEl = document.getElementById('analysis-regime');
-  const isBearish = state.bias === 'bear' || (state.bias === 'neutral' && dmaAbove === false);
-  const isBullish = state.bias === 'bull' || (state.bias === 'neutral' && dmaAbove === true);
+  const isBearish = state.bias === 'bear';
+  const isBullish = state.bias === 'bull';
   const biasLabel = isBearish ? '▼ BEAR' : isBullish ? '▲ BULL' : '→ NEUTRAL';
-  const biasColor = isBearish ? 'var(--red)' : isBullish ? 'var(--green)' : 'var(--cyan)';
+  const biasColor = isBearish ? 'var(--red)' : isBullish ? 'var(--green)' : 'var(--gold)';
 
   const signals = [
     { l: 'VIX REGIME', v: regime.level, c: regime.color, sub: `${Math.round(regime.size * 100)}% sizing · ${regime.action}` },
-    { l: 'BIAS', v: biasLabel, c: biasColor, sub: dmaAbove != null ? (dmaAbove ? 'Above 200 DMA → puts' : 'Below 200 DMA → calls') : 'Manual bias' },
+    { l: 'BIAS', v: biasLabel, c: biasColor, sub: isBearish ? 'Sell calls above' : isBullish ? 'Sell puts below' : 'Set bias before trading' },
     { l: 'EXP MOVE', v: `±${dailyMove}pts`, c: 'var(--gold)', sub: `${(state.vix / Math.sqrt(365) * 100 / 100).toFixed(1)}% daily` },
   ];
 
