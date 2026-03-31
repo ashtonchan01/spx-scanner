@@ -431,10 +431,10 @@ input, select, button, textarea { font-family: 'IBM Plex Mono', monospace; outli
   <!-- D: Trade Verdict -->
   <div id="analysis-verdict" style="border:1px solid var(--border);padding:16px;margin-bottom:12px"></div>
 
-  <!-- E: Market Headlines -->
-  <div id="analysis-news" style="border:1px solid var(--border);padding:16px;margin-bottom:12px">
-    <div style="font-size:9px;color:var(--textDim);letter-spacing:1.5px">MARKET HEADLINES</div>
-    <div style="color:var(--textDim);font-size:11px;margin-top:8px">Press REFRESH DATA to load headlines</div>
+  <!-- E: SPX Price Chart -->
+  <div id="analysis-chart-container" style="border:1px solid var(--border);padding:16px;margin-bottom:12px">
+    <div style="font-size:9px;color:var(--textDim);letter-spacing:1.5px;margin-bottom:10px">SPX PRICE CHART — 3 MONTHS</div>
+    <canvas id="spxChart" style="width:100%;height:350px"></canvas>
   </div>
 
   <!-- F: Notes -->
@@ -1110,32 +1110,15 @@ async function fetchLivePrices() {
     return null;
   }
 
-  async function fetchMarketNews() {
-    try {
-      const newsUrl = `https://query1.finance.yahoo.com/v1/finance/search?q=stock%20market%20today%20S%26P%20500&quotesCount=0&newsCount=10&enableFuzzyQuery=false&_t=${Date.now()}`;
-      const proxied = `${PROXY}${encodeURIComponent(newsUrl)}`;
-      for (const base of [proxied, newsUrl]) {
-        try {
-          const r = await fetch(base, { signal: AbortSignal.timeout(10000) });
-          if (!r.ok) continue;
-          const d = await r.json();
-          if (d?.news?.length) return d.news;
-        } catch {}
-      }
-    } catch {}
-    return null;
-  }
-
   try {
     // Fetch SPX (1yr daily for 200 DMA), VIX, TNX, DXY, Oil, ES in parallel
-    const [spxHistory, vixMeta, tnxMeta, dxyMeta, oilMeta, esMeta, newsData] = await Promise.all([
+    const [spxHistory, vixMeta, tnxMeta, dxyMeta, oilMeta, esMeta] = await Promise.all([
       yahooFetch('^GSPC', '1d', '1y'),
       yahooFetch('^VIX', '1m', '1d'),
       yahooFetch('^TNX', '1m', '1d'),
       yahooFetch('DX-Y.NYB', '1m', '1d'),
       yahooFetch('CL=F', '1m', '1d'),
       yahooFetch('ES=F', '1m', '1d'),
-      fetchMarketNews(),
     ]);
 
     // SPX live price
@@ -1187,9 +1170,6 @@ async function fetchLivePrices() {
       state.esPrevClose = esMeta.chartPreviousClose ? parseFloat(esMeta.chartPreviousClose.toFixed(2)) : null;
       state.esChange = state.esPrevClose ? parseFloat((state.esFutures - state.esPrevClose).toFixed(2)) : null;
     }
-
-    // Store news headlines
-    if (newsData?.length) state.newsHeadlines = newsData;
 
     state.analysisLastFetch = Date.now();
     const dmaStr = state.dma200 ? ` · 200DMA ${state.dma200.toLocaleString()}` : '';
@@ -1860,6 +1840,164 @@ function drawPnLChart(trades) {
     ctx.fillStyle = last30[i-1].win ? '#00D084' : '#FF4757';
     ctx.fill();
   });
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// SPX CANDLESTICK CHART (Analysis Tab)
+// ══════════════════════════════════════════════════════════════════════════════
+function drawSpxChart() {
+  const canvas = document.getElementById('spxChart');
+  if (!canvas || !HIST_DATA.length) return;
+  const container = canvas.parentElement;
+  const dpr = window.devicePixelRatio || 1;
+  const W = container.clientWidth - 32; // account for padding
+  const H = 350;
+  canvas.width = W * dpr;
+  canvas.height = H * dpr;
+  canvas.style.width = W + 'px';
+  canvas.style.height = H + 'px';
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+
+  // Data — last 60 trading days
+  const bars = HIST_DATA.slice(-60);
+  if (!bars.length) return;
+
+  // Padding
+  const pad = { top: 20, bottom: 30, left: 10, right: 75 };
+  const cw = W - pad.left - pad.right;
+  const ch = H - pad.top - pad.bottom;
+
+  // Collect all level values for Y-axis scaling
+  const allPrices = [];
+  bars.forEach(b => { allPrices.push(b[2], b[3]); }); // highs, lows
+  if (state.dma200 > 0) allPrices.push(state.dma200);
+  if (state.pivot) allPrices.push(state.pivot, state.s1, state.s2, state.r1, state.r2);
+  if (state.spx) allPrices.push(state.spx);
+  const dailyMove = Math.round(state.spx * (state.vix / 100) / Math.sqrt(365));
+  const expHigh = state.spx + dailyMove;
+  const expLow = state.spx - dailyMove;
+  if (state.spx) { allPrices.push(expHigh, expLow); }
+
+  const dataMin = Math.min(...allPrices) - 20;
+  const dataMax = Math.max(...allPrices) + 20;
+  const range = dataMax - dataMin || 1;
+
+  // Mapping functions
+  const barW = cw / bars.length;
+  function xPos(i) { return pad.left + i * barW + barW / 2; }
+  function yPos(v) { return pad.top + (1 - (v - dataMin) / range) * ch; }
+
+  // ── Background ──
+  ctx.fillStyle = '#0D1117';
+  ctx.fillRect(0, 0, W, H);
+
+  // ── Grid lines ──
+  ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+  ctx.lineWidth = 1;
+  const gridStep = Math.pow(10, Math.floor(Math.log10(range / 4)));
+  const niceStep = range / 4 > gridStep * 5 ? gridStep * 5 : range / 4 > gridStep * 2 ? gridStep * 2 : gridStep;
+  const gridStart = Math.ceil(dataMin / niceStep) * niceStep;
+  for (let v = gridStart; v <= dataMax; v += niceStep) {
+    const yy = yPos(v);
+    ctx.beginPath(); ctx.moveTo(pad.left, yy); ctx.lineTo(W - pad.right, yy); ctx.stroke();
+    ctx.fillStyle = '#4A6070';
+    ctx.font = '9px IBM Plex Mono';
+    ctx.textAlign = 'right';
+    ctx.fillText(v.toFixed(0), W - pad.right + 35, yy + 3);
+  }
+
+  // ── X-axis date labels ──
+  ctx.fillStyle = '#4A6070';
+  ctx.font = '8px IBM Plex Mono';
+  ctx.textAlign = 'center';
+  const labelEvery = Math.ceil(bars.length / 6);
+  bars.forEach((b, i) => {
+    if (i % labelEvery === 0) {
+      const d = new Date(b[0]);
+      const lbl = (d.getMonth() + 1) + '/' + d.getDate();
+      ctx.fillText(lbl, xPos(i), H - 6);
+    }
+  });
+
+  // ── Expected range shaded band ──
+  if (state.spx && dailyMove) {
+    const yH = yPos(expHigh);
+    const yL = yPos(expLow);
+    ctx.fillStyle = 'rgba(240,180,41,0.08)';
+    ctx.fillRect(pad.left, yH, cw, yL - yH);
+  }
+
+  // ── Level lines ──
+  function drawLevel(val, color, label, dash, lineW) {
+    if (!val || val < dataMin || val > dataMax) return;
+    const yy = yPos(val);
+    ctx.strokeStyle = color;
+    ctx.lineWidth = lineW || 1;
+    ctx.setLineDash(dash || []);
+    ctx.beginPath(); ctx.moveTo(pad.left, yy); ctx.lineTo(W - pad.right, yy); ctx.stroke();
+    ctx.setLineDash([]);
+    // Label on right
+    ctx.fillStyle = color;
+    ctx.font = '8px IBM Plex Mono';
+    ctx.textAlign = 'left';
+    ctx.fillText(label + ' ' + val.toFixed(0), W - pad.right + 4, yy - 3);
+  }
+
+  drawLevel(state.dma200, '#00E5FF', '200D', [6, 3], 1.5);
+  drawLevel(state.pivot, '#F0B429', 'PVT', [3, 3]);
+  drawLevel(state.s1, '#FF4757', 'S1', [3, 3]);
+  drawLevel(state.s2, '#FF4757', 'S2', [3, 3]);
+  drawLevel(state.r1, '#00D084', 'R1', [3, 3]);
+  drawLevel(state.r2, '#00D084', 'R2', [3, 3]);
+  drawLevel(expHigh, '#F0B429', 'EXH', [4, 4], 0.7);
+  drawLevel(expLow, '#F0B429', 'EXL', [4, 4], 0.7);
+  if (state.prevHigh) drawLevel(state.prevHigh, '#5A6A7A', 'PH', [2, 2], 0.5);
+  if (state.prevLow) drawLevel(state.prevLow, '#5A6A7A', 'PL', [2, 2], 0.5);
+
+  // ── Candlesticks ──
+  const candleW = Math.max(1, barW * 0.6);
+  bars.forEach((b, i) => {
+    const [date, open, high, low, close] = b;
+    const isUp = close >= open;
+    const color = isUp ? '#00D084' : '#FF4757';
+    const cx = xPos(i);
+    const yO = yPos(open);
+    const yC = yPos(close);
+    const yH = yPos(high);
+    const yL = yPos(low);
+
+    // Wick
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(cx, yH);
+    ctx.lineTo(cx, yL);
+    ctx.stroke();
+
+    // Body
+    const bodyTop = Math.min(yO, yC);
+    const bodyH = Math.max(Math.abs(yC - yO), 1);
+    ctx.fillStyle = isUp ? color : color;
+    ctx.fillRect(cx - candleW / 2, bodyTop, candleW, bodyH);
+  });
+
+  // ── Current price line ──
+  if (state.spx) {
+    const yy = yPos(state.spx);
+    ctx.strokeStyle = '#FFFFFF';
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([2, 2]);
+    ctx.beginPath(); ctx.moveTo(pad.left, yy); ctx.lineTo(W - pad.right, yy); ctx.stroke();
+    ctx.setLineDash([]);
+    // Price label box
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillRect(W - pad.right + 2, yy - 8, 70, 16);
+    ctx.fillStyle = '#0D1117';
+    ctx.font = 'bold 9px IBM Plex Mono';
+    ctx.textAlign = 'left';
+    ctx.fillText('SPX ' + state.spx.toFixed(0), W - pad.right + 5, yy + 4);
+  }
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -3375,29 +3513,8 @@ function renderAnalysis() {
     `;
   }
 
-  // ── E: Market Headlines ──
-  const newsEl = document.getElementById('analysis-news');
-  if (state.newsHeadlines?.length) {
-    const now = Math.floor(Date.now() / 1000);
-    newsEl.innerHTML = `
-      <div style="font-size:9px;color:var(--textDim);letter-spacing:1.5px;margin-bottom:10px">MARKET HEADLINES</div>
-      <div style="display:flex;flex-direction:column;gap:6px">
-        ${state.newsHeadlines.slice(0, 8).map(n => {
-          const ago = now - (n.providerPublishTime || 0);
-          const hrs = Math.floor(ago / 3600);
-          const mins = Math.floor(ago / 60);
-          const timeStr = hrs >= 24 ? Math.floor(hrs / 24) + 'd ago' : hrs >= 1 ? hrs + 'h ago' : mins + 'm ago';
-          return `<a href="${n.link}" target="_blank" rel="noopener" style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;padding:8px 10px;border:1px solid var(--border);text-decoration:none;background:rgba(255,255,255,0.02);transition:background 0.2s" onmouseover="this.style.background='rgba(255,255,255,0.06)'" onmouseout="this.style.background='rgba(255,255,255,0.02)'">
-            <div style="flex:1;min-width:0">
-              <div style="font-size:12px;color:var(--white);line-height:1.4;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical">${n.title}</div>
-              <div style="font-size:9px;color:var(--textDim);margin-top:3px">${n.publisher || ''}</div>
-            </div>
-            <div style="font-size:9px;color:var(--textDim);white-space:nowrap;flex-shrink:0;margin-top:2px">${timeStr}</div>
-          </a>`;
-        }).join('')}
-      </div>
-    `;
-  }
+  // ── E: SPX Price Chart ──
+  drawSpxChart();
 
   // ── Timestamp ──
   const ts = document.getElementById('analysis-timestamp');
