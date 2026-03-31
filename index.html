@@ -1125,10 +1125,6 @@ async function fetchLivePrices() {
       const price = parseFloat(spxHistory.regularMarketPrice.toFixed(2));
       state.spx = price;
       state.spxOpen = spxHistory.chartPreviousClose || price;
-      // Use Yahoo's previous close for accurate daily change (HIST_DATA may be stale)
-      if (spxHistory.chartPreviousClose) {
-        state.prevClose = parseFloat(spxHistory.chartPreviousClose.toFixed(2));
-      }
       document.getElementById('spxInput').value = price;
     }
 
@@ -1140,6 +1136,10 @@ async function fetchLivePrices() {
       state.dma200 = dma200Rounded;
       document.getElementById('dma200Input').value = dma200Rounded;
       localStorage.setItem('spx_dma200', dma200Rounded);
+    }
+    // Previous close — second-to-last daily close from Yahoo 1yr data
+    if (spxHistory?._closes?.length >= 2) {
+      state.prevClose = parseFloat(spxHistory._closes[spxHistory._closes.length - 2].toFixed(2));
     }
 
     // VIX
