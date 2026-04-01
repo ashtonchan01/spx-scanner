@@ -1651,7 +1651,9 @@ function scan() {
   // ── BOTTOM: Income + Phase (2 columns) ──
   function mkRows(data) { return data.map(r => `<div class="row"><span${r.ls?' style="'+r.ls+'"':''}>${r.l}</span><span style="font-size:${r.big?14:12}px;color:${r.color||'var(--text)'};font-weight:${r.big?700:400}">${r.v}</span></div>`).join(''); }
   const putW=recRow.putFill*adjContracts*100, calW=recRow.callFill*adjContracts*100;
-  const icW=recRow.icFill*adjContracts*100, icL=recRow.icFill*2*adjContracts*100;
+  const putL=recRow.putFill*3*adjContracts*100, calL=recRow.callFill*3*adjContracts*100;
+  const icW=recRow.icFill*adjContracts*100, icL=recRow.icFill*3*adjContracts*100;
+  const maxL = Math.max(putL, calL, icL);
   const wkD=wklyFill*100/5;
 
   document.getElementById('bottomArea').innerHTML = `
@@ -1660,10 +1662,10 @@ function scan() {
         <div style="font-size:11px;color:var(--gold);letter-spacing:2px;margin-bottom:8px;font-weight:700">INCOME SUMMARY</div>
         ${[
           {l:'PUT WIN',v:fmt$(putW),c:'var(--green)'},{l:'CALL WIN',v:fmt$(calW),c:'var(--green)'},
-          {l:'IC WIN',v:fmt$(icW),c:'var(--cyan)'},{l:'IC LOSS',v:fmt$(-icL),c:'var(--red)'},
+          {l:'IC WIN',v:fmt$(icW),c:'var(--cyan)'},{l:'MAX LOSS (3\u00D7)',v:fmt$(-maxL),c:'var(--red)'},
           {l:'WEEKLY /day',v:fmt$(wkD),c:'var(--blue)'},
           {l:'BEST DAY',v:fmt$(icW+wkD-5.60),c:'var(--green)'},
-          {l:'WORST DAY',v:fmt$(-icL+wkD-5.60),c:'var(--red)'},
+          {l:'WORST DAY',v:fmt$(-maxL+wkD-5.60),c:'var(--red)'},
         ].map(s => `<div class="row"><span>${s.l}</span><span style="font-size:12px;color:${s.c};font-weight:600">${s.v}</span></div>`).join('')}
       </div>
       <div class="panelAlt" style="border:1px solid var(--border);border-top:3px solid ${phase.color};padding:12px 14px">
@@ -2148,12 +2150,7 @@ function getPlaybook() {
         { name: '0DTE Morning', time: '1:00-1:15', dte: '0DTE', delta: mornDelta, credit: '$0.60 min', contracts: 'phase', type: 'put' },
         ...(dual ? [{ name: '0DTE Arvo', time: '3:00-4:00', dte: '0DTE', delta: arvoDelta, credit: '$0.60 min', contracts: 'phase', type: 'put' }] : []),
       ],
-      rules: [
-        `Open weekly put spread first (${wklyCt}ct)`,
-        'Then enter morning 0DTE',
-        ...(wklyCt > 1 ? ['FOMC week: skip weekly or halve size'] : []),
-        ...(dual ? [...tieredArvoRules, sizeNote].filter(Boolean) : ['Arvo is optional — skip if morning fills well']),
-      ],
+      rules: [],
       timing: [
         { t: '12:30-12:45 AM', e: 'Opening — wait for direction' },
         { t: '12:45-1:15 AM', e: 'MORNING ENTRY (+ weekly)' },
@@ -2169,14 +2166,7 @@ function getPlaybook() {
         { name: '0DTE Morning', time: '1:00-1:15', dte: '0DTE', delta: mornDelta, credit: '$0.60 min', contracts: 'phase', type: 'put' },
         ...(dual ? [{ name: '0DTE Arvo', time: '3:00-4:00', dte: '0DTE', delta: arvoDelta, credit: '$0.60 min', contracts: 'phase', type: 'put' }] : []),
       ],
-      rules: [
-        'Morning session primary — Δ0.12 put spread, hold to expiry',
-        ...(dual ? [
-          'Arvo session: put or IC depending on VIX regime',
-          ...tieredArvoRules,
-          sizeNote,
-        ].filter(Boolean) : ['Arvo optional if morning wins and A+ setup available']),
-      ],
+      rules: [],
       timing: [
         { t: '12:30-12:45 AM', e: 'Opening — wait for direction' },
         { t: '12:45-1:15 AM', e: 'MORNING ENTRY' },
@@ -2192,15 +2182,7 @@ function getPlaybook() {
         { name: '0DTE Morning', time: '1:00-1:15', dte: '0DTE', delta: mornDelta, credit: '$0.60 min', contracts: 'phase', type: 'put' },
         ...(dual ? [{ name: '0DTE Arvo', time: '3:00-4:00', dte: '0DTE', delta: arvoDelta, credit: '$0.60 min', contracts: 'phase', type: 'put' }] : []),
       ],
-      rules: [
-        ...(isFomcWeek ? ['FOMC day = NO TRADE (both sessions)'] : []),
-        ...(dual ? [
-          ...(isFomcWeek ? ['If no FOMC: morning put spread + arvo session'] : ['Morning put spread + arvo session']),
-          ...tieredArvoRules,
-          ...(isFomcWeek ? ['FOMC week: 50% position size all week'] : []),
-          sizeNote,
-        ].filter(Boolean) : [isFomcWeek ? 'If no FOMC: morning session only' : 'Morning session only']),
-      ],
+      rules: [],
       timing: [
         { t: '12:30-12:45 AM', e: 'Opening — wait for direction' },
         { t: '12:45-1:15 AM', e: 'MORNING ENTRY' },
@@ -2217,15 +2199,7 @@ function getPlaybook() {
         { name: '0DTE Morning', time: '1:00-1:15', dte: '0DTE', delta: mornDelta, credit: '$0.60 min', contracts: 'phase', type: 'put' },
         ...(dual ? [{ name: '0DTE Arvo', time: '3:00-4:00', dte: '0DTE', delta: arvoDelta, credit: '$0.85 min', contracts: 'phase', type: 'put' }] : []),
       ],
-      rules: [
-        'Check weekly spread health — roll or close if tested',
-        'Morning session: put spread Δ0.12',
-        ...(dual ? [
-          'Arvo session: higher min credit ($0.85)',
-          ...tieredArvoRules,
-          sizeNote,
-        ].filter(Boolean) : []),
-      ],
+      rules: [],
       timing: [
         { t: '12:30-12:45 AM', e: 'Opening — check weekly health' },
         { t: '12:45-1:15 AM', e: 'MORNING ENTRY' },
@@ -2242,16 +2216,7 @@ function getPlaybook() {
         { name: '0DTE Morning (careful)', time: '1:00-1:10', dte: '0DTE', delta: mornDelta, credit: '$0.90 min', contracts: 'phase', type: 'put' },
         ...(dual ? [{ name: '0DTE Arvo (careful)', time: '3:00-3:45', dte: '0DTE', delta: '\u0394 0.12', credit: '$0.90 min', contracts: 'phase', type: 'put' }] : []),
       ],
-      rules: [
-        'Close weekly first',
-        'Tighter delta for Friday — Δ0.12 both sessions',
-        'Shorter window, earlier stop',
-        ...(dual ? [
-          ...tieredArvoRules,
-          'Max 1 loss on Fridays — protect the week\'s gains',
-          sizeNote,
-        ].filter(Boolean) : ['Max 1 loss on Fridays — protect the week\'s gains']),
-      ],
+      rules: [],
       timing: [
         { t: '12:30-12:45 AM', e: 'Opening — close weekly first' },
         { t: '12:45-1:10 AM', e: 'MORNING ENTRY (tight)' },
@@ -2416,8 +2381,8 @@ function renderPlaybook() {
             </div>`;
           }).join('')}
 
-          <div class="label" style="margin-top:10px;margin-bottom:4px">RULES</div>
-          ${day.rules.map(r => `<div style="padding:3px 0;font-size:11px;color:var(--textMid);border-bottom:1px solid var(--border)">\u2022 ${r}</div>`).join('')}
+          ${day.rules.length ? `<div class="label" style="margin-top:10px;margin-bottom:4px">RULES</div>
+          ${day.rules.map(r => '<div style="padding:3px 0;font-size:11px;color:var(--textMid);border-bottom:1px solid var(--border)">\u2022 ' + r + '</div>').join('')}` : ''}
         </div>
         <div style="flex:0 0 250px;border-left:1px solid var(--border);padding-left:12px">
           <div class="label" style="margin-bottom:6px">\u23F0 TODAY'S ENTRY WINDOWS <span style="font-size:9px;color:var(--textDim)">(AEDT)</span></div>
