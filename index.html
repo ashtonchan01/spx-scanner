@@ -2339,7 +2339,7 @@ function renderPlaybook() {
                 <span style="color:var(--textDim)">Credit: <span style="color:var(--green)">${hasOrder ? '$' + f2(o.orderCredit) : t.credit}</span></span>
                 <span style="color:var(--textDim)">Size: <span style="color:var(--white);font-weight:600">${ctDisplay}</span></span>
               </div>
-              ${showStagger && !hasOrder ? `
+              ${showStagger ? `
               <div style="margin-top:8px;padding:8px 10px;background:rgba(0,229,255,0.05);border:1px solid rgba(0,229,255,0.15);border-radius:4px">
                 <div style="font-size:10px;color:var(--cyan);letter-spacing:2px;margin-bottom:6px;font-weight:700">STAGGER PLAN \u2014 ${cts} CONTRACTS (${batches3?'3':'2'} BATCHES)</div>
                 <div style="display:grid;grid-template-columns:${batches3?'1fr 1fr 1fr':'1fr 1fr'};gap:6px">
