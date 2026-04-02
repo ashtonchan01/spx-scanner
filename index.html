@@ -1237,7 +1237,7 @@ function fetchPrices() {
 
 // ── MACRO RISK from economic calendar ──
 function getMacroRisk() {
-  const now = new Date();
+  const now = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }));
   const dow = now.getDay();
   const dom = now.getDate();
   const month = now.getMonth();
