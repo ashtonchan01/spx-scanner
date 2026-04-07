@@ -423,7 +423,7 @@ input, select, button, textarea { font-family: 'IBM Plex Mono', monospace; outli
   <!-- A: SPX Price Chart -->
   <div id="analysis-chart-container" style="border:1px solid var(--border);padding:16px;margin-bottom:12px">
     <div style="font-size:9px;color:var(--textDim);letter-spacing:1.5px;margin-bottom:10px">SPX KEY LEVELS</div>
-    <canvas id="spxChart" style="width:100%;height:220px"></canvas>
+    <canvas id="spxChart" style="width:100%;height:250px"></canvas>
   </div>
 
   <!-- A2: GEX Profile -->
@@ -1925,7 +1925,7 @@ function drawSpxChart() {
   const container = canvas.parentElement;
   const dpr = window.devicePixelRatio || 1;
   const W = container.clientWidth - 32;
-  const H = 220;
+  const H = 250;
   canvas.width = W * dpr;
   canvas.height = H * dpr;
   canvas.style.width = W + 'px';
@@ -1933,35 +1933,36 @@ function drawSpxChart() {
   const ctx = canvas.getContext('2d');
   ctx.scale(dpr, dpr);
 
-  const pad = { top: 15, bottom: 15, left: 10, right: 110 };
+  const legendW = 140;
+  const pad = { top: 18, bottom: 18, left: 90, right: legendW + 16 };
   const cw = W - pad.left - pad.right;
   const ch = H - pad.top - pad.bottom;
 
-  // Collect all levels for Y-axis scaling
+  // Collect all levels
   const dailyMove = Math.round(state.spx * (state.vix / 100) / Math.sqrt(365));
   const expHigh = state.spx + dailyMove;
   const expLow = state.spx - dailyMove;
   const levels = [
-    { val: state.spx, color: '#FFFFFF', label: 'SPX', dash: [], lw: 2, bold: true },
-    { val: state.dma200, color: '#00E5FF', label: '200D', dash: [6, 3], lw: 1.5 },
-    { val: state.pivot, color: '#F0B429', label: 'PVT', dash: [3, 3], lw: 1 },
-    { val: state.s1, color: '#FF4757', label: 'S1', dash: [3, 3], lw: 1 },
-    { val: state.s2, color: '#FF4757', label: 'S2', dash: [3, 3], lw: 1 },
-    { val: state.r1, color: '#00D084', label: 'R1', dash: [3, 3], lw: 1 },
-    { val: state.r2, color: '#00D084', label: 'R2', dash: [3, 3], lw: 1 },
-    { val: expHigh, color: '#F0B429', label: 'EXH', dash: [4, 4], lw: 0.7 },
-    { val: expLow, color: '#F0B429', label: 'EXL', dash: [4, 4], lw: 0.7 },
-    { val: state.prevHigh, color: '#5A6A7A', label: 'PH', dash: [2, 2], lw: 0.5 },
-    { val: state.prevLow, color: '#5A6A7A', label: 'PL', dash: [2, 2], lw: 0.5 },
-    { val: state.weeklyHigh, color: '#6A7A8A', label: 'WH', dash: [2, 4], lw: 0.5 },
-    { val: state.weeklyLow, color: '#6A7A8A', label: 'WL', dash: [2, 4], lw: 0.5 },
+    { val: state.spx, color: '#FFFFFF', label: 'SPX', dash: [], lw: 2.5, bold: true, desc: 'Current Price' },
+    { val: state.dma200, color: '#00E5FF', label: '200 DMA', dash: [6, 3], lw: 1.5, desc: '200-Day Avg' },
+    { val: state.r2, color: '#00D084', label: 'R2', dash: [3, 3], lw: 1, desc: 'Resistance 2' },
+    { val: state.r1, color: '#00D084', label: 'R1', dash: [3, 3], lw: 1, desc: 'Resistance 1' },
+    { val: state.pivot, color: '#F0B429', label: 'PIVOT', dash: [3, 3], lw: 1, desc: 'Pivot Point' },
+    { val: state.s1, color: '#FF4757', label: 'S1', dash: [3, 3], lw: 1, desc: 'Support 1' },
+    { val: state.s2, color: '#FF4757', label: 'S2', dash: [3, 3], lw: 1, desc: 'Support 2' },
+    { val: expHigh, color: '#FF9F43', label: 'EXP HI', dash: [4, 4], lw: 0.8, desc: 'Expected High' },
+    { val: expLow, color: '#FF9F43', label: 'EXP LO', dash: [4, 4], lw: 0.8, desc: 'Expected Low' },
+    { val: state.prevHigh, color: '#8395A7', label: 'PREV H', dash: [2, 2], lw: 0.7, desc: 'Prev Day High' },
+    { val: state.prevLow, color: '#8395A7', label: 'PREV L', dash: [2, 2], lw: 0.7, desc: 'Prev Day Low' },
+    { val: state.weeklyHigh, color: '#6A7A8A', label: 'WK HI', dash: [2, 4], lw: 0.6, desc: 'Weekly High' },
+    { val: state.weeklyLow, color: '#6A7A8A', label: 'WK LO', dash: [2, 4], lw: 0.6, desc: 'Weekly Low' },
   ].filter(l => l.val && l.val > 0);
 
   if (!levels.length) return;
 
   const allVals = levels.map(l => l.val);
-  const dataMin = Math.min(...allVals) - 15;
-  const dataMax = Math.max(...allVals) + 15;
+  const dataMin = Math.min(...allVals) - 20;
+  const dataMax = Math.max(...allVals) + 20;
   const range = dataMax - dataMin || 1;
 
   function yPos(v) { return pad.top + (1 - (v - dataMin) / range) * ch; }
@@ -1970,29 +1971,39 @@ function drawSpxChart() {
   ctx.fillStyle = '#0D1117';
   ctx.fillRect(0, 0, W, H);
 
-  // Subtle grid
-  ctx.strokeStyle = 'rgba(255,255,255,0.04)';
-  ctx.lineWidth = 1;
-  const gridStep = Math.pow(10, Math.floor(Math.log10(range / 4)));
-  const niceStep = range / 4 > gridStep * 5 ? gridStep * 5 : range / 4 > gridStep * 2 ? gridStep * 2 : gridStep;
-  for (let v = Math.ceil(dataMin / niceStep) * niceStep; v <= dataMax; v += niceStep) {
-    const yy = yPos(v);
-    ctx.beginPath(); ctx.moveTo(pad.left, yy); ctx.lineTo(W - pad.right, yy); ctx.stroke();
-    // Price label on left
-    ctx.fillStyle = 'rgba(255,255,255,0.15)'; ctx.font = '9px IBM Plex Mono'; ctx.textAlign = 'left';
-    ctx.fillText(v.toFixed(0), pad.left + 2, yy - 3);
-  }
-
   // Expected range shaded band
   if (state.spx && dailyMove) {
-    ctx.fillStyle = 'rgba(240,180,41,0.06)';
+    ctx.fillStyle = 'rgba(255,159,67,0.07)';
     ctx.fillRect(pad.left, yPos(expHigh), cw, yPos(expLow) - yPos(expHigh));
   }
 
-  // Draw all level lines (non-SPX first, SPX last so it's on top)
+  // Sort: draw non-bold first, bold (SPX) last on top
   const sortedLevels = levels.filter(l => !l.bold).concat(levels.filter(l => l.bold));
+
+  // Track occupied Y positions for label collision avoidance
+  const usedYs = [];
+  function adjustY(targetY) {
+    const minGap = 14;
+    let y = targetY;
+    for (let pass = 0; pass < 5; pass++) {
+      let collision = false;
+      for (const uy of usedYs) {
+        if (Math.abs(y - uy) < minGap) {
+          y = uy + (y > uy ? minGap : -minGap);
+          collision = true;
+        }
+      }
+      if (!collision) break;
+    }
+    usedYs.push(y);
+    return y;
+  }
+
+  // Draw level lines and LEFT-side labels
   sortedLevels.forEach(l => {
     const yy = yPos(l.val);
+
+    // Line across chart area
     ctx.strokeStyle = l.color;
     ctx.lineWidth = l.lw;
     ctx.setLineDash(l.dash);
@@ -2002,40 +2013,113 @@ function drawSpxChart() {
     ctx.stroke();
     ctx.setLineDash([]);
 
-    // Label on right
+    // Left-side label with background pill
+    const labelY = adjustY(yy);
+    const text = l.label + '  ' + l.val.toFixed(0);
+    ctx.font = l.bold ? 'bold 11px IBM Plex Mono' : '10px IBM Plex Mono';
+    const tw = ctx.measureText(text).width;
+
     if (l.bold) {
-      // SPX current price — highlighted badge
+      // SPX: bright white pill
       ctx.fillStyle = '#FFFFFF';
-      ctx.fillRect(W - pad.right + 3, yy - 10, 102, 20);
+      ctx.beginPath();
+      ctx.roundRect(4, labelY - 10, tw + 12, 20, 3);
+      ctx.fill();
       ctx.fillStyle = '#0D1117';
-      ctx.font = 'bold 11px IBM Plex Mono';
-      ctx.textAlign = 'left';
-      ctx.fillText(l.label + ' ' + l.val.toFixed(2), W - pad.right + 7, yy + 4);
+      ctx.fillText(text, 10, labelY + 4);
     } else {
+      // Dark background pill for readability
+      ctx.fillStyle = 'rgba(13,17,23,0.85)';
+      ctx.beginPath();
+      ctx.roundRect(4, labelY - 9, tw + 10, 18, 3);
+      ctx.fill();
+      // Colored text
       ctx.fillStyle = l.color;
-      ctx.font = '10px IBM Plex Mono';
-      ctx.textAlign = 'left';
-      ctx.fillText(l.label + ' ' + l.val.toFixed(0), W - pad.right + 5, yy - 4);
+      ctx.fillText(text, 9, labelY + 4);
+    }
+
+    // Connector line from label to level if they diverged
+    if (Math.abs(labelY - yy) > 3) {
+      ctx.strokeStyle = l.bold ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.12)';
+      ctx.lineWidth = 0.5;
+      ctx.setLineDash([1, 2]);
+      ctx.beginPath();
+      ctx.moveTo(tw + 16, labelY);
+      ctx.lineTo(pad.left - 2, yy);
+      ctx.stroke();
+      ctx.setLineDash([]);
     }
   });
 
-  // Distance markers from SPX to nearest S/R
+  // Distance markers from SPX to nearest levels
   const spxY = yPos(state.spx);
-  const nearestAbove = levels.filter(l => l.val > state.spx && !l.bold).sort((a, b) => a.val - b.val)[0];
-  const nearestBelow = levels.filter(l => l.val < state.spx && !l.bold).sort((a, b) => b.val - a.val)[0];
-  ctx.font = '8px IBM Plex Mono'; ctx.textAlign = 'center';
-  if (nearestAbove) {
-    const midY = (spxY + yPos(nearestAbove.val)) / 2;
-    const dist = (nearestAbove.val - state.spx).toFixed(0);
-    ctx.fillStyle = 'rgba(255,255,255,0.3)';
+  const aboveLevels = levels.filter(l => l.val > state.spx + 1 && !l.bold).sort((a, b) => a.val - b.val);
+  const belowLevels = levels.filter(l => l.val < state.spx - 1 && !l.bold).sort((a, b) => b.val - a.val);
+
+  ctx.font = '9px IBM Plex Mono';
+  ctx.textAlign = 'center';
+
+  if (aboveLevels[0]) {
+    const midY = (spxY + yPos(aboveLevels[0].val)) / 2;
+    const dist = (aboveLevels[0].val - state.spx).toFixed(0);
+    // Background
+    ctx.fillStyle = 'rgba(13,17,23,0.8)';
+    const dtw = ctx.measureText('+' + dist + ' pts').width;
+    ctx.fillRect(pad.left + cw / 2 - dtw / 2 - 4, midY - 7, dtw + 8, 14);
+    ctx.fillStyle = 'rgba(0,208,132,0.6)';
     ctx.fillText('+' + dist + ' pts', pad.left + cw / 2, midY + 3);
   }
-  if (nearestBelow) {
-    const midY = (spxY + yPos(nearestBelow.val)) / 2;
-    const dist = (state.spx - nearestBelow.val).toFixed(0);
-    ctx.fillStyle = 'rgba(255,255,255,0.3)';
+  if (belowLevels[0]) {
+    const midY = (spxY + yPos(belowLevels[0].val)) / 2;
+    const dist = (state.spx - belowLevels[0].val).toFixed(0);
+    ctx.fillStyle = 'rgba(13,17,23,0.8)';
+    const dtw = ctx.measureText('-' + dist + ' pts').width;
+    ctx.fillRect(pad.left + cw / 2 - dtw / 2 - 4, midY - 7, dtw + 8, 14);
+    ctx.fillStyle = 'rgba(255,71,87,0.6)';
     ctx.fillText('-' + dist + ' pts', pad.left + cw / 2, midY + 3);
   }
+
+  // ── RIGHT SIDE LEGEND ──
+  const lx = W - legendW - 4;
+  ctx.fillStyle = 'rgba(13,17,23,0.9)';
+  ctx.beginPath();
+  ctx.roundRect(lx, 6, legendW, H - 12, 4);
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.roundRect(lx, 6, legendW, H - 12, 4);
+  ctx.stroke();
+
+  ctx.fillStyle = 'rgba(255,255,255,0.4)';
+  ctx.font = 'bold 8px IBM Plex Mono';
+  ctx.textAlign = 'left';
+  ctx.fillText('LEGEND', lx + 10, 22);
+
+  // Deduplicate legend entries by description
+  const seen = new Set();
+  const legendItems = levels.filter(l => {
+    if (seen.has(l.desc)) return false;
+    seen.add(l.desc);
+    return true;
+  });
+
+  legendItems.forEach((l, i) => {
+    const ly = 36 + i * 16;
+    // Color swatch line
+    ctx.strokeStyle = l.color;
+    ctx.lineWidth = l.bold ? 2.5 : 1.5;
+    ctx.setLineDash(l.dash);
+    ctx.beginPath();
+    ctx.moveTo(lx + 10, ly);
+    ctx.lineTo(lx + 26, ly);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    // Label
+    ctx.fillStyle = l.bold ? '#FFFFFF' : 'rgba(255,255,255,0.6)';
+    ctx.font = l.bold ? 'bold 9px IBM Plex Mono' : '9px IBM Plex Mono';
+    ctx.fillText(l.desc, lx + 32, ly + 3);
+  });
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
