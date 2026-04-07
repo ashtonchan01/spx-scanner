@@ -368,6 +368,7 @@ input, select, button, textarea { font-family: 'IBM Plex Mono', monospace; outli
           <div style="display:flex;height:30px" id="modeStratRow">
             <button class="mode-btn active" data-mode="morning" style="flex:1;border:none;cursor:pointer;font-size:9px;font-family:'IBM Plex Mono',monospace;background:rgba(240,180,41,0.15);color:var(--gold);border-top:1px solid var(--borderBright);border-left:1px solid var(--borderBright);border-right:1px solid var(--borderBright);border-bottom:2px solid var(--gold)" onclick="setMode('morning')">MORN</button>
             <button class="mode-btn" data-mode="arvo" style="flex:1;border:none;cursor:pointer;font-size:9px;font-family:'IBM Plex Mono',monospace;background:var(--panelAlt);color:var(--textDim);border-top:1px solid var(--borderBright);border-left:1px solid var(--borderBright);border-right:1px solid var(--borderBright);border-bottom:2px solid var(--border)" onclick="setMode('arvo')">ARVO</button>
+            <button class="mode-btn" data-mode="weekly" style="flex:1;border:none;cursor:pointer;font-size:9px;font-family:'IBM Plex Mono',monospace;background:var(--panelAlt);color:var(--textDim);border-top:1px solid var(--borderBright);border-left:1px solid var(--borderBright);border-right:1px solid var(--borderBright);border-bottom:2px solid var(--border)" onclick="setMode('weekly')">WKLY</button>
             <div style="width:1px;background:var(--borderBright)"></div>
             <button class="strat-btn active" data-strat="auto" onclick="setStrategy('auto')" style="flex:1;border:none;cursor:pointer;font-size:8px;font-family:'IBM Plex Mono',monospace;background:rgba(0,229,255,0.15);color:var(--cyan);border-bottom:2px solid var(--cyan);border-top:1px solid var(--borderBright);border-right:1px solid var(--borderBright)">AUTO</button>
             <button class="strat-btn" data-strat="put" onclick="setStrategy('put')" style="flex:1;border:none;cursor:pointer;font-size:8px;font-family:'IBM Plex Mono',monospace;background:var(--panelAlt);color:var(--textDim);border-bottom:2px solid var(--border);border-top:1px solid var(--borderBright);border-right:1px solid var(--borderBright)">PUT</button>
@@ -1364,10 +1365,12 @@ function flashPanel(id) {
 // ── CONTROLS ──
 function setMode(m) {
   state.mode = m;
+  const modeColors = { morning: 'var(--gold)', arvo: 'var(--green)', weekly: 'var(--cyan)' };
+  const modeBgs = { morning: 'rgba(240,180,41,0.15)', arvo: 'rgba(0,208,132,0.15)', weekly: 'rgba(0,229,255,0.15)' };
   document.querySelectorAll('.mode-btn').forEach(b => {
     const a = b.dataset.mode === m;
-    const c = m === 'morning' ? 'var(--gold)' : 'var(--green)';
-    b.style.background = a ? (m === 'morning' ? 'rgba(240,180,41,0.15)' : 'rgba(0,208,132,0.15)') : 'var(--panelAlt)';
+    const c = modeColors[m];
+    b.style.background = a ? modeBgs[m] : 'var(--panelAlt)';
     b.style.color = a ? c : 'var(--textDim)';
     b.style.borderBottom = a ? `3px solid ${c}` : '3px solid var(--border)';
   });
@@ -1400,6 +1403,7 @@ function setBias(b) {
 
 // ── COMPUTE ──
 function getT() {
+  if (state.mode === 'weekly') return 5 / 365;
   const nowET = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }));
   const closeET = new Date(nowET); closeET.setHours(16, 0, 0, 0);
   let hoursLeft = (closeET - nowET) / 3600000;
@@ -1477,9 +1481,14 @@ function scan() {
 
   const rows = computeRows();
   const regime = getRegime(state.vix);
-  // Auto-adjust delta based on VIX regime and width
+  // Auto-adjust delta based on VIX regime, width, and mode
   let recDelta;
-  if (state.width <= 5) {
+  if (state.mode === 'weekly') {
+    // Weekly 5DTE: more conservative delta — more time = more risk of move
+    if (state.vix >= 30) recDelta = 0.10;
+    else if (state.vix >= 25) recDelta = 0.10;
+    else recDelta = 0.12;
+  } else if (state.width <= 5) {
     // 5-wide no-stop: use 0.15 (defined risk, no stop needed, lower win rate req)
     if (state.vix >= 30) recDelta = 0.12;      // CRISIS → slightly safer
     else recDelta = 0.15;                       // all other regimes → 0.15 standard
@@ -1517,7 +1526,8 @@ function scan() {
   const wklyMid = Math.max(bsm(state.spx, wklyShort, wklyT, 0.045, iv, 'put').price - bsm(state.spx, wklyLong, wklyT, 0.045, iv, 'put').price, 0);
   const wklyFill = Math.max(wklyMid - SLIPPAGE, 0);
 
-  document.getElementById('scanInfo').innerHTML = `${state.lastUpdated || ''} &middot; ${state.mode.toUpperCase()} \u0394 ${recDelta} ${recDelta !== (state.mode === 'arvo' ? 0.15 : 0.12) ? '(auto-widened for VIX ' + f2(state.vix) + ')' : ''} &middot; Fill = mid (live)`;
+  const modeLabel = state.mode === 'weekly' ? 'WEEKLY 5DTE' : state.mode.toUpperCase() + ' 0DTE';
+  document.getElementById('scanInfo').innerHTML = `${state.lastUpdated || ''} &middot; ${modeLabel} \u0394 ${recDelta} ${recDelta !== (state.mode === 'arvo' ? 0.15 : 0.12) ? '(auto-widened for VIX ' + f2(state.vix) + ')' : ''} &middot; Fill = mid (live)`;
   updateInputSummary();
 
   // ── COMPUTED VALUES FOR RENDERING ──
@@ -1591,13 +1601,20 @@ function scan() {
   const [aH, aM] = aedtStr.split(':').map(Number);
   const aT = aH + aM / 60;
   let sessionStatus, sessionColor, sessionNote;
-  if ((aT >= 23.5) || (aT >= 0 && aT < 1.25)) { sessionStatus = 'MORNING ENTRY'; sessionColor = 'var(--gold)'; sessionNote = 'Morning session open \u2014 \u03940.12'; }
-  else if (aT >= 1.25 && aT < 3.0) { sessionStatus = 'BETWEEN SESSIONS'; sessionColor = 'var(--textDim)'; sessionNote = 'Wait for arvo session at 3:00 AM'; }
-  else if (aT >= 3.0 && aT < 4.0) { sessionStatus = 'ARVO ENTRY'; sessionColor = 'var(--green)'; sessionNote = 'Arvo session open \u2014 \u03940.15'; }
-  else if (aT >= 4.0 && aT < 5.5) { sessionStatus = 'CLOSE ONLY'; sessionColor = 'var(--orange)'; sessionNote = 'No new entries \u2014 manage existing'; }
-  else if (aT >= 5.5 && aT < 7.0) { sessionStatus = 'HARD CLOSE'; sessionColor = 'var(--red)'; sessionNote = 'Close all positions NOW'; }
-  else { sessionStatus = 'MARKET CLOSED'; sessionColor = 'var(--textDim)'; sessionNote = 'US market not open'; }
-  const canTrade = sessionStatus === 'MORNING ENTRY' || sessionStatus === 'ARVO ENTRY';
+  if (state.mode === 'weekly') {
+    // Weekly trades can be entered any time during market hours
+    if ((aT >= 23.5) || (aT >= 0 && aT < 5.5)) { sessionStatus = 'WEEKLY ENTRY'; sessionColor = 'var(--cyan)'; sessionNote = 'Weekly 5DTE \u2014 enter during regular hours'; }
+    else if (aT >= 5.5 && aT < 7.0) { sessionStatus = 'HARD CLOSE'; sessionColor = 'var(--red)'; sessionNote = 'Close all positions NOW'; }
+    else { sessionStatus = 'MARKET CLOSED'; sessionColor = 'var(--textDim)'; sessionNote = 'US market not open'; }
+  } else {
+    if ((aT >= 23.5) || (aT >= 0 && aT < 1.25)) { sessionStatus = 'MORNING ENTRY'; sessionColor = 'var(--gold)'; sessionNote = 'Morning session open \u2014 \u03940.12'; }
+    else if (aT >= 1.25 && aT < 3.0) { sessionStatus = 'BETWEEN SESSIONS'; sessionColor = 'var(--textDim)'; sessionNote = 'Wait for arvo session at 3:00 AM'; }
+    else if (aT >= 3.0 && aT < 4.0) { sessionStatus = 'ARVO ENTRY'; sessionColor = 'var(--green)'; sessionNote = 'Arvo session open \u2014 \u03940.15'; }
+    else if (aT >= 4.0 && aT < 5.5) { sessionStatus = 'CLOSE ONLY'; sessionColor = 'var(--orange)'; sessionNote = 'No new entries \u2014 manage existing'; }
+    else if (aT >= 5.5 && aT < 7.0) { sessionStatus = 'HARD CLOSE'; sessionColor = 'var(--red)'; sessionNote = 'Close all positions NOW'; }
+    else { sessionStatus = 'MARKET CLOSED'; sessionColor = 'var(--textDim)'; sessionNote = 'US market not open'; }
+  }
+  const canTrade = sessionStatus === 'MORNING ENTRY' || sessionStatus === 'ARVO ENTRY' || sessionStatus === 'WEEKLY ENTRY';
 
   // ── STORE SCAN RESULTS FOR PLAYBOOK ──
   state._order = {
@@ -1622,7 +1639,7 @@ function scan() {
       <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
         <span style="font-size:12px;font-weight:700;color:${oc}">${orderIcon} ${orderType}</span>
         <span class="chakra" style="font-size:13px;font-weight:700;color:${convColor}">${conviction}</span>
-        <span style="font-size:11px;color:var(--textDim)">\u0394${recDelta} \u00B7 ${adjContracts}ct \u00B7 $${f2(orderCredit)} credit</span>
+        <span style="font-size:11px;color:var(--textDim)">\u0394${recDelta} \u00B7 ${adjContracts}ct \u00B7 $${f2(orderCredit)} credit${state.mode === 'weekly' ? ' \u00B7 5DTE' : ''}</span>
         ${state.width <= 5
           ? `<span style="font-size:10px;color:var(--gold)">&#183; HOLD TO EXPIRY &#8212; NO STOP &#183; MAX LOSS: $${f2((state.width - orderCredit) * adjContracts * 100)}</span>`
           : `<span style="font-size:10px;color:var(--textDim)">&#183; Stop: 3&times; $${f2(orderCredit*3)}</span>`}
@@ -1669,7 +1686,7 @@ function scan() {
           <select id="log-session-o" style="width:100%;height:30px;background:var(--panelAlt);border:1px solid var(--borderBright);color:var(--gold);font-size:9px;font-weight:700;font-family:'IBM Plex Mono',monospace;padding:0 4px;cursor:pointer;letter-spacing:1px;box-sizing:border-box">
             <option value="morning" ${state.mode==='morning'?'selected':''}>MORNING 0DTE</option>
             <option value="arvo" ${state.mode==='arvo'?'selected':''}>ARVO 0DTE</option>
-            <option value="weekly">WEEKLY 5DTE</option>
+            <option value="weekly" ${state.mode==='weekly'?'selected':''}>WEEKLY 5DTE</option>
           </select>
         </div>
         <div style="flex:0.8;min-width:70px">
