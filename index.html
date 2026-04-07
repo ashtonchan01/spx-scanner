@@ -430,7 +430,7 @@ input, select, button, textarea { font-family: 'IBM Plex Mono', monospace; outli
   <!-- A2: GEX Profile -->
   <div id="analysis-gex-container" style="border:1px solid var(--border);padding:16px;margin-bottom:12px">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-      <div style="font-size:9px;color:var(--textDim);letter-spacing:1.5px">GAMMA EXPOSURE (GEX) — 0DTE SPX</div>
+      <div style="font-size:9px;color:var(--textDim);letter-spacing:1.5px">GAMMA EXPOSURE (GEX) — SPX ESTIMATED</div>
       <div id="gex-dte-label" style="font-size:9px;color:var(--textDim)"></div>
     </div>
     <canvas id="gexChart" style="width:100%;height:300px"></canvas>
@@ -2242,132 +2242,83 @@ function drawSpxChart() {
 // ══════════════════════════════════════════════════════════════════════════════
 // GEX (Gamma Exposure) — 0DTE SPX Options
 // ══════════════════════════════════════════════════════════════════════════════
-async function fetchGexData() {
-  try {
-    const S = state.spx;
-    if (!S) return null;
+function calcGexData() {
+  const S = state.spx;
+  if (!S) return null;
 
-    const PROXY = 'https://corsproxy.io/?';
+  const iv = state.vix / 100;
+  const rf = 0.045;
+  const T = getT();
 
-    // Fetch SPX options chain from Yahoo Finance
-    const baseUrl = 'https://query2.finance.yahoo.com/v7/finance/options/%5ESPX';
-    const proxied = `${PROXY}${encodeURIComponent(baseUrl)}`;
+  // Generate strikes every 5 pts within ±150 of spot
+  const maxRange = 150;
+  const step = 5;
+  const gexArray = [];
 
-    let data;
-    for (const url of [proxied, baseUrl]) {
-      try {
-        const r = await fetch(url, { signal: AbortSignal.timeout(15000) });
-        if (!r.ok) continue;
-        data = await r.json();
-        break;
-      } catch {}
-    }
+  for (let K = Math.round((S - maxRange) / step) * step; K <= S + maxRange; K += step) {
+    const dist = Math.abs(K - S);
+    const sqrtT = Math.sqrt(T);
+    const d1 = (Math.log(S / K) + (rf + iv * iv / 2) * T) / (iv * sqrtT);
+    const gamma = normPDF(d1) / (S * iv * sqrtT);
 
-    if (!data?.optionChain?.result?.[0]) return null;
+    // Model OI distribution: ATM peak + round-number clustering
+    // Base OI decays with distance from ATM (Gaussian, σ ~ daily expected move)
+    const dailyMove = S * iv / Math.sqrt(365);
+    const sigma = dailyMove * 1.2;
+    const baseOI = Math.exp(-0.5 * (dist / sigma) ** 2);
 
-    const result = data.optionChain.result[0];
-    const expirations = result.expirationDates || [];
+    // Round-number bonus: 100-pt multiples get 3×, 50-pt get 2×, 25-pt get 1.5×
+    let roundBonus = 1;
+    if (K % 100 === 0) roundBonus = 3;
+    else if (K % 50 === 0) roundBonus = 2;
+    else if (K % 25 === 0) roundBonus = 1.5;
 
-    // Find nearest expiration (0DTE or next)
-    const nowEpoch = Math.floor(Date.now() / 1000);
-    const targetExp = expirations.find(e => e >= nowEpoch - 86400) || expirations[0];
-    if (!targetExp) return null;
+    const oiScale = 10000; // arbitrary scale for relative comparison
+    // Puts dominate below ATM, calls above — reflects typical SPX OI skew
+    const putOI = Math.round(oiScale * baseOI * roundBonus * (K <= S ? 1.3 : 0.7));
+    const callOI = Math.round(oiScale * baseOI * roundBonus * (K >= S ? 1.3 : 0.7));
 
-    // Fetch the specific expiration chain if needed
-    let options = result.options?.[0];
-    if (!options || options.expirationDate !== targetExp) {
-      const expUrl = `${baseUrl}?date=${targetExp}`;
-      const expProxied = `${PROXY}${encodeURIComponent(expUrl)}`;
-      for (const url of [expProxied, expUrl]) {
-        try {
-          const r = await fetch(url, { signal: AbortSignal.timeout(15000) });
-          if (!r.ok) continue;
-          const d = await r.json();
-          options = d?.optionChain?.result?.[0]?.options?.[0];
-          break;
-        } catch {}
-      }
-    }
+    // GEX: calls positive (dealer long gamma), puts negative (dealer short gamma)
+    const callGex = gamma * callOI * 100;
+    const putGex = -gamma * putOI * 100;
 
-    if (!options) return null;
-
-    const calls = options.calls || [];
-    const puts = options.puts || [];
-    const T = Math.max((targetExp - nowEpoch) / (365.25 * 24 * 3600), 1 / (365.25 * 24 * 60));
-    const iv = state.vix / 100;
-    const rf = 0.045;
-
-    // Build GEX map by strike
-    const gexMap = {};
-    const maxRange = 200;
-
-    for (const c of calls) {
-      const K = c.strike;
-      if (Math.abs(K - S) > maxRange) continue;
-      const oi = c.openInterest || 0;
-      if (oi === 0) continue;
-      const optIv = c.impliedVolatility || iv;
-      const sqrtT = Math.sqrt(T);
-      const d1 = (Math.log(S / K) + (rf + optIv * optIv / 2) * T) / (optIv * sqrtT);
-      const gamma = normPDF(d1) / (S * optIv * sqrtT);
-      if (!gexMap[K]) gexMap[K] = { strike: K, callGex: 0, putGex: 0, callOI: 0, putOI: 0 };
-      gexMap[K].callGex += gamma * oi * 100;
-      gexMap[K].callOI += oi;
-    }
-
-    for (const p of puts) {
-      const K = p.strike;
-      if (Math.abs(K - S) > maxRange) continue;
-      const oi = p.openInterest || 0;
-      if (oi === 0) continue;
-      const optIv = p.impliedVolatility || iv;
-      const sqrtT = Math.sqrt(T);
-      const d1 = (Math.log(S / K) + (rf + optIv * optIv / 2) * T) / (optIv * sqrtT);
-      const gamma = normPDF(d1) / (S * optIv * sqrtT);
-      if (!gexMap[K]) gexMap[K] = { strike: K, callGex: 0, putGex: 0, callOI: 0, putOI: 0 };
-      gexMap[K].putGex -= gamma * oi * 100;
-      gexMap[K].putOI += oi;
-    }
-
-    const gexArray = Object.values(gexMap)
-      .map(g => ({ ...g, netGex: g.callGex + g.putGex }))
-      .sort((a, b) => a.strike - b.strike);
-
-    if (!gexArray.length) return null;
-
-    // GEX flip level (positive → negative transition nearest to spot)
-    let flipLevel = null;
-    // Search from strikes near spot outward
-    const nearSpot = gexArray.filter(g => g.strike >= S - 50 && g.strike <= S + 50);
-    for (let i = 1; i < nearSpot.length; i++) {
-      if (nearSpot[i - 1].netGex >= 0 && nearSpot[i].netGex < 0) {
-        flipLevel = nearSpot[i].strike;
-        break;
-      }
-    }
-
-    // Top positive GEX strikes (pin magnets)
-    const topPins = [...gexArray]
-      .filter(g => g.netGex > 0)
-      .sort((a, b) => b.netGex - a.netGex)
-      .slice(0, 5)
-      .map(g => g.strike);
-
-    // Highest negative GEX strikes (danger zones)
-    const dangerZones = [...gexArray]
-      .filter(g => g.netGex < 0)
-      .sort((a, b) => a.netGex - b.netGex)
-      .slice(0, 3)
-      .map(g => g.strike);
-
-    const dte = Math.max(0, Math.round((targetExp - nowEpoch) / 86400));
-    const expDate = new Date(targetExp * 1000);
-
-    return { gexArray, flipLevel, topPins, dangerZones, spotPrice: S, dte, expDate };
-  } catch (e) {
-    console.warn('GEX fetch failed:', e);
-    return null;
+    gexArray.push({
+      strike: K,
+      callGex,
+      putGex,
+      callOI,
+      putOI,
+      netGex: callGex + putGex,
+    });
   }
+
+  if (!gexArray.length) return null;
+
+  // GEX flip level — where net GEX transitions from positive to negative
+  let flipLevel = null;
+  for (let i = 1; i < gexArray.length; i++) {
+    if (gexArray[i - 1].netGex >= 0 && gexArray[i].netGex < 0 &&
+        gexArray[i].strike >= S - 60 && gexArray[i].strike <= S + 60) {
+      flipLevel = gexArray[i].strike;
+      break;
+    }
+  }
+
+  // Top positive GEX strikes (pin magnets)
+  const topPins = [...gexArray]
+    .filter(g => g.netGex > 0)
+    .sort((a, b) => b.netGex - a.netGex)
+    .slice(0, 5)
+    .map(g => g.strike);
+
+  // Highest negative GEX strikes
+  const dangerZones = [...gexArray]
+    .filter(g => g.netGex < 0)
+    .sort((a, b) => a.netGex - b.netGex)
+    .slice(0, 3)
+    .map(g => g.strike);
+
+  return { gexArray, flipLevel, topPins, dangerZones, spotPrice: S, dte: 0, expDate: new Date(), estimated: true };
 }
 
 function drawGexChart(gexData) {
@@ -2393,8 +2344,7 @@ function drawGexChart(gexData) {
     ctx.fillStyle = '#4A6070';
     ctx.font = '12px IBM Plex Mono';
     ctx.textAlign = 'center';
-    ctx.fillText('GEX data unavailable — Yahoo options chain not responding', W / 2, H / 2 - 10);
-    ctx.fillText('Try refreshing during market hours (9:30 AM – 4:00 PM ET)', W / 2, H / 2 + 10);
+    ctx.fillText('GEX data unavailable — press REFRESH DATA', W / 2, H / 2);
     return;
   }
 
@@ -2556,8 +2506,7 @@ function renderGexSummary(gexData) {
   }
 
   if (dteLabel) {
-    const expStr = gexData.expDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-    dteLabel.textContent = `${gexData.dte}DTE — Exp ${expStr}`;
+    dteLabel.textContent = gexData.estimated ? 'BSM estimated — round-number OI model' : `${gexData.dte}DTE — Exp ${gexData.expDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
   }
 
   // Check if recommended strikes sit behind GEX walls
@@ -3991,12 +3940,8 @@ async function refreshAnalysis() {
   btn.textContent = 'FETCHING...';
   btn.disabled = true;
   try {
-    // Fetch live prices and GEX data in parallel
-    const [, gexResult] = await Promise.all([
-      fetchLivePrices(),
-      fetchGexData(),
-    ]);
-    state.gexData = gexResult;
+    await fetchLivePrices();
+    state.gexData = calcGexData();
     fetchPrices();
     scan();
     renderAnalysis();
