@@ -1933,20 +1933,21 @@ function drawSpxChart() {
   const ctx = canvas.getContext('2d');
   ctx.scale(dpr, dpr);
 
-  // Layout: [Col1 labels] [Col2 labels] [Chart area] [Legend]
-  const col1W = 80;   // Column 1: key structural levels
-  const col2W = 80;   // Column 2: range / prev / weekly
-  const legendW = 130;
-  const pad = { top: 18, bottom: 18, left: col1W + col2W + 8, right: legendW + 16 };
+  // Layout: [Price Axis] [Col1: Key Levels] [Col2: Ranges] [Chart] [SPX price + Legend]
+  const priceAxisW = 52;
+  const col1W = 80;
+  const col2W = 80;
+  const rightW = 130;
+  const pad = { top: 18, bottom: 18, left: priceAxisW + col1W + col2W + 10, right: rightW + 12 };
   const cw = W - pad.left - pad.right;
   const ch = H - pad.top - pad.bottom;
 
-  // Collect all levels — assign each to col 1 or col 2
+  // Collect all levels — SPX not assigned to a column (goes to right side)
   const dailyMove = Math.round(state.spx * (state.vix / 100) / Math.sqrt(365));
   const expHigh = state.spx + dailyMove;
   const expLow = state.spx - dailyMove;
   const levels = [
-    { val: state.spx, color: '#FFFFFF', label: 'SPX', dash: [], lw: 2.5, bold: true, desc: 'Current Price', col: 1 },
+    { val: state.spx, color: '#FFFFFF', label: 'SPX', dash: [], lw: 2.5, bold: true, desc: 'Current Price' },
     { val: state.dma200, color: '#00E5FF', label: '200 DMA', dash: [6, 3], lw: 1.5, desc: '200-Day Avg', col: 1 },
     { val: state.r2, color: '#00D084', label: 'R2', dash: [3, 3], lw: 1, desc: 'Resistance 2', col: 1 },
     { val: state.r1, color: '#00D084', label: 'R1', dash: [3, 3], lw: 1, desc: 'Resistance 1', col: 1 },
@@ -1974,18 +1975,49 @@ function drawSpxChart() {
   ctx.fillStyle = '#0D1117';
   ctx.fillRect(0, 0, W, H);
 
+  // ── PRICE AXIS (far left column) ──
+  ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(priceAxisW, 0); ctx.lineTo(priceAxisW, H); ctx.stroke();
+
+  ctx.font = 'bold 7px IBM Plex Mono';
+  ctx.textAlign = 'center';
+  ctx.fillStyle = 'rgba(255,255,255,0.2)';
+  ctx.fillText('PRICE', priceAxisW / 2, 12);
+
+  // Price scale ticks
+  const gridStep = Math.pow(10, Math.floor(Math.log10(range / 5)));
+  const niceStep = range / 5 > gridStep * 5 ? gridStep * 5 : range / 5 > gridStep * 2 ? gridStep * 2 : gridStep;
+  ctx.font = '10px IBM Plex Mono';
+  ctx.textAlign = 'right';
+  for (let v = Math.ceil(dataMin / niceStep) * niceStep; v <= dataMax; v += niceStep) {
+    const yy = yPos(v);
+    // Tick mark
+    ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+    ctx.beginPath(); ctx.moveTo(priceAxisW - 4, yy); ctx.lineTo(priceAxisW, yy); ctx.stroke();
+    // Faint grid line across chart
+    ctx.strokeStyle = 'rgba(255,255,255,0.03)';
+    ctx.beginPath(); ctx.moveTo(pad.left, yy); ctx.lineTo(W - pad.right, yy); ctx.stroke();
+    // Price label
+    ctx.fillStyle = 'rgba(255,255,255,0.35)';
+    ctx.fillText(v.toFixed(0), priceAxisW - 8, yy + 4);
+  }
+
   // Column separator lines
   ctx.strokeStyle = 'rgba(255,255,255,0.05)';
   ctx.lineWidth = 1;
-  ctx.beginPath(); ctx.moveTo(col1W, 0); ctx.lineTo(col1W, H); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(col1W + col2W, 0); ctx.lineTo(col1W + col2W, H); ctx.stroke();
+  const c1x = priceAxisW;
+  const c2x = priceAxisW + col1W;
+  const c3x = priceAxisW + col1W + col2W;
+  ctx.beginPath(); ctx.moveTo(c2x, 0); ctx.lineTo(c2x, H); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(c3x, 0); ctx.lineTo(c3x, H); ctx.stroke();
 
   // Column headers
   ctx.font = 'bold 7px IBM Plex Mono';
   ctx.textAlign = 'center';
-  ctx.fillStyle = 'rgba(255,255,255,0.25)';
-  ctx.fillText('KEY LEVELS', col1W / 2, 12);
-  ctx.fillText('RANGES', col1W + col2W / 2, 12);
+  ctx.fillStyle = 'rgba(255,255,255,0.2)';
+  ctx.fillText('KEY LEVELS', c1x + col1W / 2, 12);
+  ctx.fillText('RANGES', c2x + col2W / 2, 12);
 
   // Expected range shaded band
   if (state.spx && dailyMove) {
@@ -1993,8 +2025,9 @@ function drawSpxChart() {
     ctx.fillRect(pad.left, yPos(expHigh), cw, yPos(expLow) - yPos(expHigh));
   }
 
-  // Sort: draw non-bold first, bold (SPX) last on top
-  const sortedLevels = levels.filter(l => !l.bold).concat(levels.filter(l => l.bold));
+  // Non-bold levels first, bold (SPX) last on top
+  const colLevels = levels.filter(l => !l.bold);
+  const spxLevel = levels.find(l => l.bold);
 
   // Separate collision tracking per column
   const usedYCol1 = [];
@@ -2003,7 +2036,7 @@ function drawSpxChart() {
     const used = col === 1 ? usedYCol1 : usedYCol2;
     const minGap = 18;
     let y = Math.max(pad.top + 6, Math.min(H - pad.bottom - 6, targetY));
-    for (let pass = 0; pass < 8; pass++) {
+    for (let pass = 0; pass < 10; pass++) {
       let collision = false;
       for (const uy of used) {
         if (Math.abs(y - uy) < minGap) {
@@ -2018,8 +2051,8 @@ function drawSpxChart() {
     return y;
   }
 
-  // Draw level lines and labels in their respective columns
-  sortedLevels.forEach(l => {
+  // Draw non-SPX level lines and labels
+  colLevels.forEach(l => {
     const yy = yPos(l.val);
 
     // Horizontal line across chart area
@@ -2032,57 +2065,41 @@ function drawSpxChart() {
     ctx.stroke();
     ctx.setLineDash([]);
 
-    // Also extend a faint tick into the label columns
-    ctx.strokeStyle = l.bold ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.06)';
+    // Faint tick into label columns
+    ctx.strokeStyle = 'rgba(255,255,255,0.06)';
     ctx.lineWidth = 0.5;
     ctx.beginPath();
-    ctx.moveTo(0, yy);
+    ctx.moveTo(c1x, yy);
     ctx.lineTo(pad.left, yy);
     ctx.stroke();
 
     // Label in assigned column
-    const colX = l.col === 1 ? 4 : col1W + 4;
-    const colEnd = l.col === 1 ? col1W - 4 : col1W + col2W - 4;
+    const colX = l.col === 1 ? c1x + 4 : c2x + 4;
+    const colEnd = l.col === 1 ? c2x - 4 : c3x - 4;
     const labelY = adjustY(yy, l.col);
 
-    const price = l.val.toFixed(0);
+    // Dark pill with label left, price right
+    ctx.fillStyle = 'rgba(13,17,23,0.9)';
+    ctx.beginPath();
+    ctx.roundRect(colX, labelY - 9, colEnd - colX, 18, 3);
+    ctx.fill();
+    ctx.strokeStyle = l.color + '40';
+    ctx.lineWidth = 0.5;
+    ctx.beginPath();
+    ctx.roundRect(colX, labelY - 9, colEnd - colX, 18, 3);
+    ctx.stroke();
+
+    ctx.fillStyle = l.color;
+    ctx.font = '10px IBM Plex Mono';
     ctx.textAlign = 'left';
+    ctx.fillText(l.label, colX + 4, labelY + 4);
+    ctx.textAlign = 'right';
+    ctx.font = 'bold 10px IBM Plex Mono';
+    ctx.fillText(l.val.toFixed(0), colEnd - 3, labelY + 4);
 
-    if (l.bold) {
-      // SPX: white badge spanning its column
-      ctx.fillStyle = '#FFFFFF';
-      ctx.beginPath();
-      ctx.roundRect(colX, labelY - 10, colEnd - colX, 20, 3);
-      ctx.fill();
-      ctx.fillStyle = '#0D1117';
-      ctx.font = 'bold 11px IBM Plex Mono';
-      ctx.fillText(l.label, colX + 4, labelY + 4);
-      ctx.textAlign = 'right';
-      ctx.fillText(price, colEnd - 2, labelY + 4);
-    } else {
-      // Dark pill with label left, price right
-      ctx.fillStyle = 'rgba(13,17,23,0.9)';
-      ctx.beginPath();
-      ctx.roundRect(colX, labelY - 9, colEnd - colX, 18, 3);
-      ctx.fill();
-      // Subtle border matching level color
-      ctx.strokeStyle = l.color + '40';
-      ctx.lineWidth = 0.5;
-      ctx.beginPath();
-      ctx.roundRect(colX, labelY - 9, colEnd - colX, 18, 3);
-      ctx.stroke();
-
-      ctx.fillStyle = l.color;
-      ctx.font = '10px IBM Plex Mono';
-      ctx.fillText(l.label, colX + 4, labelY + 4);
-      ctx.textAlign = 'right';
-      ctx.font = 'bold 10px IBM Plex Mono';
-      ctx.fillText(price, colEnd - 2, labelY + 4);
-    }
-
-    // Connector from label to level line if displaced
+    // Connector if displaced
     if (Math.abs(labelY - yy) > 4) {
-      ctx.strokeStyle = l.bold ? 'rgba(255,255,255,0.25)' : l.color + '30';
+      ctx.strokeStyle = l.color + '30';
       ctx.lineWidth = 0.7;
       ctx.setLineDash([2, 2]);
       ctx.beginPath();
@@ -2093,10 +2110,44 @@ function drawSpxChart() {
     }
   });
 
+  // ── SPX CURRENT PRICE — drawn on RIGHT side ──
+  if (spxLevel) {
+    const yy = yPos(spxLevel.val);
+
+    // Bold white line across full chart
+    ctx.strokeStyle = '#FFFFFF';
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.moveTo(pad.left, yy);
+    ctx.lineTo(W - pad.right, yy);
+    ctx.stroke();
+
+    // White badge on right edge (like TradingView price axis)
+    const badgeX = W - pad.right + 4;
+    const badgeW = rightW - 8;
+    const priceText = 'SPX  ' + spxLevel.val.toFixed(2);
+    ctx.fillStyle = '#FFFFFF';
+    ctx.beginPath();
+    ctx.roundRect(badgeX, yy - 11, badgeW, 22, 3);
+    ctx.fill();
+    // Arrow pointer on left edge of badge
+    ctx.beginPath();
+    ctx.moveTo(badgeX, yy - 6);
+    ctx.lineTo(badgeX - 6, yy);
+    ctx.lineTo(badgeX, yy + 6);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.fillStyle = '#0D1117';
+    ctx.font = 'bold 11px IBM Plex Mono';
+    ctx.textAlign = 'center';
+    ctx.fillText(priceText, badgeX + badgeW / 2, yy + 4);
+  }
+
   // Distance markers from SPX to nearest levels above/below
   const spxY = yPos(state.spx);
-  const aboveLevels = levels.filter(l => l.val > state.spx + 2 && !l.bold).sort((a, b) => a.val - b.val);
-  const belowLevels = levels.filter(l => l.val < state.spx - 2 && !l.bold).sort((a, b) => b.val - a.val);
+  const aboveLevels = colLevels.filter(l => l.val > state.spx + 2).sort((a, b) => a.val - b.val);
+  const belowLevels = colLevels.filter(l => l.val < state.spx - 2).sort((a, b) => b.val - a.val);
   const chartMidX = pad.left + cw / 2;
 
   ctx.font = '9px IBM Plex Mono';
@@ -2125,48 +2176,50 @@ function drawSpxChart() {
     ctx.fillText(dist, chartMidX, midY + 4);
   }
 
-  // ── RIGHT SIDE LEGEND ──
-  const lx = W - legendW - 4;
-  ctx.fillStyle = 'rgba(13,17,23,0.92)';
-  ctx.beginPath();
-  ctx.roundRect(lx, 4, legendW, H - 8, 4);
-  ctx.fill();
-  ctx.strokeStyle = 'rgba(255,255,255,0.06)';
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  ctx.roundRect(lx, 4, legendW, H - 8, 4);
-  ctx.stroke();
+  // ── RIGHT SIDE LEGEND (below SPX badge) ──
+  const lx = W - pad.right + 4;
+  const legendTop = spxY + 22;
+  const legendH = H - legendTop - 4;
 
-  ctx.fillStyle = 'rgba(255,255,255,0.35)';
-  ctx.font = 'bold 7px IBM Plex Mono';
-  ctx.textAlign = 'left';
-  ctx.fillText('LEGEND', lx + 10, 18);
-
-  // Deduplicate legend entries by description
-  const seen = new Set();
-  const legendItems = levels.filter(l => {
-    if (seen.has(l.desc)) return false;
-    seen.add(l.desc);
-    return true;
-  });
-
-  legendItems.forEach((l, i) => {
-    const ly = 34 + i * 18;
-    // Color swatch line
-    ctx.strokeStyle = l.color;
-    ctx.lineWidth = l.bold ? 2.5 : 1.5;
-    ctx.setLineDash(l.dash);
+  // Only draw legend if there's room below SPX badge
+  if (legendH > 60) {
+    ctx.fillStyle = 'rgba(13,17,23,0.6)';
     ctx.beginPath();
-    ctx.moveTo(lx + 8, ly);
-    ctx.lineTo(lx + 22, ly);
-    ctx.stroke();
-    ctx.setLineDash([]);
-    // Description
-    ctx.fillStyle = l.bold ? '#FFFFFF' : 'rgba(255,255,255,0.55)';
-    ctx.font = l.bold ? 'bold 9px IBM Plex Mono' : '9px IBM Plex Mono';
+    ctx.roundRect(lx, legendTop, rightW - 8, legendH, 4);
+    ctx.fill();
+
+    ctx.fillStyle = 'rgba(255,255,255,0.3)';
+    ctx.font = 'bold 7px IBM Plex Mono';
     ctx.textAlign = 'left';
-    ctx.fillText(l.desc, lx + 28, ly + 3);
-  });
+    ctx.fillText('LEGEND', lx + 8, legendTop + 14);
+
+    const seen = new Set();
+    const legendItems = levels.filter(l => {
+      if (l.bold) return false;
+      if (seen.has(l.desc)) return false;
+      seen.add(l.desc);
+      return true;
+    });
+
+    const maxItems = Math.floor((legendH - 24) / 15);
+    legendItems.slice(0, maxItems).forEach((l, i) => {
+      const ly = legendTop + 28 + i * 15;
+      // Color swatch
+      ctx.strokeStyle = l.color;
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash(l.dash);
+      ctx.beginPath();
+      ctx.moveTo(lx + 6, ly);
+      ctx.lineTo(lx + 18, ly);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      // Label
+      ctx.fillStyle = 'rgba(255,255,255,0.5)';
+      ctx.font = '8px IBM Plex Mono';
+      ctx.textAlign = 'left';
+      ctx.fillText(l.desc, lx + 22, ly + 3);
+    });
+  }
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
