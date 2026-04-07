@@ -422,8 +422,8 @@ input, select, button, textarea { font-family: 'IBM Plex Mono', monospace; outli
 
   <!-- A: SPX Price Chart -->
   <div id="analysis-chart-container" style="border:1px solid var(--border);padding:16px;margin-bottom:12px">
-    <div style="font-size:9px;color:var(--textDim);letter-spacing:1.5px;margin-bottom:10px">SPX PRICE CHART — 7 DAYS</div>
-    <canvas id="spxChart" style="width:100%;height:350px"></canvas>
+    <div style="font-size:9px;color:var(--textDim);letter-spacing:1.5px;margin-bottom:10px">SPX KEY LEVELS</div>
+    <canvas id="spxChart" style="width:100%;height:220px"></canvas>
   </div>
 
   <!-- A2: GEX Profile -->
@@ -1921,11 +1921,11 @@ function drawPnLChart(trades) {
 // ══════════════════════════════════════════════════════════════════════════════
 function drawSpxChart() {
   const canvas = document.getElementById('spxChart');
-  if (!canvas || !HIST_DATA.length) return;
+  if (!canvas || !state.spx) return;
   const container = canvas.parentElement;
   const dpr = window.devicePixelRatio || 1;
   const W = container.clientWidth - 32;
-  const H = 350;
+  const H = 220;
   canvas.width = W * dpr;
   canvas.height = H * dpr;
   canvas.style.width = W + 'px';
@@ -1933,111 +1933,108 @@ function drawSpxChart() {
   const ctx = canvas.getContext('2d');
   ctx.scale(dpr, dpr);
 
-  const bars = HIST_DATA.slice(-7);
-  if (!bars.length) return;
-
-  const pad = { top: 20, bottom: 30, left: 10, right: 90 };
+  const pad = { top: 15, bottom: 15, left: 10, right: 110 };
   const cw = W - pad.left - pad.right;
   const ch = H - pad.top - pad.bottom;
 
-  // Y-axis scaling from all data + levels
-  const allPrices = [];
-  bars.forEach(b => { allPrices.push(b[2], b[3]); });
-  if (state.dma200 > 0) allPrices.push(state.dma200);
-  if (state.pivot) allPrices.push(state.pivot, state.s1, state.s2, state.r1, state.r2);
-  if (state.spx) allPrices.push(state.spx);
+  // Collect all levels for Y-axis scaling
   const dailyMove = Math.round(state.spx * (state.vix / 100) / Math.sqrt(365));
   const expHigh = state.spx + dailyMove;
   const expLow = state.spx - dailyMove;
-  if (state.spx) { allPrices.push(expHigh, expLow); }
-  const dataMin = Math.min(...allPrices) - 20;
-  const dataMax = Math.max(...allPrices) + 20;
+  const levels = [
+    { val: state.spx, color: '#FFFFFF', label: 'SPX', dash: [], lw: 2, bold: true },
+    { val: state.dma200, color: '#00E5FF', label: '200D', dash: [6, 3], lw: 1.5 },
+    { val: state.pivot, color: '#F0B429', label: 'PVT', dash: [3, 3], lw: 1 },
+    { val: state.s1, color: '#FF4757', label: 'S1', dash: [3, 3], lw: 1 },
+    { val: state.s2, color: '#FF4757', label: 'S2', dash: [3, 3], lw: 1 },
+    { val: state.r1, color: '#00D084', label: 'R1', dash: [3, 3], lw: 1 },
+    { val: state.r2, color: '#00D084', label: 'R2', dash: [3, 3], lw: 1 },
+    { val: expHigh, color: '#F0B429', label: 'EXH', dash: [4, 4], lw: 0.7 },
+    { val: expLow, color: '#F0B429', label: 'EXL', dash: [4, 4], lw: 0.7 },
+    { val: state.prevHigh, color: '#5A6A7A', label: 'PH', dash: [2, 2], lw: 0.5 },
+    { val: state.prevLow, color: '#5A6A7A', label: 'PL', dash: [2, 2], lw: 0.5 },
+    { val: state.weeklyHigh, color: '#6A7A8A', label: 'WH', dash: [2, 4], lw: 0.5 },
+    { val: state.weeklyLow, color: '#6A7A8A', label: 'WL', dash: [2, 4], lw: 0.5 },
+  ].filter(l => l.val && l.val > 0);
+
+  if (!levels.length) return;
+
+  const allVals = levels.map(l => l.val);
+  const dataMin = Math.min(...allVals) - 15;
+  const dataMax = Math.max(...allVals) + 15;
   const range = dataMax - dataMin || 1;
 
-  function xPos(i) { return pad.left + (i / (bars.length - 1)) * cw; }
   function yPos(v) { return pad.top + (1 - (v - dataMin) / range) * ch; }
 
   // Background
   ctx.fillStyle = '#0D1117';
   ctx.fillRect(0, 0, W, H);
 
-  // Grid
-  ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+  // Subtle grid
+  ctx.strokeStyle = 'rgba(255,255,255,0.04)';
   ctx.lineWidth = 1;
   const gridStep = Math.pow(10, Math.floor(Math.log10(range / 4)));
   const niceStep = range / 4 > gridStep * 5 ? gridStep * 5 : range / 4 > gridStep * 2 ? gridStep * 2 : gridStep;
   for (let v = Math.ceil(dataMin / niceStep) * niceStep; v <= dataMax; v += niceStep) {
     const yy = yPos(v);
     ctx.beginPath(); ctx.moveTo(pad.left, yy); ctx.lineTo(W - pad.right, yy); ctx.stroke();
+    // Price label on left
+    ctx.fillStyle = 'rgba(255,255,255,0.15)'; ctx.font = '9px IBM Plex Mono'; ctx.textAlign = 'left';
+    ctx.fillText(v.toFixed(0), pad.left + 2, yy - 3);
   }
 
-  // X-axis dates
-  ctx.fillStyle = '#4A6070'; ctx.font = '10px IBM Plex Mono'; ctx.textAlign = 'center';
-  const labelEvery = Math.ceil(bars.length / 6);
-  bars.forEach((b, i) => {
-    if (i % labelEvery === 0) {
-      const d = new Date(b[0]);
-      ctx.fillText((d.getMonth()+1)+'/'+d.getDate(), xPos(i), H - 6);
-    }
-  });
-
-  // Expected range band
+  // Expected range shaded band
   if (state.spx && dailyMove) {
-    ctx.fillStyle = 'rgba(240,180,41,0.08)';
+    ctx.fillStyle = 'rgba(240,180,41,0.06)';
     ctx.fillRect(pad.left, yPos(expHigh), cw, yPos(expLow) - yPos(expHigh));
   }
 
-  // Level lines
-  function drawLevel(val, color, label, dash, lw) {
-    if (!val || val < dataMin || val > dataMax) return;
-    const yy = yPos(val);
-    ctx.strokeStyle = color; ctx.lineWidth = lw || 1; ctx.setLineDash(dash || []);
-    ctx.beginPath(); ctx.moveTo(pad.left, yy); ctx.lineTo(W - pad.right, yy); ctx.stroke();
+  // Draw all level lines (non-SPX first, SPX last so it's on top)
+  const sortedLevels = levels.filter(l => !l.bold).concat(levels.filter(l => l.bold));
+  sortedLevels.forEach(l => {
+    const yy = yPos(l.val);
+    ctx.strokeStyle = l.color;
+    ctx.lineWidth = l.lw;
+    ctx.setLineDash(l.dash);
+    ctx.beginPath();
+    ctx.moveTo(pad.left, yy);
+    ctx.lineTo(W - pad.right, yy);
+    ctx.stroke();
     ctx.setLineDash([]);
-    ctx.fillStyle = color; ctx.font = 'bold 11px IBM Plex Mono'; ctx.textAlign = 'left';
-    ctx.fillText(label + ' ' + val.toFixed(0), W - pad.right + 5, yy - 4);
-  }
-  drawLevel(state.dma200, '#00E5FF', '200D', [6, 3], 1.5);
-  drawLevel(state.pivot, '#F0B429', 'PVT', [3, 3]);
-  drawLevel(state.s1, '#FF4757', 'S1', [3, 3]);
-  drawLevel(state.s2, '#FF4757', 'S2', [3, 3]);
-  drawLevel(state.r1, '#00D084', 'R1', [3, 3]);
-  drawLevel(state.r2, '#00D084', 'R2', [3, 3]);
-  drawLevel(expHigh, '#F0B429', 'EXH', [4, 4], 0.7);
-  drawLevel(expLow, '#F0B429', 'EXL', [4, 4], 0.7);
-  if (state.prevHigh) drawLevel(state.prevHigh, '#5A6A7A', 'PH', [2, 2], 0.5);
-  if (state.prevLow) drawLevel(state.prevLow, '#5A6A7A', 'PL', [2, 2], 0.5);
 
-  // Price line (close prices)
-  ctx.strokeStyle = '#FFFFFF';
-  ctx.lineWidth = 1.5;
-  ctx.beginPath();
-  bars.forEach((b, i) => {
-    const px = xPos(i), py = yPos(b[4]);
-    i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
+    // Label on right
+    if (l.bold) {
+      // SPX current price — highlighted badge
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fillRect(W - pad.right + 3, yy - 10, 102, 20);
+      ctx.fillStyle = '#0D1117';
+      ctx.font = 'bold 11px IBM Plex Mono';
+      ctx.textAlign = 'left';
+      ctx.fillText(l.label + ' ' + l.val.toFixed(2), W - pad.right + 7, yy + 4);
+    } else {
+      ctx.fillStyle = l.color;
+      ctx.font = '10px IBM Plex Mono';
+      ctx.textAlign = 'left';
+      ctx.fillText(l.label + ' ' + l.val.toFixed(0), W - pad.right + 5, yy - 4);
+    }
   });
-  ctx.stroke();
 
-  // Area fill under line
-  ctx.lineTo(xPos(bars.length - 1), yPos(dataMin));
-  ctx.lineTo(xPos(0), yPos(dataMin));
-  ctx.closePath();
-  const grad = ctx.createLinearGradient(0, pad.top, 0, H - pad.bottom);
-  grad.addColorStop(0, 'rgba(255,255,255,0.08)');
-  grad.addColorStop(1, 'rgba(255,255,255,0)');
-  ctx.fillStyle = grad;
-  ctx.fill();
-
-  // Current price label
-  if (state.spx) {
-    const yy = yPos(state.spx);
-    ctx.strokeStyle = '#FFFFFF'; ctx.lineWidth = 1.5; ctx.setLineDash([2, 2]);
-    ctx.beginPath(); ctx.moveTo(pad.left, yy); ctx.lineTo(W - pad.right, yy); ctx.stroke();
-    ctx.setLineDash([]);
-    ctx.fillStyle = '#FFFFFF';
-    ctx.fillRect(W - pad.right + 2, yy - 9, 84, 18);
-    ctx.fillStyle = '#0D1117'; ctx.font = 'bold 11px IBM Plex Mono'; ctx.textAlign = 'left';
-    ctx.fillText('SPX ' + state.spx.toFixed(0), W - pad.right + 5, yy + 4);
+  // Distance markers from SPX to nearest S/R
+  const spxY = yPos(state.spx);
+  const nearestAbove = levels.filter(l => l.val > state.spx && !l.bold).sort((a, b) => a.val - b.val)[0];
+  const nearestBelow = levels.filter(l => l.val < state.spx && !l.bold).sort((a, b) => b.val - a.val)[0];
+  ctx.font = '8px IBM Plex Mono'; ctx.textAlign = 'center';
+  if (nearestAbove) {
+    const midY = (spxY + yPos(nearestAbove.val)) / 2;
+    const dist = (nearestAbove.val - state.spx).toFixed(0);
+    ctx.fillStyle = 'rgba(255,255,255,0.3)';
+    ctx.fillText('+' + dist + ' pts', pad.left + cw / 2, midY + 3);
+  }
+  if (nearestBelow) {
+    const midY = (spxY + yPos(nearestBelow.val)) / 2;
+    const dist = (state.spx - nearestBelow.val).toFixed(0);
+    ctx.fillStyle = 'rgba(255,255,255,0.3)';
+    ctx.fillText('-' + dist + ' pts', pad.left + cw / 2, midY + 3);
   }
 }
 
