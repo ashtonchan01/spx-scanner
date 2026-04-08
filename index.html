@@ -1602,12 +1602,12 @@ function scan() {
   else if (state.vix >= 20) recDelta = 0.12;   // ELEVATED → tighter
   else recDelta = 0.15;                         // NORMAL/LOW → sweep optimal
   const recRow = rows.find(r => r.delta === recDelta) || rows[2];
-  // All-Weather AUTO — puts above 200 SMA, calls below, skip VIX>28
+  // All-Weather AUTO — open above 200 SMA = bullish → puts, below = bearish → calls
   let autoStrat;
   if (dmaAbove === true) {
-    autoStrat = 'put';  // above 200 SMA → sell put spreads
+    autoStrat = 'put';  // open above 200 SMA (bullish) → sell put spreads
   } else if (dmaAbove === false) {
-    autoStrat = 'call'; // below 200 SMA → sell call spreads
+    autoStrat = 'call'; // open below 200 SMA (bearish) → sell call spreads
   } else {
     // no 200 SMA data — fall back to bias
     autoStrat = state.bias === 'bear' ? 'call' : 'put';
@@ -2059,7 +2059,7 @@ function getPlaybook() {
       ],
       rules: [
         `Open weekly put spread first (${wklyCt}ct)`,
-        'Auto side: puts above 200 SMA, calls below',
+        'Open bullish (above 200 SMA) → puts, bearish (below) → calls',
         'Skip if VIX > 28',
         'TG 0.5h: 2× stop first 30min, 1× after',
         ...(stagger ? [sizeNote] : []),
@@ -2079,7 +2079,7 @@ function getPlaybook() {
         { name: '0DTE Auto', time: '2:30 AM', dte: '0DTE', delta: sweepDelta, credit: '$0.60 min', contracts: 'phase', type: autoSide },
       ],
       rules: [
-        'Auto side: puts above 200 SMA, calls below',
+        'Open bullish (above 200 SMA) → puts, bearish (below) → calls',
         'Skip if VIX > 28',
         'TG 0.5h: 2× stop first 30min, 1× after',
         'Hold to expiry — do not close early',
@@ -2100,7 +2100,7 @@ function getPlaybook() {
       ],
       rules: [
         ...(isFomcWeek ? ['FOMC day = NO TRADE'] : []),
-        'Auto side: puts above 200 SMA, calls below',
+        'Open bullish (above 200 SMA) → puts, bearish (below) → calls',
         'Skip if VIX > 28',
         'TG 0.5h: 2× stop first 30min, 1× after',
         ...(isFomcWeek ? ['FOMC week: 50% position size'] : []),
@@ -2122,7 +2122,7 @@ function getPlaybook() {
       ],
       rules: [
         'Check weekly — roll or close if tested',
-        'Auto side: puts above 200 SMA, calls below',
+        'Open bullish (above 200 SMA) → puts, bearish (below) → calls',
         'Skip if VIX > 28',
         'TG 0.5h: 2× stop first 30min, 1× after',
         ...(stagger ? [sizeNote] : []),
@@ -2144,7 +2144,7 @@ function getPlaybook() {
       ],
       rules: [
         'Close weekly first',
-        'Auto side: puts above 200 SMA, calls below',
+        'Open bullish (above 200 SMA) → puts, bearish (below) → calls',
         'Skip if VIX > 28',
         'TG 0.5h: 2× stop first 30min, 1× after',
         'Max 1 loss on Fridays — protect the week\'s gains',
@@ -3265,8 +3265,8 @@ function runBacktest() {
         strat = 'put';
         biasLabel = 'No200SMA';
       } else {
-        const aboveSMA = close > s200;
-        const distPct = Math.abs(close - s200) / s200;
+        const aboveSMA = open > s200;
+        const distPct = Math.abs(open - s200) / s200;
 
         if (aboveSMA) {
           // BULL: price above 200 SMA → sell puts
