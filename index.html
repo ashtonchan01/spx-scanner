@@ -353,8 +353,8 @@ input, select, button, textarea { font-family: 'IBM Plex Mono', monospace; outli
         <div style="flex:1;min-width:65px">
           <div class="label" style="margin-bottom:3px">W</div>
           <select id="widthSelect" style="width:100%;background:var(--panelAlt);border:1px solid var(--borderBright);color:var(--white);padding:0 4px;font-size:11px;font-weight:700;height:30px;cursor:pointer;box-sizing:border-box">
-            <option value="5" selected>5★</option>
-            <option value="10">10</option>
+            <option value="5">5</option>
+            <option value="10" selected>10★</option>
             <option value="15">15</option>
             <option value="20">20</option>
             <option value="25">25</option>
@@ -653,10 +653,10 @@ const HIST_DATA=[["2024-03-22",5253.43,5261.1,5240.66,5241.53,12.92],["2024-03-2
 // DATA MODEL & PHASES
 // ══════════════════════════════════════════════════════════════════════════════
 const PHASES = [
-  { id: 1, name: 'Survival', min: 10000, target: 25000, contracts: '1ct per $4k', perK: 4000, weekly: 400, roi: '90%', color: 'var(--green)' },
-  { id: 2, name: 'Building', min: 25000, target: 75000, contracts: '1ct per $5k', perK: 5000, weekly: 1200, roi: '70%', color: 'var(--blue)' },
-  { id: 3, name: 'Acceleration', min: 75000, target: 300000, contracts: '1ct per $6k', perK: 6000, weekly: 2500, roi: '50%', color: 'var(--gold)' },
-  { id: 4, name: 'The Machine', min: 300000, target: 1000000, contracts: '1ct per $8k', perK: 8000, weekly: 6500, roi: '30%', color: 'var(--purple)' },
+  { id: 1, name: 'Survival', min: 10000, target: 25000, contracts: '2 fixed', perK: 0, fixedCt: 2, weekly: 576, roi: '90%', color: 'var(--green)' },
+  { id: 2, name: 'Building', min: 25000, target: 75000, contracts: '1ct per $6k', perK: 6000, weekly: 1500, roi: '70%', color: 'var(--blue)' },
+  { id: 3, name: 'Acceleration', min: 75000, target: 300000, contracts: '1ct per $8k', perK: 8000, weekly: 5000, roi: '50%', color: 'var(--gold)' },
+  { id: 4, name: 'The Machine', min: 300000, target: 1000000, contracts: '1ct per $12k', perK: 12000, weekly: 15000, roi: '30%', color: 'var(--purple)' },
 ];
 
 const PHASE_DETAILS = {
@@ -1015,7 +1015,7 @@ function switchTab(tab) {
 // SCANNER STATE (original)
 // ══════════════════════════════════════════════════════════════════════════════
 let state = {
-  spx: 5800, vix: 22, width: 15, mode: 'morning', strategy: 'auto',
+  spx: 5800, vix: 22, width: 10, mode: 'morning', strategy: 'auto',
   bias: 'neutral', dma200: parseFloat(localStorage.getItem('spx_dma200')) || 0,
   liveSpx: null, liveVix: null,
   lastUpdated: null,
@@ -1039,7 +1039,7 @@ let state = {
   _scanDone: false,
   gexData: null,
 };
-const SLIPPAGE = 0;
+const SLIPPAGE = 0.05;
 const DELTA_ROWS = [
   { delta: 0.10, label: '0.10', tag: 'SAFE', winPct: 88 },
   { delta: 0.12, label: '0.12', tag: 'REC MORN', winPct: 86 },
@@ -1425,7 +1425,7 @@ function computeRows() {
     const putProb = (bsm(S, sP, T, 0.045, iv, 'put').prob_otm * 100).toFixed(0);
     const callProb = (bsm(S, sC, T, 0.045, iv, 'call').prob_otm * 100).toFixed(0);
     return { ...dl, sP, lP, sC, lC, putMid, callMid, putFill, callFill, icFill,
-      putOK: putFill >= 0.60, callOK: callFill >= 0.60, icOK: icFill >= 0.60,
+      putOK: putFill >= 0.80, callOK: callFill >= 0.80, icOK: icFill >= 0.80,
       putStop: sP + sb, callStop: sC - sb, putProb, callProb, profitZone: `${sP} \u2014 ${sC}` };
   });
 }
@@ -1488,15 +1488,11 @@ function scan() {
     if (state.vix >= 30) recDelta = 0.10;
     else if (state.vix >= 25) recDelta = 0.10;
     else recDelta = 0.12;
-  } else if (state.width <= 5) {
-    // 5-wide no-stop: use 0.15 (defined risk, no stop needed, lower win rate req)
-    if (state.vix >= 30) recDelta = 0.12;      // CRISIS → slightly safer
-    else recDelta = 0.15;                       // all other regimes → 0.15 standard
   } else {
+    // Default: Δ0.15 baseline, widen only in high-VIX regimes
     if (state.vix >= 30) recDelta = 0.10;      // CRISIS → safest strikes
-    else if (state.vix >= 25) recDelta = 0.10; // HIGH → safe strikes
-    else if (state.vix >= 20) recDelta = 0.12; // ELEVATED → wider than normal
-    else recDelta = state.mode === 'arvo' ? 0.15 : 0.12; // NORMAL/LOW → standard
+    else if (state.vix >= 25) recDelta = 0.12; // HIGH → wider for safety
+    else recDelta = 0.15;                       // NORMAL/ELEVATED → Δ0.15 standard
   }
   const recRow = rows.find(r => r.delta === recDelta) || rows[2];
   // Bias-aware strategy recommendation
@@ -1517,7 +1513,7 @@ function scan() {
   const dmaAbove = dma200 > 0 ? state.spx > dma200 : null;
   const dmaDist = dma200 > 0 ? Math.round(state.spx - dma200) : null;
   const phase = getPhase(traderData.currentCapital);
-  const contracts = phase.perK ? Math.max(1, Math.floor(traderData.currentCapital / phase.perK)) : 2;
+  const contracts = phase.fixedCt ? phase.fixedCt : Math.max(1, Math.floor(traderData.currentCapital / phase.perK));
   const dailyMove = Math.round(state.spx * (state.vix / 100) / Math.sqrt(365));
   const iv = state.vix / 100;
   const stopBuffer = state.mode === 'arvo' ? 10 : 15;
@@ -1568,13 +1564,12 @@ function scan() {
     const etHour = parseInt(now.toLocaleString('en-US', { timeZone: 'America/New_York', hour: 'numeric', hour12: false }));
     const etMin = parseInt(now.toLocaleString('en-US', { timeZone: 'America/New_York', minute: 'numeric' }));
     const etTime = etHour + etMin / 60;
-    const isArvo = state.mode === 'arvo';
-    const sessionStart = isArvo ? 12.0 : 9.75;
-    const gateEnd = sessionStart + 2;
+    // Time-gated stop: 2× for first 1.5 hrs after 9:30 AM, then 1× after 11:00 AM
+    const gateEnd = 11.0; // 11:00 AM ET
     let mult, window, windowColor, tier;
-    if (etTime < sessionStart) { mult = 2; tier = 'PRE'; window = '2\u00D7 STOP (pre-session)'; windowColor = 'var(--textDim)'; }
-    else if (etTime < gateEnd) { mult = 2; tier = 'EARLY'; const minsLeft = Math.round((gateEnd - etTime) * 60); window = '2\u00D7 WIDE \u2014 ' + minsLeft + 'min until 1.5\u00D7'; windowColor = 'var(--gold)'; }
-    else { mult = 1.5; tier = 'LATE'; window = '1.5\u00D7 TIGHT STOP (theta decayed)'; windowColor = 'var(--red)'; }
+    if (etTime < 9.5) { mult = 2; tier = 'PRE'; window = '2\u00D7 STOP (pre-market)'; windowColor = 'var(--textDim)'; }
+    else if (etTime < gateEnd) { mult = 2; tier = 'EARLY'; const minsLeft = Math.round((gateEnd - etTime) * 60); window = '2\u00D7 WIDE \u2014 ' + minsLeft + 'min until 1\u00D7'; windowColor = 'var(--gold)'; }
+    else { mult = 1; tier = 'LATE'; window = '1\u00D7 TIGHT STOP (theta decayed)'; windowColor = 'var(--red)'; }
     return { mult, stopSpreadVal: f2(credit * mult), maxLoss: f2((credit * mult) - credit), window, windowColor, tier, emergencyStop: f2(credit * 3) };
   }
   const stopInfo = getStopLevel(orderCredit);
@@ -1640,9 +1635,7 @@ function scan() {
         <span style="font-size:12px;font-weight:700;color:${oc}">${orderIcon} ${orderType}</span>
         <span class="chakra" style="font-size:13px;font-weight:700;color:${convColor}">${conviction}</span>
         <span style="font-size:11px;color:var(--textDim)">\u0394${recDelta} \u00B7 ${adjContracts}ct \u00B7 $${f2(orderCredit)} credit${state.mode === 'weekly' ? ' \u00B7 5DTE' : ''}</span>
-        ${state.width <= 5
-          ? `<span style="font-size:10px;color:var(--gold)">&#183; HOLD TO EXPIRY &#8212; NO STOP &#183; MAX LOSS: $${f2((state.width - orderCredit) * adjContracts * 100)}</span>`
-          : `<span style="font-size:10px;color:var(--textDim)">&#183; Stop: 3&times; $${f2(orderCredit*3)}</span>`}
+        <span style="font-size:10px;color:${stopInfo.windowColor}">&#183; ${stopInfo.window} &#183; Stop @ $${stopInfo.stopSpreadVal} &#183; Fee: $3/spread</span>
       </div>
       <div style="display:flex;gap:6px;align-items:end;margin-top:8px;flex-wrap:nowrap">
         <div style="flex:1.2;min-width:85px">
@@ -1705,7 +1698,7 @@ function scan() {
   document.getElementById('deltaTable').innerHTML = `
     <div style="background:#171717;padding:8px 16px">
       <div style="display:grid;grid-template-columns:${cols};gap:0">
-        ${(state.width<=5?['DELTA','TAG','SHORT P','SHORT C','LONG P','LONG C','PUT FILL','CALL FILL','IC FILL','P MAX LOSS','C MAX LOSS','50% TGT']:['DELTA','TAG','SHORT P','SHORT C','LONG P','LONG C','PUT FILL','CALL FILL','IC FILL','P STOP','C STOP','50% TGT']).map((h,i) =>
+        ${['DELTA','TAG','SHORT P','SHORT C','LONG P','LONG C','PUT FILL','CALL FILL','IC FILL','P STOP','C STOP','50% TGT'].map((h,i) =>
           `<div style="font-size:10px;color:${[6].includes(i)?'var(--green)':[7].includes(i)?'var(--orange)':[8].includes(i)?'var(--cyan)':'var(--textDim)'};letter-spacing:1px">${h}</div>`
         ).join('')}
       </div>
@@ -1713,7 +1706,7 @@ function scan() {
     ${rows.map((row, i) => {
       const isRec = row.delta === recDelta;
       const pf = row.putFill; const cf = row.callFill;
-      const pOK = pf >= 0.60, cOK = cf >= 0.60;
+      const pOK = pf >= 0.80, cOK = cf >= 0.80;
       return `<div style="display:grid;grid-template-columns:${cols};padding:9px 16px;background:${isRec?`color-mix(in srgb, ${activeColor} 5%, transparent)`:i%2===0?'var(--panelAlt)':'var(--panel)'};border-left:${isRec?`3px solid ${activeColor}`:'3px solid transparent'};border-bottom:1px solid var(--border);align-items:center">
         <div style="font-size:13px;color:${isRec?activeColor:'var(--textMid)'};font-weight:${isRec?700:400}">\u0394${row.label}</div>
         <div style="font-size:10px;color:${isRec?activeColor:'var(--textDim)'}">${isRec?'\u25C0 REC':row.tag}</div>
@@ -1724,21 +1717,21 @@ function scan() {
         <div><span style="font-size:14px;color:${pOK?'var(--green)':'var(--red)'};font-weight:700">\$${f2(pf)}</span> <span style="font-size:9px;color:${pOK?'var(--green)':'var(--red)'}">${pOK?'\u2713':'\u2717'}</span></div>
         <div><span style="font-size:14px;color:${cOK?'var(--orange)':'var(--red)'};font-weight:700">\$${f2(cf)}</span> <span style="font-size:9px;color:${cOK?'var(--orange)':'var(--red)'}">${cOK?'\u2713':'\u2717'}</span></div>
         <div><span style="font-size:14px;color:${row.icOK?'var(--cyan)':'var(--red)'};font-weight:700">\$${f2(row.icFill)}</span></div>
-        ${state.width<=5
-          ? `<div style="font-size:12px;color:var(--orange)">$${f2((state.width-pf)*100)}</div><div style="font-size:12px;color:var(--orange)">$${f2((state.width-cf)*100)}</div>`
-          : `<div style="font-size:12px;color:var(--red)">\u2264${row.putStop}</div><div style="font-size:12px;color:var(--red)">\u2265${row.callStop}</div>`}
+        <div style="font-size:12px;color:var(--red)">\u2264${row.putStop}</div><div style="font-size:12px;color:var(--red)">\u2265${row.callStop}</div>
         <div style="font-size:11px;color:var(--green)">\$${f2(pf*0.5)}p <span style="color:var(--cyan)">\$${f2(row.icFill*0.5)}ic</span></div>
       </div>`;
     }).join('')}`;
 
   // ── BOTTOM: Income + Phase (2 columns) ──
   function mkRows(data) { return data.map(r => `<div class="row"><span${r.ls?' style="'+r.ls+'"':''}>${r.l}</span><span style="font-size:${r.big?14:12}px;color:${r.color||'var(--text)'};font-weight:${r.big?700:400}">${r.v}</span></div>`).join(''); }
-  const putW=recRow.putFill*adjContracts*100, calW=recRow.callFill*adjContracts*100;
-  const noStop = state.width <= 5;
-  const putL = noStop ? (state.width - recRow.putFill)*adjContracts*100 : recRow.putFill*3*adjContracts*100;
-  const calL = noStop ? (state.width - recRow.callFill)*adjContracts*100 : recRow.callFill*3*adjContracts*100;
-  const icW=recRow.icFill*adjContracts*100;
-  const icL = noStop ? (state.width - recRow.icFill)*adjContracts*100 : recRow.icFill*3*adjContracts*100;
+  const openFee = 3 * adjContracts; // $3 per spread to open
+  const closeFee = 3 * adjContracts; // $3 per spread if stopped out
+  const putW=recRow.putFill*adjContracts*100 - openFee, calW=recRow.callFill*adjContracts*100 - openFee;
+  // Max loss = stop mult × credit (spread price hits stop) + fees
+  const putL = recRow.putFill*stopInfo.mult*adjContracts*100 + openFee + closeFee;
+  const calL = recRow.callFill*stopInfo.mult*adjContracts*100 + openFee + closeFee;
+  const icW=recRow.icFill*adjContracts*100 - openFee;
+  const icL = recRow.icFill*stopInfo.mult*adjContracts*100 + openFee + closeFee;
   const maxL = Math.max(putL, calL, icL);
   const wkD=wklyFill*100/5;
 
@@ -1747,11 +1740,11 @@ function scan() {
       <div class="panelAlt" style="border:1px solid var(--border);border-top:3px solid var(--gold);padding:12px 14px">
         <div style="font-size:11px;color:var(--gold);letter-spacing:2px;margin-bottom:8px;font-weight:700">INCOME SUMMARY</div>
         ${[
-          {l:'PUT WIN',v:fmt$(putW),c:'var(--green)'},{l:'CALL WIN',v:fmt$(calW),c:'var(--green)'},
-          {l:'IC WIN',v:fmt$(icW),c:'var(--cyan)'},{l:`MAX LOSS ${noStop?'(no stop)':'(3\u00D7)'}`,v:fmt$(-maxL),c:'var(--red)'},
-          {l:'WEEKLY /day',v:fmt$(wkD),c:'var(--blue)'},
-          {l:'BEST DAY',v:fmt$(icW+wkD-5.60),c:'var(--green)'},
-          {l:'WORST DAY',v:fmt$(-maxL+wkD-5.60),c:'var(--red)'},
+          {l:'PUT WIN (net)',v:fmt$(putW),c:'var(--green)'},{l:'CALL WIN (net)',v:fmt$(calW),c:'var(--green)'},
+          {l:'IC WIN (net)',v:fmt$(icW),c:'var(--cyan)'},{l:'MAX LOSS (${stopInfo.tier} ${stopInfo.mult}\u00D7 + fees)',v:fmt$(-maxL),c:'var(--red)'},
+          {l:'OPEN FEE',v:fmt$(-openFee),c:'var(--textDim)'},{l:'CLOSE FEE (stop)',v:fmt$(-closeFee),c:'var(--textDim)'},
+          {l:'BEST DAY',v:fmt$(icW+wkD),c:'var(--green)'},
+          {l:'WORST DAY',v:fmt$(-maxL+wkD),c:'var(--red)'},
         ].map(s => `<div class="row"><span>${s.l}</span><span style="font-size:12px;color:${s.c};font-weight:600">${s.v}</span></div>`).join('')}
       </div>
       <div class="panelAlt" style="border:1px solid var(--border);border-top:3px solid ${phase.color};padding:12px 14px">
@@ -1761,8 +1754,8 @@ function scan() {
           {l:'WEEKLY TGT',v:`$${phase.weekly.toLocaleString()}`,color:'var(--gold)'},
           {l:'ANNUAL ROI',v:phase.roi+'+',color:'var(--green)'},
           {l:'SIZING',v:phase.contracts},
-          {l:'BREAKEVEN WR',v:noStop?Math.round((state.width-orderCredit)/state.width*100)+'%':'67%',color:'var(--red)'},
-          {l:'TARGET WR',v:noStop?(Math.round((state.width-orderCredit)/state.width*100)+5)+'%+':'82\u201385%',color:'var(--green)'},
+          {l:'STOP',v:stopInfo.window,color:stopInfo.windowColor},
+          {l:'TARGET WR',v:'55%+',color:'var(--green)'},
         ])}
       </div>
     </div>`;
