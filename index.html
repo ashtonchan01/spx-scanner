@@ -152,6 +152,7 @@ input, select, button, textarea { font-family: 'IBM Plex Mono', monospace; outli
   .top-bar { grid-template-columns: 1fr; gap: 8px; }
   .regime-strip { grid-template-columns: 1fr 1fr; gap: 4px; }
   .stat-card .stat-value { font-size: 20px; }
+  .analysis-grid { grid-template-columns: repeat(3, 1fr) !important; }
 }
 
 /* ── MOBILE (<768px) ── */
@@ -166,10 +167,6 @@ input, select, button, textarea { font-family: 'IBM Plex Mono', monospace; outli
   /* Top bar: stack vertically */
   .top-bar { grid-template-columns: 1fr; gap: 6px; }
   .top-bar > div { flex-wrap: wrap; gap: 8px; }
-
-  /* IBKR connection — full width */
-  #connInput { flex-direction: column; width: 100%; }
-  #connInput input { width: 100% !important; font-size: 14px; }
 
   /* Scanner input row — stack to 2 columns */
   .scanner-inputs { grid-template-columns: 1fr 1fr !important; gap: 8px !important; }
@@ -242,6 +239,7 @@ input, select, button, textarea { font-family: 'IBM Plex Mono', monospace; outli
 /* ── SMALL PHONE (<480px) ── */
 @media (max-width: 480px) {
   .container { padding: 6px 8px; }
+  .analysis-grid { grid-template-columns: repeat(2, 1fr) !important; }
 
   .tab-btn { padding: 8px 10px; font-size: 9px; }
 
@@ -273,30 +271,15 @@ input, select, button, textarea { font-family: 'IBM Plex Mono', monospace; outli
 <div class="glow"></div>
 <div class="container" style="position:relative;z-index:1">
 
-<!-- MASTHEAD: Title + IBKR connection + Clock (always visible) -->
+<!-- MASTHEAD: Title + Clock (always visible) -->
 <div class="top-bar">
   <div style="display:flex;align-items:center;gap:24px">
     <div>
       <div class="label" style="letter-spacing:5px;margin-bottom:2px;font-size:10px">SYSTEMATIC OPTIONS INCOME · 0DTE SPX</div>
-      <div class="chakra" style="font-size:26px;font-weight:700;color:var(--white);letter-spacing:2px">LIVE SCANNER</div>
-    </div>
-    <div style="display:flex;gap:16px;align-items:center">
-      <div id="connPanel" class="flash" style="display:flex;align-items:center;gap:8px;padding:6px 14px;background:var(--panel);border:1px solid var(--borderBright);border-radius:4px">
-        <div id="statusDot" class="status-dot" style="background:var(--textDim)"></div>
-        <div id="statusText" style="font-size:12px;color:var(--textDim);font-weight:700;letter-spacing:1px">DISCONNECTED</div>
-      </div>
-      <div id="connButtons" style="display:none;gap:6px">
-        <button class="btn" id="btnRefresh" style="color:var(--green);border-color:rgba(0,208,132,0.5);background:rgba(0,208,132,0.12);font-size:11px;padding:6px 14px" onclick="fetchPrices()">&#8635; PRICES</button>
-        <button class="btn" id="btnQuotes" style="color:var(--cyan);border-color:rgba(0,229,255,0.5);background:rgba(0,229,255,0.12);font-size:11px;padding:6px 14px" onclick="fetchAllQuotes()">&#x2B21; QUOTES</button>
-        <button class="btn" style="color:var(--red);border-color:rgba(255,71,87,0.4);font-size:10px;padding:6px 10px" onclick="disconnect()">&#x2715;</button>
-      </div>
+      <div class="chakra" style="font-size:26px;font-weight:700;color:var(--white);letter-spacing:2px">SPX SCANNER</div>
     </div>
   </div>
   <div style="display:flex;align-items:center;gap:20px">
-    <div id="connInput" style="display:flex;gap:6px;align-items:center">
-      <input id="urlInput" type="text" placeholder="https://xxxx.ngrok-free.app" style="width:320px;background:var(--panelAlt);border:1px solid var(--borderBright);color:var(--white);padding:8px 12px;font-size:13px" onkeydown="if(event.key==='Enter')connect()">
-      <button class="btn" style="border:1px solid var(--green);color:var(--green);font-size:11px;padding:7px 16px;font-weight:700" onclick="connect()">CONNECT</button>
-    </div>
     <div style="text-align:right;flex-shrink:0">
       <div id="clock" style="font-family:'Inter',sans-serif;font-size:22px;font-weight:300;color:var(--gold);letter-spacing:2px"></div>
       <div style="font-size:9px;color:var(--textDim);letter-spacing:1px">SYDNEY</div>
@@ -305,16 +288,14 @@ input, select, button, textarea { font-family: 'IBM Plex Mono', monospace; outli
     </div>
   </div>
 </div>
-<div id="connError" style="display:none;margin-bottom:8px;padding:8px 12px;background:rgba(255,71,87,0.06);border:1px solid rgba(255,71,87,0.2);font-size:9px"></div>
-
 <!-- TAB BAR -->
 <div class="tab-bar">
   <button class="tab-btn active" data-tab="dashboard" onclick="switchTab('dashboard')">DASHBOARD</button>
   <button class="tab-btn" data-tab="scanner" onclick="switchTab('scanner')">SCANNER</button>
+  <button class="tab-btn" data-tab="analysis" onclick="switchTab('analysis')">ANALYSIS</button>
   <button class="tab-btn" data-tab="calendar" onclick="switchTab('calendar')">CALENDAR</button>
   <button class="tab-btn" data-tab="phases" onclick="switchTab('phases')">PHASES</button>
   <button class="tab-btn" data-tab="log" onclick="switchTab('log')">LOG TRADES</button>
-  <button class="tab-btn" data-tab="backtest" onclick="switchTab('backtest')">BACKTEST</button>
   <button class="tab-btn" data-tab="settings" onclick="switchTab('settings')">SETTINGS</button>
 </div>
 
@@ -333,7 +314,7 @@ input, select, button, textarea { font-family: 'IBM Plex Mono', monospace; outli
 <div id="orderPanel" style="margin-bottom:8px"></div>
 
 <!-- INPUT + MARKET ANALYSIS GRID (side by side after scan) -->
-<div id="inputMarketGrid" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+<div id="inputMarketGrid" style="margin-bottom:8px">
   <!-- LEFT: INPUT PANEL -->
   <div id="inputPanel" class="panel flash" style="padding:12px 16px;border-width:2px">
     <div id="inputSummary" style="display:none;cursor:pointer;align-items:center;justify-content:space-between;padding:4px 0" onclick="toggleInputs()">
@@ -344,86 +325,137 @@ input, select, button, textarea { font-family: 'IBM Plex Mono', monospace; outli
       <span style="font-size:11px;color:var(--cyan);letter-spacing:1px;cursor:pointer">EXPAND &#9660;</span>
     </div>
     <div id="inputFields">
-      <div class="scanner-inputs" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;align-items:end">
-        <div>
-          <div class="label" style="margin-bottom:4px">SPX PRICE</div>
-          <div style="display:flex;height:38px">
-            <span style="display:flex;align-items:center;padding:0 8px;background:var(--panelAlt);border:1px solid var(--borderBright);border-right:none;color:var(--textDim);font-size:12px">$</span>
-            <input id="spxInput" type="number" value="5800" style="width:100%;background:var(--panelAlt);border:1px solid var(--borderBright);color:var(--white);padding:0 8px;font-size:16px;font-weight:700;height:100%;box-sizing:border-box" onkeydown="if(event.key==='Enter')todaysSetup()">
+      <div style="display:flex;gap:6px;align-items:end;flex-wrap:nowrap">
+        <!-- SPX -->
+        <div style="flex:1.4;min-width:90px">
+          <div class="label" style="margin-bottom:3px">SPX</div>
+          <div style="display:flex;height:30px">
+            <span style="display:flex;align-items:center;padding:0 5px;background:var(--panelAlt);border:1px solid var(--borderBright);border-right:none;color:var(--textDim);font-size:10px">$</span>
+            <input id="spxInput" type="number" value="5800" style="width:100%;background:var(--panelAlt);border:1px solid var(--borderBright);color:var(--white);padding:0 6px;font-size:13px;font-weight:700;height:100%;box-sizing:border-box;min-width:0" onkeydown="if(event.key==='Enter')todaysSetup()">
           </div>
         </div>
-        <div>
-          <div class="label" style="margin-bottom:4px">VIX</div>
-          <div style="display:flex;height:38px">
-            <span style="display:flex;align-items:center;padding:0 8px;background:var(--panelAlt);border:1px solid var(--borderBright);border-right:none;color:var(--textDim);font-size:12px">V</span>
-            <input id="vixInput" type="number" step="0.1" value="22" style="width:100%;background:var(--panelAlt);border:1px solid var(--borderBright);color:var(--white);padding:0 8px;font-size:16px;font-weight:700;height:100%;box-sizing:border-box" onkeydown="if(event.key==='Enter')todaysSetup()">
+        <!-- VIX -->
+        <div style="flex:1;min-width:65px">
+          <div class="label" style="margin-bottom:3px">VIX</div>
+          <div style="display:flex;height:30px">
+            <span style="display:flex;align-items:center;padding:0 5px;background:var(--panelAlt);border:1px solid var(--borderBright);border-right:none;color:var(--textDim);font-size:10px">V</span>
+            <input id="vixInput" type="number" step="0.1" value="22" style="width:100%;background:var(--panelAlt);border:1px solid var(--borderBright);color:var(--white);padding:0 6px;font-size:13px;font-weight:700;height:100%;box-sizing:border-box;min-width:0" onkeydown="if(event.key==='Enter')todaysSetup()">
           </div>
         </div>
-        <div>
-          <div class="label" style="margin-bottom:4px">200DMA</div>
-          <div style="display:flex;height:38px">
-            <span style="display:flex;align-items:center;padding:0 6px;background:var(--panelAlt);border:1px solid var(--borderBright);border-right:none;color:var(--textDim);font-size:10px">MA</span>
-            <input id="dma200Input" type="number" value="" placeholder="5700" style="width:100%;background:var(--panelAlt);border:1px solid var(--borderBright);color:var(--white);padding:0 8px;font-size:14px;font-weight:700;height:100%;box-sizing:border-box" onkeydown="if(event.key==='Enter'){state.dma200=parseFloat(this.value)||0;localStorage.setItem('spx_dma200',state.dma200);}" onchange="state.dma200=parseFloat(this.value)||0;localStorage.setItem('spx_dma200',state.dma200);">
+        <!-- 200DMA -->
+        <div style="flex:1.4;min-width:90px">
+          <div class="label" style="margin-bottom:3px">DMA</div>
+          <div style="display:flex;height:30px">
+            <input id="dma200Input" type="number" value="" placeholder="6621" style="width:100%;background:var(--panelAlt);border:1px solid var(--borderBright);color:var(--white);padding:0 6px;font-size:12px;font-weight:700;height:100%;box-sizing:border-box;min-width:0" onkeydown="if(event.key==='Enter'){state.dma200=parseFloat(this.value)||0;localStorage.setItem('spx_dma200',state.dma200);}" onchange="state.dma200=parseFloat(this.value)||0;localStorage.setItem('spx_dma200',state.dma200);">
           </div>
         </div>
-      </div>
-      <div class="scanner-inputs" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;align-items:end;margin-top:8px">
-        <div>
-          <div class="label" style="margin-bottom:4px">WIDTH</div>
-          <select id="widthSelect" style="width:100%;background:var(--panelAlt);border:1px solid var(--borderBright);color:var(--white);padding:0 8px;font-size:13px;font-weight:700;height:38px;cursor:pointer;box-sizing:border-box">
-            <option value="10">10 pts</option>
-            <option value="15" selected>15 pts &#9733;</option>
-            <option value="20">20 pts</option>
-            <option value="25">25 pts</option>
+        <!-- WIDTH -->
+        <div style="flex:1;min-width:65px">
+          <div class="label" style="margin-bottom:3px">W</div>
+          <select id="widthSelect" style="width:100%;background:var(--panelAlt);border:1px solid var(--borderBright);color:var(--white);padding:0 4px;font-size:11px;font-weight:700;height:30px;cursor:pointer;box-sizing:border-box">
+            <option value="5">5</option>
+            <option value="10" selected>10★</option>
+            <option value="15">15</option>
+            <option value="20">20</option>
+            <option value="25">25</option>
           </select>
         </div>
-        <div>
-          <div class="label" style="margin-bottom:4px">MODE / STRATEGY</div>
-          <div style="display:flex;height:38px" id="modeStratRow">
-            <button class="mode-btn active" data-mode="morning" style="flex:1;border:none;cursor:pointer;font-size:10px;font-family:'IBM Plex Mono',monospace;background:rgba(240,180,41,0.15);color:var(--gold);border-top:1px solid var(--borderBright);border-left:1px solid var(--borderBright);border-right:1px solid var(--borderBright);border-bottom:3px solid var(--gold)" onclick="setMode('morning')">MORN</button>
-            <button class="mode-btn" data-mode="arvo" style="flex:1;border:none;cursor:pointer;font-size:10px;font-family:'IBM Plex Mono',monospace;background:var(--panelAlt);color:var(--textDim);border-top:1px solid var(--borderBright);border-left:1px solid var(--borderBright);border-right:1px solid var(--borderBright);border-bottom:3px solid var(--border)" onclick="setMode('arvo')">ARVO</button>
+        <!-- divider -->
+        <div style="width:1px;height:30px;background:var(--border);flex-shrink:0"></div>
+        <!-- MODE/STRATEGY -->
+        <div style="flex:1.5;min-width:140px">
+          <div class="label" style="margin-bottom:3px">MODE / STRATEGY</div>
+          <div style="display:flex;height:30px" id="modeStratRow">
+            <button class="mode-btn active" data-mode="morning" style="flex:1;border:none;cursor:pointer;font-size:9px;font-family:'IBM Plex Mono',monospace;background:rgba(240,180,41,0.15);color:var(--gold);border-top:1px solid var(--borderBright);border-left:1px solid var(--borderBright);border-right:1px solid var(--borderBright);border-bottom:2px solid var(--gold)" onclick="setMode('morning')">MORN</button>
+            <button class="mode-btn" data-mode="arvo" style="flex:1;border:none;cursor:pointer;font-size:9px;font-family:'IBM Plex Mono',monospace;background:var(--panelAlt);color:var(--textDim);border-top:1px solid var(--borderBright);border-left:1px solid var(--borderBright);border-right:1px solid var(--borderBright);border-bottom:2px solid var(--border)" onclick="setMode('arvo')">ARVO</button>
+            <button class="mode-btn" data-mode="weekly" style="flex:1;border:none;cursor:pointer;font-size:9px;font-family:'IBM Plex Mono',monospace;background:var(--panelAlt);color:var(--textDim);border-top:1px solid var(--borderBright);border-left:1px solid var(--borderBright);border-right:1px solid var(--borderBright);border-bottom:2px solid var(--border)" onclick="setMode('weekly')">WKLY</button>
             <div style="width:1px;background:var(--borderBright)"></div>
-            <button class="strat-btn active" data-strat="auto" onclick="setStrategy('auto')" style="flex:1;border:none;cursor:pointer;font-size:9px;font-family:'IBM Plex Mono',monospace;background:rgba(0,229,255,0.15);color:var(--cyan);border-bottom:3px solid var(--cyan);border-top:1px solid var(--borderBright);border-right:1px solid var(--borderBright)">AUTO</button>
-            <button class="strat-btn" data-strat="put" onclick="setStrategy('put')" style="flex:1;border:none;cursor:pointer;font-size:9px;font-family:'IBM Plex Mono',monospace;background:var(--panelAlt);color:var(--textDim);border-bottom:3px solid var(--border);border-top:1px solid var(--borderBright);border-right:1px solid var(--borderBright)">PUT</button>
-            <button class="strat-btn" data-strat="call" onclick="setStrategy('call')" style="flex:1;border:none;cursor:pointer;font-size:9px;font-family:'IBM Plex Mono',monospace;background:var(--panelAlt);color:var(--textDim);border-bottom:3px solid var(--border);border-top:1px solid var(--borderBright);border-right:1px solid var(--borderBright)">CALL</button>
-            <button class="strat-btn" data-strat="ic" onclick="setStrategy('ic')" style="flex:1;border:none;cursor:pointer;font-size:9px;font-family:'IBM Plex Mono',monospace;background:var(--panelAlt);color:var(--textDim);border-bottom:3px solid var(--border);border-top:1px solid var(--borderBright);border-right:1px solid var(--borderBright)">IC</button>
+            <button class="strat-btn active" data-strat="auto" onclick="setStrategy('auto')" style="flex:1;border:none;cursor:pointer;font-size:8px;font-family:'IBM Plex Mono',monospace;background:rgba(0,229,255,0.15);color:var(--cyan);border-bottom:2px solid var(--cyan);border-top:1px solid var(--borderBright);border-right:1px solid var(--borderBright)">AUTO</button>
+            <button class="strat-btn" data-strat="put" onclick="setStrategy('put')" style="flex:1;border:none;cursor:pointer;font-size:8px;font-family:'IBM Plex Mono',monospace;background:var(--panelAlt);color:var(--textDim);border-bottom:2px solid var(--border);border-top:1px solid var(--borderBright);border-right:1px solid var(--borderBright)">PUT</button>
+            <button class="strat-btn" data-strat="call" onclick="setStrategy('call')" style="flex:1;border:none;cursor:pointer;font-size:8px;font-family:'IBM Plex Mono',monospace;background:var(--panelAlt);color:var(--textDim);border-bottom:2px solid var(--border);border-top:1px solid var(--borderBright);border-right:1px solid var(--borderBright)">CALL</button>
+            <button class="strat-btn" data-strat="ic" onclick="setStrategy('ic')" style="flex:1;border:none;cursor:pointer;font-size:8px;font-family:'IBM Plex Mono',monospace;background:var(--panelAlt);color:var(--textDim);border-bottom:2px solid var(--border);border-top:1px solid var(--borderBright);border-right:1px solid var(--borderBright)">IC</button>
           </div>
         </div>
-      </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px;align-items:end">
-        <div>
-          <div class="label" style="margin-bottom:4px">BIAS</div>
-          <div style="display:flex;height:38px" id="biasButtons">
-            <button class="bias-btn" data-bias="bull" onclick="setBias('bull')" style="flex:1;border:none;cursor:pointer;font-size:10px;font-family:'IBM Plex Mono',monospace;background:var(--panelAlt);color:var(--textDim);border-bottom:3px solid var(--border);border-top:1px solid var(--borderBright);border-left:1px solid var(--borderBright);border-right:1px solid var(--borderBright)">&#8593; BULL</button>
-            <button class="bias-btn active" data-bias="neutral" onclick="setBias('neutral')" style="flex:1;border:none;cursor:pointer;font-size:10px;font-family:'IBM Plex Mono',monospace;background:rgba(0,229,255,0.15);color:var(--cyan);border-bottom:3px solid var(--cyan);border-top:1px solid var(--borderBright);border-left:1px solid var(--borderBright);border-right:1px solid var(--borderBright)">&#8594; NEUT</button>
-            <button class="bias-btn" data-bias="bear" onclick="setBias('bear')" style="flex:1;border:none;cursor:pointer;font-size:10px;font-family:'IBM Plex Mono',monospace;background:var(--panelAlt);color:var(--textDim);border-bottom:3px solid var(--border);border-top:1px solid var(--borderBright);border-left:1px solid var(--borderBright);border-right:1px solid var(--borderBright)">&#8595; BEAR</button>
+        <!-- BIAS -->
+        <div style="flex:0.8;min-width:80px">
+          <div class="label" style="margin-bottom:3px">BIAS</div>
+          <div style="display:flex;height:30px" id="biasButtons">
+            <button class="bias-btn" data-bias="bull" onclick="setBias('bull')" style="flex:1;border:none;cursor:pointer;font-size:9px;font-family:'IBM Plex Mono',monospace;background:var(--panelAlt);color:var(--textDim);border-bottom:2px solid var(--border);border-top:1px solid var(--borderBright);border-left:1px solid var(--borderBright);border-right:1px solid var(--borderBright)">&#8593;B</button>
+            <button class="bias-btn active" data-bias="neutral" onclick="setBias('neutral')" style="flex:1;border:none;cursor:pointer;font-size:9px;font-family:'IBM Plex Mono',monospace;background:rgba(0,229,255,0.15);color:var(--cyan);border-bottom:2px solid var(--cyan);border-top:1px solid var(--borderBright);border-left:1px solid var(--borderBright);border-right:1px solid var(--borderBright)">&#8594;N</button>
+            <button class="bias-btn" data-bias="bear" onclick="setBias('bear')" style="flex:1;border:none;cursor:pointer;font-size:9px;font-family:'IBM Plex Mono',monospace;background:var(--panelAlt);color:var(--textDim);border-bottom:2px solid var(--border);border-top:1px solid var(--borderBright);border-left:1px solid var(--borderBright);border-right:1px solid var(--borderBright)">&#8595;B</button>
           </div>
         </div>
-        <div>
-          <button id="setupBtn" onclick="todaysSetup()" style="width:100%;padding:8px;font-size:11px;font-weight:700;font-family:'IBM Plex Mono',monospace;letter-spacing:2px;cursor:pointer;border:1px solid var(--cyan);background:rgba(0,229,255,0.08);color:var(--cyan);height:38px">SCAN</button>
+        <!-- SCAN -->
+        <div style="flex:1;min-width:80px">
+          <div class="label" style="margin-bottom:3px">&nbsp;</div>
+          <button id="setupBtn" onclick="todaysSetup()" style="width:100%;padding:0 10px;font-size:10px;font-weight:700;font-family:'IBM Plex Mono',monospace;letter-spacing:1.5px;cursor:pointer;border:1px solid var(--cyan);background:rgba(0,229,255,0.08);color:var(--cyan);height:30px;white-space:nowrap">SCAN</button>
         </div>
       </div>
-      <div id="scanInfo" style="font-size:10px;color:var(--textDim);margin-top:6px">Enter SPX &amp; VIX then press SCAN</div>
+      <div id="scanInfo" style="font-size:9px;color:var(--textDim);margin-top:4px">Enter SPX &amp; VIX then press SCAN</div>
     </div>
   </div>
 
-  <!-- RIGHT: MARKET ANALYSIS (populated by scan) -->
-  <div id="marketAnalysisPanel" class="panel" style="padding:12px 16px">
-    <div style="font-size:10px;color:var(--textDim);letter-spacing:2px">MARKET ANALYSIS</div>
-    <div style="font-size:11px;color:var(--textDim);margin-top:20px;text-align:center">Press SCAN to analyze</div>
-  </div>
 </div>
 
-<!-- Hidden containers for backward compat (scan() previously wrote here) -->
+<!-- Scanner output panels -->
 <div id="regimeRow" style="display:none"></div>
-<div id="orderPanel" style="display:none"></div>
-<div id="mainArea" style="display:none"></div>
+<div id="mainArea"></div>
 
 <!-- DELTA TABLE -->
 <div id="deltaTable" class="panel delta-full"></div>
 
 <!-- BOTTOM: Income + Phase -->
 <div id="bottomArea"></div>
+</div>
+
+<!-- ============================================================ -->
+<!-- TAB: ANALYSIS -->
+<!-- ============================================================ -->
+<div id="tab-analysis" class="tab-content">
+  <!-- Header + Refresh -->
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+    <div>
+      <div class="chakra" style="font-size:22px;font-weight:700;color:var(--white)">MARKET ANALYSIS</div>
+      <div id="analysis-timestamp" style="font-size:10px;color:var(--textDim);margin-top:2px">No data — press REFRESH DATA</div>
+    </div>
+    <button id="analysisRefreshBtn" onclick="refreshAnalysis()" style="padding:8px 20px;background:transparent;border:1px solid var(--cyan);color:var(--cyan);font-size:11px;font-weight:700;letter-spacing:1.5px;cursor:pointer;font-family:'IBM Plex Mono',monospace">REFRESH DATA</button>
+  </div>
+
+  <!-- A: SPX Price Chart -->
+  <div id="analysis-chart-container" style="border:1px solid var(--border);padding:16px;margin-bottom:12px">
+    <div style="font-size:9px;color:var(--textDim);letter-spacing:1.5px;margin-bottom:10px">SPX KEY LEVELS</div>
+    <canvas id="spxChart" style="width:100%;height:280px"></canvas>
+  </div>
+
+  <!-- A2: GEX Profile -->
+  <div id="analysis-gex-container" style="border:1px solid var(--border);padding:16px;margin-bottom:12px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+      <div style="font-size:9px;color:var(--textDim);letter-spacing:1.5px">GAMMA EXPOSURE (GEX) — SPX ESTIMATED</div>
+      <div id="gex-dte-label" style="font-size:9px;color:var(--textDim)"></div>
+    </div>
+    <canvas id="gexChart" style="width:100%;height:300px"></canvas>
+    <div id="gex-summary" style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:12px"></div>
+  </div>
+
+  <!-- B: Market Dashboard -->
+  <div id="analysis-market-grid" class="analysis-grid" style="display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin-bottom:16px"></div>
+
+  <!-- C: Key Levels -->
+  <div id="analysis-levels" style="border:1px solid var(--border);padding:16px;margin-bottom:12px"></div>
+
+  <!-- D: Regime & Signals -->
+  <div id="analysis-regime" style="border:1px solid var(--border);padding:16px;margin-bottom:12px"></div>
+
+  <!-- E: Trade Verdict -->
+  <div id="analysis-verdict" style="border:1px solid var(--border);padding:16px;margin-bottom:12px"></div>
+
+  <!-- F: Key Findings -->
+  <div id="analysis-findings" style="border:1px solid var(--border);padding:16px">
+    <div style="font-size:9px;color:var(--textDim);letter-spacing:1.5px;margin-bottom:10px">KEY FINDINGS</div>
+    <div id="analysis-findings-list" style="display:flex;flex-direction:column;gap:6px">
+      <div style="color:var(--textDim);font-size:11px">Press REFRESH DATA to generate findings</div>
+    </div>
+  </div>
 </div>
 
 <!-- ============================================================ -->
@@ -542,96 +574,6 @@ input, select, button, textarea { font-family: 'IBM Plex Mono', monospace; outli
 
 <!-- Projections merged into dashboard -->
 
-<!-- ============================================================ -->
-<!-- TAB: BACKTEST -->
-<!-- ============================================================ -->
-<div id="tab-backtest" class="tab-content">
-  <div class="panel" style="padding:16px;margin-bottom:12px">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
-      <div class="chakra" style="font-size:20px;font-weight:700;color:var(--white)">STRATEGY BACKTEST</div>
-      <div style="font-size:11px;color:var(--textDim)" id="bt-dataRange"></div>
-    </div>
-    <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-bottom:14px">
-      <div class="form-group">
-        <label>STOP LOSS MODE</label>
-        <select id="bt-stopMode" style="font-size:12px" onchange="updateStopDesc()">
-          <option value="premium">Premium Multiple</option>
-          <option value="timegated" selected>Time-Gated (2hr delay)</option>
-          <option value="points">SPX Points</option>
-          <option value="time">Time-Based %</option>
-        </select>
-      </div>
-      <div class="form-group">
-        <label>STOP VALUE</label>
-        <input type="number" id="bt-stopVal" value="2" step="0.5" min="1" style="font-size:14px;font-weight:700" disabled>
-        <div style="font-size:9px;color:var(--textDim);margin-top:2px" id="bt-stopDesc">Time-gated stop (TG 0.5h)<br><span style="color:var(--gold)">2× wide first 30min (noise protection)</span><br><span style="color:var(--red)">1× tight after 30min (theta decayed)</span></div>
-      </div>
-      <div class="form-group">
-        <label>DELTA</label>
-        <select id="bt-delta" style="font-size:12px">
-          <option value="0.10">0.10 (Safe)</option>
-          <option value="0.12">0.12 (Morn)</option>
-          <option value="0.15" selected>0.15 (Arvo)</option>
-          <option value="0.18">0.18 (Med)</option>
-          <option value="0.20">0.20 (Aggr)</option>
-        </select>
-      </div>
-      <div class="form-group">
-        <label>SPREAD WIDTH</label>
-        <select id="bt-width" style="font-size:12px">
-          <option value="10">10 pts</option>
-          <option value="15" selected>15 pts</option>
-          <option value="20">20 pts</option>
-          <option value="25">25 pts</option>
-        </select>
-      </div>
-      <div class="form-group">
-        <label>STRATEGY</label>
-        <select id="bt-strategy" style="font-size:12px">
-          <option value="put" selected>Put Spread</option>
-          <option value="call">Call Spread</option>
-          <option value="ic">Iron Condor</option>
-          <option value="auto">Auto (200 SMA + VIX/GEX)</option>
-        </select>
-      </div>
-      <div class="form-group">
-        <label>STARTING CAPITAL</label>
-        <input type="number" id="bt-capital" value="10000" step="1000" style="font-size:14px;font-weight:700">
-      </div>
-    </div>
-    <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:14px">
-      <div class="form-group">
-        <label>PROFIT TARGET</label>
-        <select id="bt-profitTgt" style="font-size:12px">
-          <option value="0.5">50% credit</option>
-          <option value="0.75">75% credit</option>
-          <option value="1.0" selected>100% (hold to expiry)</option>
-        </select>
-      </div>
-      <div class="form-group">
-        <label>CONTRACTS</label>
-        <select id="bt-contracts" style="font-size:12px">
-          <option value="fixed">Fixed (from capital)</option>
-          <option value="phase" selected>Phase-based scaling</option>
-        </select>
-      </div>
-      <div class="form-group">
-        <label>MIN CREDIT</label>
-        <input type="number" id="bt-minCredit" value="0.60" step="0.05" min="0.50" style="font-size:14px;font-weight:700">
-      </div>
-      <div class="form-group">
-        <label>STOP PROXIMITY %</label>
-        <input type="number" id="bt-proximity" value="25" step="5" min="0" max="100" style="font-size:14px;font-weight:700">
-        <div style="font-size:9px;color:var(--textDim);margin-top:2px">% of buffer remaining<br><span style="color:var(--gold)">25% = stop triggers when SPX is 75% of the way to strike</span></div>
-      </div>
-      <div style="display:flex;align-items:flex-end">
-        <button class="btn" style="width:100%;padding:12px;font-size:14px;font-weight:700;color:var(--green);border-color:var(--green);cursor:pointer;letter-spacing:2px" onclick="runBacktest()">RUN BACKTEST</button>
-      </div>
-    </div>
-  </div>
-  <!-- RESULTS -->
-  <div id="bt-results"></div>
-</div>
 
 <!-- ============================================================ -->
 <!-- TAB: SETTINGS -->
@@ -711,148 +653,148 @@ const HIST_DATA=[["2024-03-22",5253.43,5261.1,5240.66,5241.53,12.92],["2024-03-2
 // DATA MODEL & PHASES
 // ══════════════════════════════════════════════════════════════════════════════
 const PHASES = [
-  { id: 1, name: 'Survival', min: 10000, target: 25000, contracts: '2 fixed', perK: null, weekly: 576, roi: '163%', color: 'var(--green)' },
-  { id: 2, name: 'Building', min: 25000, target: 75000, contracts: '1 per $6k', perK: 6000, weekly: 1500, roi: '120%', color: 'var(--blue)' },
-  { id: 3, name: 'Acceleration', min: 75000, target: 300000, contracts: '1 per $8k', perK: 8000, weekly: 5000, roi: '80%', color: 'var(--gold)' },
-  { id: 4, name: 'The Machine', min: 300000, target: 1000000, contracts: '1 per $12k', perK: 12000, weekly: 15000, roi: '40%', color: 'var(--purple)' },
+  { id: 1, name: 'Survival', min: 10000, target: 25000, contracts: '2 fixed', perK: 0, fixedCt: 2, weekly: 576, roi: '90%', color: 'var(--green)' },
+  { id: 2, name: 'Building', min: 25000, target: 75000, contracts: '1ct per $6k', perK: 6000, weekly: 1500, roi: '70%', color: 'var(--blue)' },
+  { id: 3, name: 'Acceleration', min: 75000, target: 300000, contracts: '1ct per $8k', perK: 8000, weekly: 5000, roi: '50%', color: 'var(--gold)' },
+  { id: 4, name: 'The Machine', min: 300000, target: 1000000, contracts: '1ct per $12k', perK: 12000, weekly: 15000, roi: '30%', color: 'var(--purple)' },
 ];
 
 const PHASE_DETAILS = {
   1: {
     subtitle: 'Prove the System Works',
     range: '$10,000 → $25,000',
-    timeline: '~6 months',
-    sizing: { contracts: '2 fixed', perTrade: '$80–$160 credit', maxRisk: '$2,000/trade (10% of starting)', margin: '$2,000–$4,000 held' },
+    timeline: '~10 months',
+    sizing: { contracts: '2ct start (1 per $4k)', perTrade: '$60–$120 credit (5-wide, Δ0.15)', maxRisk: '$440/ct max loss — no stop', margin: '~$440–$880 held per trade' },
     weeklyPlan: {
-      target: '$576/week (avg)',
-      Mon: '1× Weekly Put Spread (5DTE, Δ0.10) + 1× 0DTE Morning (Δ0.12)',
-      Tue: '1× 0DTE Morning (Δ0.12)',
-      Wed: '1× 0DTE Morning (skip FOMC days)',
-      Thu: 'Check weekly + 1× 0DTE Morning (Δ0.12)',
-      Fri: 'Close weekly + 1× 0DTE Morning (careful, Δ0.12)',
+      target: '$350–$500/week gross (A+ setups only)',
+      Mon: 'Scan premarket — confirm A+ setup or skip entirely',
+      Tue: '0DTE morning (Δ0.15, $0.60+ min, 5-wide) — primary day',
+      Wed: '0DTE morning if A+ — skip FOMC days entirely',
+      Thu: '0DTE morning if clear directional bias (Δ0.15)',
+      Fri: 'Reduced size or skip — pin risk too unpredictable',
     },
     rules: [
-      'Min credit: $0.80 per contract',
-      'Structure stop: close at 2× credit received',
-      'Hold to expiry: let time decay work, collect full credit',
+      'Min credit: $0.60 per contract (5-wide)',
+      'NO STOP LOSS — hold to expiry, collect full credit',
+      'A+ setups only: clear direction, no headline chop, VIX cooperating',
       'No trading first 15 min after open',
       'No revenge trades — 1 loss = done for the day',
-      'Paper trade first 2 weeks before going live',
+      'VIX > 30: drop to Δ0.12, skip if no clear bias',
     ],
     graduation: [
-      '60+ trading days completed',
-      '75%+ win rate sustained',
-      'Zero rule breaks in last 30 days',
+      '88%+ win rate sustained over 60+ trading days',
+      'Zero rule breaks in last 30 days (no stops added, no revenge)',
+      'Comfortable with full-loss days (accept $880 as cost of business)',
       'Account reaches $25,000',
     ],
     risks: [
-      'Flash crash through short strike — use stop loss, never hold through',
-      'Overtrading after a loss — hard rule: 1 loss = stop',
-      'VIX spike > 30 — cut size by 50%, widen strikes',
+      'Flash crash / gap through short strike — max loss is $440/ct, accept it',
+      'Over-trading non-A+ setups — strict filter is the whole edge',
+      'Panic-adding a stop — ruins the math; the no-stop rule IS the strategy',
     ],
-    compounding: '$10k → $15k (Month 2) → $20k (Month 4) → $25k (Month 6)',
+    compounding: '$10k → $12k (Month 2) → $17k (Month 5) → $25k (Month 10)',
   },
   2: {
     subtitle: 'Scale With Discipline',
     range: '$25,000 → $75,000',
-    timeline: '~8 months',
-    sizing: { contracts: '1 per $6,000 capital', perTrade: '$160–$500 credit', maxRisk: '5% of capital per trade', margin: 'Scales with contracts' },
+    timeline: '~12 months',
+    sizing: { contracts: '1 per $5,000 capital', perTrade: '$300–$600 credit (5ct at $25k)', maxRisk: '$2,200/trade (5ct × $440) — no stop', margin: 'Scales with contracts' },
     weeklyPlan: {
-      target: '$1,500/week (avg)',
-      Mon: '1× Weekly Put Spread (5DTE) + 0DTE Morning (scale contracts)',
-      Tue: '0DTE Morning (Δ0.12) — primary income day',
-      Wed: '0DTE Morning (skip FOMC)',
-      Thu: 'Weekly check + 0DTE Morning (Δ0.12)',
-      Fri: 'Close weekly + conservative 0DTE Morning',
+      target: '$1,200/week gross (A+ setups)',
+      Mon: 'Premarket bias check — trade only if setup is clear',
+      Tue: '0DTE morning (Δ0.15, 5-wide) — scale to current contract count',
+      Wed: '0DTE morning if A+ — hard skip on FOMC',
+      Thu: '0DTE morning if directional clarity confirmed',
+      Fri: 'Light or skip — preserve weekly gains',
     },
     rules: [
-      'Scale contracts: 1 per $6k capital (e.g. $30k = 5 contracts)',
-      'Same min credit, 2× stop, hold to expiry rules',
-      'Start adding call spreads on green days (VIX < 18)',
-      'Begin iron condors when comfortable (Tue–Thu only)',
-      'Max 2 trades per session',
-      'Weekly review every Sunday — track stats in trade log',
+      'Scale contracts: 1 per $5k capital (e.g. $40k = 8 contracts)',
+      'Min credit: $0.60/ct — no exceptions, no chasing',
+      'NO STOP LOSS — hold to expiry on all positions',
+      'Start adding call spreads on strong trend days (not just for variety)',
+      'Max 2 trades per session — quality over quantity',
+      'Weekly review every Sunday — track WR, avg credit, loss days',
     ],
     graduation: [
-      '78%+ win rate over 6 months',
-      'Consistent weekly income above $1,200',
-      'Successfully managed 3+ losing streaks without rule breaks',
+      '88%+ win rate over 90+ trading days',
+      'Consistent weekly gross above $1,000 for 2 consecutive months',
+      'Successfully sat through 3+ max-loss days without rule breaks',
       'Account reaches $75,000',
     ],
     risks: [
-      'Scaling too fast — stick to 1 per $6k, no exceptions',
-      'Correlation risk — avoid stacking same-side spreads',
-      'Complacency after winning streaks — stay disciplined',
+      'Scaling too fast — wait for $5k capital increment, not excitement',
+      'Adding stops after a bad week — destroys the strategy edge',
+      'Complacency after a winning streak — A+ filter stays strict always',
     ],
-    compounding: '$25k → $35k (Month 2) → $50k (Month 5) → $75k (Month 8)',
+    compounding: '$25k → $37k (Month 3) → $53k (Month 7) → $75k (Month 12)',
   },
   3: {
     subtitle: 'Real Money, Real Discipline',
     range: '$75,000 → $300,000',
-    timeline: '~12 months',
-    sizing: { contracts: '1 per $8,000 capital', perTrade: '$500–$2,000 credit', maxRisk: '4% of capital per trade', margin: 'Monitor margin utilization < 50%' },
+    timeline: '~18 months',
+    sizing: { contracts: '1 per $6,000 capital', perTrade: '$750–$1,500 credit (12ct at $75k)', maxRisk: '$5,280/trade (12ct × $440) — no stop', margin: 'Monitor margin utilization < 50%' },
     weeklyPlan: {
-      target: '$5,000/week (avg)',
-      Mon: 'Weekly spread + scaled 0DTE morning',
-      Tue: '0DTE Arvo — full size',
-      Wed: '0DTE Arvo (FOMC week: 50% size)',
-      Thu: 'Weekly management + 0DTE Arvo',
-      Fri: 'Close weekly + reduced 0DTE',
+      target: '$2,500/week gross (A+ setups)',
+      Mon: 'Market bias assessment — size to 75% on uncertain days',
+      Tue: '0DTE morning (Δ0.15, 5-wide) — full size if A+',
+      Wed: '0DTE morning if A+ — FOMC week: 50% size or skip',
+      Thu: '0DTE morning with directional clarity — no guessing',
+      Fri: 'Reduced or skip — protect weekly gains at this level',
     },
     rules: [
-      'Scale contracts: 1 per $8k capital (wider spacing than Phase 2)',
-      '45% tax reserve — set aside from every winning trade',
+      'Scale contracts: 1 per $6k capital (e.g. $120k = 20 contracts)',
+      '40% tax reserve — set aside from every winning trade',
+      'NO STOP LOSS — still hold to expiry; position sizing IS risk management',
       'FOMC week: 50% position size across all trades',
-      'Monthly withdrawal allowed: up to 10% of profits',
-      'Diversify entries: stagger times, mix put/call spreads',
-      'Max drawdown circuit breaker: -8% monthly = pause 1 week',
+      'Monthly withdrawal allowed: up to 10% of monthly profits',
+      'Max drawdown circuit breaker: -10% in a week = pause 5 trading days',
     ],
     graduation: [
-      '78%+ win rate sustained over 12 months',
-      '$5k+ weekly average for 3 consecutive months',
-      'Survived at least 1 major market event without blowup',
+      '88%+ win rate sustained over 6 months',
+      '$2,500+ weekly gross average for 3 consecutive months',
+      'Survived at least 1 major market event (earnings, macro, flash crash)',
       'Account reaches $300,000',
     ],
     risks: [
-      'Tax liability — 45% reserve is non-negotiable',
-      'Position sizing discipline — $8k per contract, not $6k',
-      'Lifestyle creep — don\'t increase spending with account size',
+      'Tax liability — 40% reserve is non-negotiable at this income level',
+      'Position sizing creep — $6k per contract, not less',
+      'Lifestyle creep — don\'t increase spending in line with account size',
     ],
-    compounding: '$75k → $120k (Month 3) → $180k (Month 6) → $300k (Month 12)',
+    compounding: '$75k → $115k (Month 4) → $195k (Month 10) → $300k (Month 18)',
   },
   4: {
     subtitle: 'Wealth Generation Engine',
     range: '$300,000 → $1,000,000',
-    timeline: '~18 months',
-    sizing: { contracts: '1 per $12,000 capital', perTrade: '$2,000–$8,000 credit', maxRisk: '3% of capital per trade', margin: 'Monitor margin utilization < 40%' },
+    timeline: '~24 months',
+    sizing: { contracts: '1 per $8,000 capital', perTrade: '$2,220–$4,440 credit (37ct at $300k)', maxRisk: '$16,280/trade (37ct × $440) — no stop', margin: 'Monitor margin utilization < 40%' },
     weeklyPlan: {
-      target: '$15,000/week (avg)',
-      Mon: 'Weekly spread + 0DTE morning (conservative delta)',
-      Tue: '0DTE Arvo — bread and butter',
-      Wed: '0DTE Arvo (FOMC week: 50% or skip)',
-      Thu: 'Weekly management + 0DTE Arvo',
-      Fri: 'Close weekly + light 0DTE if conditions perfect',
+      target: '$6,500/week gross (A+ setups only)',
+      Mon: 'Premarket regime check — size to 60% on unclear days',
+      Tue: '0DTE morning (Δ0.15, 5-wide) — bread and butter, full size',
+      Wed: '0DTE morning if A+ — FOMC week: 50% or skip entirely',
+      Thu: '0DTE morning with confirmed directional bias only',
+      Fri: 'Skip or 50% size — protecting large weekly gains is paramount',
     },
     rules: [
-      'Scale contracts: 1 per $12k capital (max conservatism)',
-      '45% tax reserve continues',
-      '$25,000/month withdrawals begin at $750k',
-      'Consider splitting across 2 broker accounts for SIPC coverage',
-      'Max 60% margin utilization at any time',
-      'Quarterly review with accountant',
+      'Scale contracts: 1 per $8k capital (max conservatism at this size)',
+      '40% tax reserve — non-negotiable, professional accounting required',
+      'NO STOP LOSS — position sizing protects capital; stops are not the tool',
+      '$10,000/month withdrawals begin at $500k; $25,000/month at $750k+',
+      'Split accounts above $500k for SIPC coverage across 2 brokers',
+      'Quarterly review: WR, avg credit, loss frequency, tax projections',
     ],
     graduation: [
       'Account reaches $1,000,000',
-      'Consistent $15k+ weekly for 6 months',
-      'Full tax compliance and professional accounting',
-      'Transition plan: reduce to 30% ROI target, increase withdrawals',
+      'Consistent $6,500+ weekly gross for 6 consecutive months',
+      'Full tax compliance, professional CPA on retainer',
+      'Transition plan: reduce to 3 trading days/week, increase withdrawals',
     ],
     risks: [
-      'Single broker risk — split accounts above $500k (SIPC limit)',
-      'Black swan events — always have disaster hedge (long put at Δ0.02)',
-      'Burnout — consider reducing to 3 days/week',
+      'Single broker risk — mandatory split above $500k (SIPC limit $500k)',
+      'Black swan / multi-sigma move — max loss per trade is ~$16k; budget for 2–3/year',
+      'Burnout — at this scale, 3 quality trades/week beats 5 forced trades',
     ],
-    compounding: '$300k → $450k (Month 4) → $650k (Month 9) → $1M (Month 18)',
+    compounding: '$300k → $480k (Month 6) → $700k (Month 14) → $1M (Month 24)',
   },
 };
 
@@ -1066,16 +1008,16 @@ function switchTab(tab) {
   if (tab === 'phases') renderPhases();
   if (tab === 'log') renderTradeHistory();
   if (tab === 'settings') renderSettings();
+  if (tab === 'analysis') { maybeRefreshAnalysis(); renderAnalysis(); }
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
 // SCANNER STATE (original)
 // ══════════════════════════════════════════════════════════════════════════════
 let state = {
-  spx: 5800, vix: 22, width: 15, mode: 'morning', strategy: 'auto',
+  spx: 5800, vix: 22, width: 10, mode: 'morning', strategy: 'auto',
   bias: 'neutral', dma200: parseFloat(localStorage.getItem('spx_dma200')) || 0,
-  ibkrUrl: '', connected: false, fetching: false,
-  liveSpx: null, liveVix: null, liveQuotes: {},
+  liveSpx: null, liveVix: null,
   lastUpdated: null,
   // Enhanced market data
   vix9d: null, vwap: null, aboveVwap: null,
@@ -1088,8 +1030,16 @@ let state = {
   gexProxy: null, // 'positive', 'neutral', 'cautious', 'negative'
   macroRisk: 'clear', // 'clear', 'caution', 'high', 'blackout'
   reasoning: [],
+  // Analysis tab — additional market data
+  tnx: null, tnxChange: null, tnxPrevClose: null,
+  dxy: null, dxyChange: null, dxyPrevClose: null,
+  oil: null, oilChange: null, oilPrevClose: null,
+  esFutures: null, esChange: null, esPrevClose: null,
+  analysisLastFetch: null,
+  _scanDone: false,
+  gexData: null,
 };
-const SLIPPAGE = 0;
+const SLIPPAGE = 0.05;
 const DELTA_ROWS = [
   { delta: 0.10, label: '0.10', tag: 'SAFE', winPct: 88 },
   { delta: 0.12, label: '0.12', tag: 'CONS', winPct: 86 },
@@ -1139,121 +1089,130 @@ function getRegime(vix) {
 const f2 = n => (n || 0).toFixed(2);
 const fmt$ = (n, dec=0) => n < 0 ? `-$${Math.abs(n).toFixed(dec)}` : `$${Number(n).toFixed(dec)}`;
 
-// ── IBKR CONNECTION ──
-function cleanUrl(url) { return url.trim().replace(/\/$/, ''); }
+// ── LIVE PRICES via Yahoo Finance ──
+async function fetchLivePrices() {
+  const btn = document.getElementById('setupBtn');
+  const scanInfo = document.getElementById('scanInfo');
+  if (scanInfo) scanInfo.innerHTML = '⏳ Fetching live prices...';
 
-async function ibkrFetch(endpoint) {
-  const base = cleanUrl(state.ibkrUrl);
-  const resp = await fetch(`${base}${endpoint}`, {
-    headers: { 'ngrok-skip-browser-warning': 'true', 'Accept': 'application/json' }
-  });
-  if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-  return resp.json();
-}
+  // Yahoo Finance URLs for SPX and VIX
+  const YAHOO = 'https://query1.finance.yahoo.com/v8/finance/chart/';
+  const PROXY = 'https://corsproxy.io/?';
 
-async function connect() {
-  const url = cleanUrl(document.getElementById('urlInput').value);
-  if (!url) return;
-  setConnStatus('connecting');
-  hideError();
-  try {
-    const d = await fetch(`${url}/ping`, {
-      headers: { 'ngrok-skip-browser-warning': 'true', 'Accept': 'application/json' }
-    }).then(r => r.json());
-    if (d.status === 'ok') {
-      state.ibkrUrl = url;
-      state.connected = true;
-      localStorage.setItem('ibkr_url', url);
-      setConnStatus('connected');
-      fetchPrices();
-    } else {
-      showError(`Response: ${JSON.stringify(d)}`);
-      setConnStatus('error');
+  async function yahooFetch(ticker, interval = '1m', range = '1d') {
+    const url = `${YAHOO}${encodeURIComponent(ticker)}?interval=${interval}&range=${range}&_t=${Date.now()}`;
+    // Always use corsproxy first (direct Yahoo fetch blocked by CORS on GitHub Pages)
+    const proxied = `${PROXY}${encodeURIComponent(url)}`;
+    for (const base of [proxied, url]) {
+      try {
+        const r = await fetch(base, { signal: AbortSignal.timeout(12000) });
+        if (!r.ok) continue;
+        const d = await r.json();
+        const result = d?.chart?.result?.[0];
+        if (!result) continue;
+        const meta = result.meta;
+        if (!meta?.regularMarketPrice) continue;
+        // Attach closes array for DMA calculation
+        const closes = result.indicators?.quote?.[0]?.close?.filter(v => v != null) || [];
+        if (closes.length) meta._closes = closes;
+        return meta;
+      } catch {}
     }
-  } catch (e) {
-    showError(e.message);
-    setConnStatus('error');
+    return null;
+  }
+
+  try {
+    // Fetch SPX (1yr daily for 200 DMA), VIX, TNX, DXY, Oil, ES in parallel
+    const [spxHistory, vixMeta, tnxMeta, dxyMeta, oilMeta, esMeta] = await Promise.all([
+      yahooFetch('^GSPC', '1d', '1y'),
+      yahooFetch('^VIX', '1m', '1d'),
+      yahooFetch('^TNX', '1m', '1d'),
+      yahooFetch('DX-Y.NYB', '1m', '1d'),
+      yahooFetch('CL=F', '1m', '1d'),
+      yahooFetch('ES=F', '1m', '1d'),
+    ]);
+
+    // SPX live price
+    if (spxHistory?.regularMarketPrice) {
+      const price = parseFloat(spxHistory.regularMarketPrice.toFixed(2));
+      state.spx = price;
+      state.spxOpen = spxHistory.chartPreviousClose || price;
+      document.getElementById('spxInput').value = price;
+    }
+
+    // 200 DMA — calculate from historical closes
+    if (spxHistory?._closes?.length >= 200) {
+      const last200 = spxHistory._closes.slice(-200);
+      const dma200 = last200.reduce((a, b) => a + b, 0) / 200;
+      const dma200Rounded = parseFloat(dma200.toFixed(2));
+      state.dma200 = dma200Rounded;
+      document.getElementById('dma200Input').value = dma200Rounded;
+      localStorage.setItem('spx_dma200', dma200Rounded);
+    }
+    // Previous close — second-to-last daily close from Yahoo 1yr data
+    if (spxHistory?._closes?.length >= 2) {
+      state.prevClose = parseFloat(spxHistory._closes[spxHistory._closes.length - 2].toFixed(2));
+    }
+
+    // VIX
+    if (vixMeta?.regularMarketPrice) {
+      const vix = parseFloat(vixMeta.regularMarketPrice.toFixed(2));
+      state.vix = vix;
+      document.getElementById('vixInput').value = vix;
+    }
+
+    // TNX (10-Year Treasury Yield) — quoted as index * 10 (e.g. 43.3 = 4.33%)
+    if (tnxMeta?.regularMarketPrice) {
+      state.tnx = parseFloat((tnxMeta.regularMarketPrice / 10).toFixed(3));
+      state.tnxPrevClose = tnxMeta.chartPreviousClose ? parseFloat((tnxMeta.chartPreviousClose / 10).toFixed(3)) : null;
+      state.tnxChange = state.tnxPrevClose ? parseFloat((state.tnx - state.tnxPrevClose).toFixed(3)) : null;
+    }
+    // DXY (US Dollar Index)
+    if (dxyMeta?.regularMarketPrice) {
+      state.dxy = parseFloat(dxyMeta.regularMarketPrice.toFixed(2));
+      state.dxyPrevClose = dxyMeta.chartPreviousClose ? parseFloat(dxyMeta.chartPreviousClose.toFixed(2)) : null;
+      state.dxyChange = state.dxyPrevClose ? parseFloat((state.dxy - state.dxyPrevClose).toFixed(2)) : null;
+    }
+    // Oil (WTI Crude)
+    if (oilMeta?.regularMarketPrice) {
+      state.oil = parseFloat(oilMeta.regularMarketPrice.toFixed(2));
+      state.oilPrevClose = oilMeta.chartPreviousClose ? parseFloat(oilMeta.chartPreviousClose.toFixed(2)) : null;
+      state.oilChange = state.oilPrevClose ? parseFloat((state.oil - state.oilPrevClose).toFixed(2)) : null;
+    }
+    // ES Futures
+    if (esMeta?.regularMarketPrice) {
+      state.esFutures = parseFloat(esMeta.regularMarketPrice.toFixed(2));
+      state.esPrevClose = esMeta.chartPreviousClose ? parseFloat(esMeta.chartPreviousClose.toFixed(2)) : null;
+      state.esChange = state.esPrevClose ? parseFloat((state.esFutures - state.esPrevClose).toFixed(2)) : null;
+    }
+
+    state.analysisLastFetch = Date.now();
+    const dmaStr = state.dma200 ? ` · 200DMA ${state.dma200.toLocaleString()}` : '';
+    state.lastUpdated = new Date().toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: 'Australia/Sydney' }) + ' AEDT (live)';
+    if (scanInfo) scanInfo.innerHTML = `✅ ${state.lastUpdated} · SPX ${state.spx?.toLocaleString()} · VIX ${state.vix}${dmaStr}`;
+  } catch(e) {
+    if (scanInfo) scanInfo.innerHTML = '⚠️ Live fetch failed — using manual values';
   }
 }
 
-function disconnect() {
-  state.connected = false;
-  state.ibkrUrl = '';
-  state.liveSpx = null;
-  state.liveVix = null;
-  state.liveQuotes = {};
-  setConnStatus('disconnected');
+// Auto-refresh prices every 5 min during market hours
+function startPriceAutoRefresh() {
+  setInterval(async function() {
+    const now = new Date();
+    const etH = parseInt(now.toLocaleString('en-US', { timeZone: 'America/New_York', hour: 'numeric', hour12: false }));
+    const etM = parseInt(now.toLocaleString('en-US', { timeZone: 'America/New_York', minute: '2-digit' }));
+    const etT = etH + etM / 60;
+    if (etT >= 9.5 && etT <= 16.25) {
+      await fetchLivePrices();
+      fetchPrices(); // rebuild S/R, reasoning
+      scan();
+    }
+  }, 5 * 60 * 1000); // every 5 minutes
 }
 
-async function fetchPrices() {
-  document.getElementById('btnRefresh').textContent = '⏳ LOADING...';
-  try {
-    // Fetch all data in parallel
-    const [snapshot, vwapData, levelsData] = await Promise.all([
-      ibkrFetch('/market/snapshot').catch(e => { console.warn('snapshot err:', e); return {}; }),
-      ibkrFetch('/market/vwap').catch(e => { console.warn('vwap err:', e); return {}; }),
-      ibkrFetch('/market/levels').catch(e => { console.warn('levels err:', e); return {}; }),
-    ]);
-
-    // Core prices
-    if (snapshot.spx) { state.liveSpx = snapshot.spx; document.getElementById('spxInput').value = snapshot.spx; state.spx = snapshot.spx; }
-    if (snapshot.vix) { state.liveVix = snapshot.vix; document.getElementById('vixInput').value = snapshot.vix; state.vix = snapshot.vix; }
-    if (snapshot.spx_open) state.spxOpen = snapshot.spx_open;
-    if (snapshot.spx_high) state.spxHigh = snapshot.spx_high;
-    if (snapshot.spx_low) state.spxLow = snapshot.spx_low;
-
-    // VIX9D + term structure
-    if (snapshot.vix9d) {
-      state.vix9d = snapshot.vix9d;
-      if (snapshot.vix && snapshot.vix9d) {
-        state.vixTermStructure = snapshot.vix9d < snapshot.vix ? 'backwardation' : 'contango';
-        // GEX proxy from term structure + VIX level
-        if (state.vixTermStructure === 'contango' && snapshot.vix < 18) state.gexProxy = 'positive';
-        else if (state.vixTermStructure === 'backwardation' && snapshot.vix > 25) state.gexProxy = 'negative';
-        else if (snapshot.vix > 22) state.gexProxy = 'cautious';
-        else state.gexProxy = 'neutral';
-      }
-    }
-
-    // VWAP
-    if (vwapData.vwap) {
-      state.vwap = vwapData.vwap;
-      state.aboveVwap = vwapData.above_vwap;
-    }
-
-    // Key levels
-    if (levelsData.prev_high) {
-      state.prevHigh = levelsData.prev_high;
-      state.prevLow = levelsData.prev_low;
-      state.prevClose = levelsData.prev_close;
-      state.weeklyHigh = levelsData.weekly_high;
-      state.weeklyLow = levelsData.weekly_low;
-      state.pivot = levelsData.pivot;
-      state.r1 = levelsData.r1; state.r2 = levelsData.r2;
-      state.s1 = levelsData.s1; state.s2 = levelsData.s2;
-      state.avgVolume = levelsData.avg_volume_5d;
-    }
-
-    // Web fallback: fetch SPX/VIX/200DMA from Yahoo Finance when IBKR offline
-    if (!snapshot.spx || !snapshot.vix) {
-      try {
-        const proxyUrl = state.ibkrUrl || cleanUrl(localStorage.getItem('ibkr_url') || '');
-        if (proxyUrl) {
-          const web = await fetch(`${proxyUrl}/web/snapshot`, {
-            headers: { 'ngrok-skip-browser-warning': 'true', 'Accept': 'application/json' }
-          }).then(r => r.json());
-          if (web.spx) { state.spx = web.spx; state.liveSpx = web.spx; document.getElementById('spxInput').value = web.spx; }
-          if (web.vix) { state.vix = web.vix; state.liveVix = web.vix; document.getElementById('vixInput').value = web.vix; }
-          if (web.dma200) {
-            state.dma200 = web.dma200;
-            document.getElementById('dma200Input').value = web.dma200;
-            localStorage.setItem('spx_dma200', web.dma200);
-          }
-        }
-      } catch(e) { console.warn('web price fallback failed:', e); }
-    }
-
-    // Auto-calculate 200 DMA from HIST_DATA (last resort if web also unavailable)
+// ── STANDALONE SETUP (S/R levels, reasoning, macro risk) ──
+function fetchPrices() {
+    // Auto-calculate 200 DMA from HIST_DATA
     if (HIST_DATA.length >= 200 && !state.dma200) {
       const last200 = HIST_DATA.slice(-200);
       const dma = last200.reduce((s, d) => s + d[4], 0) / 200;
@@ -1262,7 +1221,7 @@ async function fetchPrices() {
       localStorage.setItem('spx_dma200', state.dma200);
     }
 
-    // Fallback S/R levels from HIST_DATA when IBKR disconnected
+    // S/R levels from HIST_DATA
     if (!state.prevHigh && HIST_DATA.length >= 6) {
       const last5 = HIST_DATA.slice(-6, -1); // last 5 completed days
       const prev = HIST_DATA[HIST_DATA.length - 2]; // yesterday
@@ -1286,13 +1245,11 @@ async function fetchPrices() {
     state.lastUpdated = new Date().toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: 'Australia/Sydney' }) + ' AEDT';
     flashPanel('inputPanel');
     scan();
-  } catch (e) { showError(`Fetch: ${e.message}`); }
-  finally { document.getElementById('btnRefresh').textContent = '\u21BB PRICES'; }
 }
 
 // ── MACRO RISK from economic calendar ──
 function getMacroRisk() {
-  const now = new Date();
+  const now = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }));
   const dow = now.getDay();
   const dom = now.getDate();
   const month = now.getMonth();
@@ -1398,54 +1355,6 @@ function buildReasoning() {
   return reasons;
 }
 
-async function fetchAllQuotes() {
-  if (!state.connected) return;
-  document.getElementById('btnQuotes').textContent = '...';
-  const rows = computeRows();
-  const quotes = {};
-  const today = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-  for (let i = 1; i < Math.min(5, rows.length); i++) {
-    const row = rows[i];
-    try { const q = await ibkrFetch(`/options/spread?short_strike=${row.sP}&long_strike=${row.lP}&right=P&expiry=${today}`); if (q) quotes[`${row.sP}_${row.lP}_P`] = q; } catch {}
-    try { const q = await ibkrFetch(`/options/spread?short_strike=${row.sC}&long_strike=${row.lC}&right=C&expiry=${today}`); if (q) quotes[`${row.sC}_${row.lC}_C`] = q; } catch {}
-  }
-  state.liveQuotes = quotes;
-  document.getElementById('btnQuotes').textContent = '\u2B21 QUOTES';
-  scan();
-}
-
-function setConnStatus(s) {
-  const dot = document.getElementById('statusDot');
-  const text = document.getElementById('statusText');
-  const panel = document.getElementById('connPanel');
-  const input = document.getElementById('connInput');
-  const btns = document.getElementById('connButtons');
-  if (s === 'connected') {
-    dot.style.background = 'var(--green)'; dot.style.boxShadow = '0 0 8px var(--green)';
-    text.textContent = '\u26A1 LIVE'; text.style.color = 'var(--green)';
-    panel.style.borderColor = 'var(--green)';
-    input.style.display = 'none'; btns.style.display = 'flex';
-  } else if (s === 'connecting') {
-    dot.style.background = 'var(--gold)'; dot.style.boxShadow = 'none'; dot.classList.add('pulsing');
-    text.textContent = 'CONNECTING...'; text.style.color = 'var(--gold)'; panel.style.borderColor = 'var(--gold)';
-  } else if (s === 'error') {
-    dot.style.background = 'var(--red)'; dot.style.boxShadow = 'none'; dot.classList.remove('pulsing');
-    text.textContent = 'FAILED'; text.style.color = 'var(--red)'; panel.style.borderColor = 'var(--red)';
-    input.style.display = 'flex'; btns.style.display = 'none';
-  } else {
-    dot.style.background = 'var(--textDim)'; dot.style.boxShadow = 'none'; dot.classList.remove('pulsing');
-    text.textContent = 'DISCONNECTED'; text.style.color = 'var(--textDim)';
-    panel.style.borderColor = 'var(--borderBright)';
-    input.style.display = 'flex'; btns.style.display = 'none';
-  }
-}
-
-function showError(msg) {
-  const el = document.getElementById('connError');
-  el.style.display = 'block';
-  el.innerHTML = `<span style="color:var(--red)">\u2717 ${msg}</span> <span style="color:var(--textDim);margin-left:12px">Open ${document.getElementById('urlInput').value}/ping in browser to test</span>`;
-}
-function hideError() { document.getElementById('connError').style.display = 'none'; }
 function flashPanel(id) {
   const el = document.getElementById(id);
   el.style.borderColor = 'var(--green)';
@@ -1455,10 +1364,12 @@ function flashPanel(id) {
 // ── CONTROLS ──
 function setMode(m) {
   state.mode = m;
+  const modeColors = { morning: 'var(--gold)', arvo: 'var(--green)', weekly: 'var(--cyan)' };
+  const modeBgs = { morning: 'rgba(240,180,41,0.15)', arvo: 'rgba(0,208,132,0.15)', weekly: 'rgba(0,229,255,0.15)' };
   document.querySelectorAll('.mode-btn').forEach(b => {
     const a = b.dataset.mode === m;
-    const c = m === 'morning' ? 'var(--gold)' : 'var(--green)';
-    b.style.background = a ? (m === 'morning' ? 'rgba(240,180,41,0.15)' : 'rgba(0,208,132,0.15)') : 'var(--panelAlt)';
+    const c = modeColors[m];
+    b.style.background = a ? modeBgs[m] : 'var(--panelAlt)';
     b.style.color = a ? c : 'var(--textDim)';
     b.style.borderBottom = a ? `3px solid ${c}` : '3px solid var(--border)';
   });
@@ -1491,6 +1402,7 @@ function setBias(b) {
 
 // ── COMPUTE ──
 function getT() {
+  if (state.mode === 'weekly') return 5 / 365;
   const nowET = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }));
   const closeET = new Date(nowET); closeET.setHours(16, 0, 0, 0);
   let hoursLeft = (closeET - nowET) / 3600000;
@@ -1545,26 +1457,13 @@ async function todaysSetup() {
   btn.disabled = true;
 
   try {
-    if (state.connected) {
-      await fetchPrices();
-      await fetchAllQuotes();
-    }
+    await fetchLivePrices();
+    fetchPrices();
     scan();
   } finally {
     btn.textContent = 'SCAN';
     btn.style.opacity = '1';
     btn.disabled = false;
-  }
-
-  // Auto-collapse inputs when IBKR connected
-  if (state.connected) {
-    updateInputSummary();
-    const fields = document.getElementById('inputFields');
-    const summary = document.getElementById('inputSummary');
-    if (fields && summary) {
-      fields.style.display = 'none';
-      summary.style.display = 'flex';
-    }
   }
 }
 
@@ -1577,40 +1476,31 @@ function scan() {
   state.width = parseInt(document.getElementById('widthSelect').value) || 15;
   if (!state.lastUpdated) state.lastUpdated = new Date().toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit', timeZone: 'Australia/Sydney' }) + ' AEDT (manual)';
 
-  // Auto-set bias from 200DMA
-  if (state.dma200 > 0) {
-    const newBias = state.spx < state.dma200 ? 'bear' : state.spx > state.dma200 ? 'bull' : 'neutral';
-    if (state.bias !== newBias) {
-      state.bias = newBias;
-      // Update bias buttons visually
-      const colors = { bull: 'var(--green)', neutral: 'var(--cyan)', bear: 'var(--red)' };
-      document.querySelectorAll('.bias-btn').forEach(function(btn) {
-        const a = btn.dataset.bias === newBias;
-        const c = colors[btn.dataset.bias];
-        btn.style.background = a ? 'color-mix(in srgb, ' + c + ' 15%, transparent)' : 'var(--panelAlt)';
-        btn.style.color = a ? c : 'var(--textDim)';
-        btn.style.borderBottom = a ? '3px solid ' + c : '3px solid var(--border)';
-      });
-    }
-  }
+  // Bias is set manually by user — 200 DMA is context only, does NOT override bias
 
   const rows = computeRows();
   const regime = getRegime(state.vix);
   // Auto-adjust delta — sweep optimal: δ0.15 default, tighten in high VIX
   let recDelta;
-  if (state.vix >= 25) recDelta = 0.10;        // HIGH → safest strikes
-  else if (state.vix >= 20) recDelta = 0.12;   // ELEVATED → tighter
-  else recDelta = 0.15;                         // NORMAL/LOW → sweep optimal
+  if (state.mode === 'weekly') {
+    if (state.vix >= 25) recDelta = 0.10;
+    else recDelta = 0.12;
+  } else {
+    if (state.vix >= 25) recDelta = 0.10;
+    else if (state.vix >= 20) recDelta = 0.12;
+    else recDelta = 0.15;
+  }
   const recRow = rows.find(r => r.delta === recDelta) || rows[2];
   // All-Weather AUTO — open above 200 SMA = bullish → puts, below = bearish → calls
+  const dma200 = state.dma200;
+  const dmaAbove = dma200 > 0 ? state.spx > dma200 : null;
   let autoStrat;
   if (dmaAbove === true) {
     autoStrat = 'put';  // open above 200 SMA (bullish) → sell put spreads
   } else if (dmaAbove === false) {
     autoStrat = 'call'; // open below 200 SMA (bearish) → sell call spreads
   } else {
-    // no 200 SMA data — fall back to bias
-    autoStrat = state.bias === 'bear' ? 'call' : 'put';
+    autoStrat = state.bias === 'bear' ? 'call' : 'put'; // fallback to bias
   }
   const active = state.strategy === 'auto' ? autoStrat : state.strategy;
   const useIC = active === 'ic', useCall = active === 'call';
@@ -1621,7 +1511,7 @@ function scan() {
   const dmaAbove = dma200 > 0 ? state.spx > dma200 : null;
   const dmaDist = dma200 > 0 ? Math.round(state.spx - dma200) : null;
   const phase = getPhase(traderData.currentCapital);
-  const contracts = phase.perK ? Math.max(1, Math.floor(traderData.currentCapital / phase.perK)) : 2;
+  const contracts = phase.fixedCt ? phase.fixedCt : Math.max(1, Math.floor(traderData.currentCapital / phase.perK));
   const dailyMove = Math.round(state.spx * (state.vix / 100) / Math.sqrt(365));
   const iv = state.vix / 100;
   const stopBuffer = state.mode === 'arvo' ? 10 : 15;
@@ -1630,7 +1520,8 @@ function scan() {
   const wklyMid = Math.max(bsm(state.spx, wklyShort, wklyT, 0.045, iv, 'put').price - bsm(state.spx, wklyLong, wklyT, 0.045, iv, 'put').price, 0);
   const wklyFill = Math.max(wklyMid - SLIPPAGE, 0);
 
-  document.getElementById('scanInfo').innerHTML = `${state.lastUpdated || ''} &middot; ${state.mode.toUpperCase()} \u0394 ${recDelta} ${recDelta !== (state.mode === 'arvo' ? 0.15 : 0.12) ? '(auto-widened for VIX ' + f2(state.vix) + ')' : ''} &middot; Fill = mid (live)`;
+  const modeLabel = state.mode === 'weekly' ? 'WEEKLY 5DTE' : state.mode.toUpperCase() + ' 0DTE';
+  document.getElementById('scanInfo').innerHTML = `${state.lastUpdated || ''} &middot; ${modeLabel} \u0394 ${recDelta} ${recDelta !== (state.mode === 'arvo' ? 0.15 : 0.12) ? '(auto-widened for VIX ' + f2(state.vix) + ')' : ''} &middot; Fill = mid (live)`;
   updateInputSummary();
 
   // ── COMPUTED VALUES FOR RENDERING ──
@@ -1648,12 +1539,14 @@ function scan() {
   if (state.vwap) regimeItems.push({ l:'VWAP', v:`${state.aboveVwap?'\u2191':'\u2193'} ${state.vwap.toFixed(0)}`, c: state.aboveVwap?'var(--green)':'var(--red)' });
   if (state.gexProxy) regimeItems.push({ l:'GEX', v:gexLabelsShort[state.gexProxy], c: gexColors[state.gexProxy] });
   regimeItems.push({ l:'MACRO', v:macroLabelsShort[state.macroRisk], c: macroColors[state.macroRisk] });
+  const expLow = Math.round(state.spx - dailyMove);
+  const expHigh = Math.round(state.spx + dailyMove);
+  regimeItems.push({ l:'EXP RANGE', v:`${expLow.toLocaleString()} – ${expHigh.toLocaleString()}`, c:'var(--cyan)' });
 
   // ── LIVE PRICE RESOLUTION ──
-  const liveP = state.liveQuotes[`${recRow.sP}_${recRow.lP}_P`];
-  const liveC = state.liveQuotes[`${recRow.sC}_${recRow.lC}_C`];
-  const pF = liveP && liveP.credit_bid !== undefined ? liveP.credit_bid : recRow.putFill;
-  const cF = liveC && liveC.credit_bid !== undefined ? liveC.credit_bid : recRow.callFill;
+  const liveP = null, liveC = null;
+  const pF = recRow.putFill;
+  const cF = recRow.callFill;
 
   // ── ORDER RECOMMENDATION ──
   const orderType = useIC ? 'IRON CONDOR' : useCall ? 'CALL CREDIT SPREAD' : 'PUT CREDIT SPREAD';
@@ -1669,11 +1562,11 @@ function scan() {
     const etHour = parseInt(now.toLocaleString('en-US', { timeZone: 'America/New_York', hour: 'numeric', hour12: false }));
     const etMin = parseInt(now.toLocaleString('en-US', { timeZone: 'America/New_York', minute: 'numeric' }));
     const etTime = etHour + etMin / 60;
-    const isArvo = state.mode === 'arvo';
-    const sessionStart = 11.5; // 11:30 AM ET — single entry time
-    const gateEnd = sessionStart + 0.5; // 30-min early window
+    // Time-gated stop (TG 0.5h): 2× first 30min after 11:30 AM ET entry, then 1×
+    const entryTime = 11.5; // 11:30 AM ET
+    const gateEnd = entryTime + 0.5; // 12:00 PM ET — 30min gate
     let mult, window, windowColor, tier;
-    if (etTime < sessionStart) { mult = 2; tier = 'PRE'; window = '2\u00D7 STOP (pre-session)'; windowColor = 'var(--textDim)'; }
+    if (etTime < entryTime) { mult = 2; tier = 'PRE'; window = '2\u00D7 STOP (pre-entry)'; windowColor = 'var(--textDim)'; }
     else if (etTime < gateEnd) { mult = 2; tier = 'EARLY'; const minsLeft = Math.round((gateEnd - etTime) * 60); window = '2\u00D7 WIDE \u2014 ' + minsLeft + 'min until 1\u00D7'; windowColor = 'var(--gold)'; }
     else { mult = 1; tier = 'LATE'; window = '1\u00D7 TIGHT STOP (theta decayed)'; windowColor = 'var(--red)'; }
     return { mult, stopSpreadVal: f2(credit * mult), maxLoss: f2((credit * mult) - credit), window, windowColor, tier, emergencyStop: f2(credit * 2) };
@@ -1690,10 +1583,10 @@ function scan() {
   const sizeNote = regime.size < 1 ? ' \u00B7 ' + Math.round(regime.size * 100) + '% size (VIX)' : '';
   convLabel += sizeNote;
   if (state.macroRisk === 'blackout') { conviction = 'X'; convColor = 'var(--red)'; convLabel = 'NO TRADE \u2014 FOMC/Holiday'; adjContracts = 0; }
-  else if (state.macroRisk === 'high') { if (conviction === 'A+') { conviction = 'B'; convColor = 'var(--gold)'; convLabel = 'REDUCED \u2014 High-impact event'; adjContracts = Math.max(1, Math.round(contracts * 0.5)); } else { conviction = 'C'; convColor = 'var(--red)'; convLabel = 'MINIMAL \u2014 High-impact event'; adjContracts = 1; } }
-  else if (state.macroRisk === 'caution' && conviction === 'A+') { conviction = 'B'; convColor = 'var(--gold)'; convLabel = 'MODERATE \u2014 Caution day'; adjContracts = Math.max(1, Math.round(contracts * 0.75)); }
+  else if (state.macroRisk === 'high') { if (conviction === 'A+') { conviction = 'B'; convColor = 'var(--gold)'; convLabel = 'REDUCED \u2014 High-impact event'; adjContracts = Math.max(1, Math.round(adjContracts * 0.5)); } else { conviction = 'C'; convColor = 'var(--red)'; convLabel = 'MINIMAL \u2014 High-impact event'; adjContracts = 1; } }
+  else if (state.macroRisk === 'caution' && conviction === 'A+') { conviction = 'B'; convColor = 'var(--gold)'; convLabel = 'MODERATE \u2014 Caution day'; adjContracts = Math.max(1, Math.round(adjContracts * 0.75)); }
   if (state.gexProxy === 'negative' && conviction !== 'X') { conviction = 'C'; convColor = 'var(--red)'; convLabel = 'MINIMAL \u2014 Negative GEX'; adjContracts = 1; }
-  else if (state.gexProxy === 'cautious' && conviction === 'A+') { conviction = 'B'; convColor = 'var(--gold)'; convLabel = 'MODERATE \u2014 Cautious GEX'; adjContracts = Math.max(1, Math.round(contracts * 0.5)); }
+  else if (state.gexProxy === 'cautious' && conviction === 'A+') { conviction = 'B'; convColor = 'var(--gold)'; convLabel = 'MODERATE \u2014 Cautious GEX'; adjContracts = Math.max(1, Math.round(adjContracts * 0.5)); }
   const adjIncome = orderCredit * adjContracts * 100;
 
   // Session check
@@ -1702,83 +1595,101 @@ function scan() {
   const [aH, aM] = aedtStr.split(':').map(Number);
   const aT = aH + aM / 60;
   let sessionStatus, sessionColor, sessionNote;
-  if ((aT >= 23.5) || (aT >= 0 && aT < 1.25)) { sessionStatus = 'MORNING ENTRY'; sessionColor = 'var(--gold)'; sessionNote = 'Morning session open \u2014 \u03940.12'; }
-  else if (aT >= 1.25 && aT < 3.0) { sessionStatus = 'BETWEEN SESSIONS'; sessionColor = 'var(--textDim)'; sessionNote = 'Wait for arvo session at 3:00 AM'; }
-  else if (aT >= 3.0 && aT < 4.0) { sessionStatus = 'ARVO ENTRY'; sessionColor = 'var(--green)'; sessionNote = 'Arvo session open \u2014 \u03940.15'; }
-  else if (aT >= 4.0 && aT < 5.5) { sessionStatus = 'CLOSE ONLY'; sessionColor = 'var(--orange)'; sessionNote = 'No new entries \u2014 manage existing'; }
-  else if (aT >= 5.5 && aT < 7.0) { sessionStatus = 'HARD CLOSE'; sessionColor = 'var(--red)'; sessionNote = 'Close all positions NOW'; }
-  else { sessionStatus = 'MARKET CLOSED'; sessionColor = 'var(--textDim)'; sessionNote = 'US market not open'; }
-  const canTrade = sessionStatus === 'MORNING ENTRY' || sessionStatus === 'ARVO ENTRY';
+  if (state.mode === 'weekly') {
+    // Weekly trades can be entered any time during market hours
+    if ((aT >= 23.5) || (aT >= 0 && aT < 5.5)) { sessionStatus = 'WEEKLY ENTRY'; sessionColor = 'var(--cyan)'; sessionNote = 'Weekly 5DTE \u2014 enter during regular hours'; }
+    else if (aT >= 5.5 && aT < 7.0) { sessionStatus = 'HARD CLOSE'; sessionColor = 'var(--red)'; sessionNote = 'Close all positions NOW'; }
+    else { sessionStatus = 'MARKET CLOSED'; sessionColor = 'var(--textDim)'; sessionNote = 'US market not open'; }
+  } else {
+    if ((aT >= 23.5) || (aT >= 0 && aT < 1.25)) { sessionStatus = 'MORNING ENTRY'; sessionColor = 'var(--gold)'; sessionNote = 'Morning session open \u2014 \u03940.12'; }
+    else if (aT >= 1.25 && aT < 3.0) { sessionStatus = 'BETWEEN SESSIONS'; sessionColor = 'var(--textDim)'; sessionNote = 'Wait for arvo session at 3:00 AM'; }
+    else if (aT >= 3.0 && aT < 4.0) { sessionStatus = 'ARVO ENTRY'; sessionColor = 'var(--green)'; sessionNote = 'Arvo session open \u2014 \u03940.15'; }
+    else if (aT >= 4.0 && aT < 5.5) { sessionStatus = 'CLOSE ONLY'; sessionColor = 'var(--orange)'; sessionNote = 'No new entries \u2014 manage existing'; }
+    else if (aT >= 5.5 && aT < 7.0) { sessionStatus = 'HARD CLOSE'; sessionColor = 'var(--red)'; sessionNote = 'Close all positions NOW'; }
+    else { sessionStatus = 'MARKET CLOSED'; sessionColor = 'var(--textDim)'; sessionNote = 'US market not open'; }
+  }
+  const canTrade = sessionStatus === 'MORNING ENTRY' || sessionStatus === 'ARVO ENTRY' || sessionStatus === 'WEEKLY ENTRY';
+
+  // ── STORE SCAN RESULTS FOR PLAYBOOK ──
+  state._order = {
+    orderType, orderIcon, orderColor, orderCredit, profitTgt, stopInfo,
+    conviction, convColor, convLabel, adjContracts, adjIncome, contracts,
+    useIC, useCall, isBearish, isBullish, recRow, recDelta, regime,
+    sessionStatus, sessionColor, canTrade, phase,
+    pF, cF
+  };
 
   // ── RENDER PLAYBOOK + ORDER PANEL ──
   renderPlaybook();
 
-  // Banners
+  // Order panel — order strip with session selector + LOG
   let bannerHtml = '';
   if (state.macroRisk === 'blackout') {
     bannerHtml = '<div style="border:2px solid var(--red);border-left:4px solid var(--red);padding:10px 16px;display:flex;align-items:center;gap:12px;background:rgba(255,71,87,0.08);margin-bottom:8px"><span style="font-size:20px">\u26D4</span><div><div style="font-size:13px;color:var(--red);font-weight:700;letter-spacing:1px">NO TRADE TODAY</div><div style="font-size:11px;color:var(--textMid);margin-top:2px">FOMC / Market Holiday \u2014 capital preservation day</div></div></div>';
   }
+  const oc = orderColor;
+  const orderStripHtml = `
+    <div style="padding:10px 14px;background:${oc}08;border:1px solid ${oc}30;border-left:3px solid ${oc}">
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <span style="font-size:12px;font-weight:700;color:${oc}">${orderIcon} ${orderType}</span>
+        <span class="chakra" style="font-size:13px;font-weight:700;color:${convColor}">${conviction}</span>
+        <span style="font-size:11px;color:var(--textDim)">\u0394${recDelta} \u00B7 ${adjContracts}ct \u00B7 $${f2(orderCredit)} credit${state.mode === 'weekly' ? ' \u00B7 5DTE' : ''}</span>
+        <span style="font-size:10px;color:${stopInfo.windowColor}">&#183; ${stopInfo.window} &#183; Stop @ $${stopInfo.stopSpreadVal} &#183; Fee: $3/spread</span>
+      </div>
+      <div style="display:flex;gap:6px;align-items:end;margin-top:8px;flex-wrap:nowrap">
+        <div style="flex:1.2;min-width:85px">
+          <div class="label" style="margin-bottom:3px">TYPE</div>
+          <select id="log-type-o" style="width:100%;height:30px;background:var(--panelAlt);border:1px solid var(--borderBright);color:var(--cyan);font-size:9px;font-weight:700;font-family:'IBM Plex Mono',monospace;padding:0 4px;cursor:pointer;letter-spacing:1px;box-sizing:border-box">
+            <option value="Put Spread" ${!useCall && !useIC ? 'selected' : ''}>PUT SPREAD</option>
+            <option value="Call Spread" ${useCall && !useIC ? 'selected' : ''}>CALL SPREAD</option>
+            <option value="IC" ${useIC ? 'selected' : ''}>IRON CONDOR</option>
+          </select>
+        </div>
+        <div style="flex:1.8;min-width:120px">
+          <div class="label" style="margin-bottom:3px">SELL / BUY</div>
+          <div style="display:flex;height:30px">
+            <input id="log-sell-o" type="number" value="${useCall ? recRow.sC : recRow.sP}" style="width:100%;background:var(--panelAlt);border:1px solid var(--borderBright);color:var(--white);font-size:13px;font-weight:700;font-family:'IBM Plex Mono',monospace;padding:0 6px;height:100%;box-sizing:border-box;min-width:0;text-align:center" placeholder="SELL">
+            <span style="display:flex;align-items:center;padding:0 3px;color:var(--textDim);font-weight:700;font-size:12px">/</span>
+            <input id="log-buy-o" type="number" value="${useCall ? recRow.lC : recRow.lP}" style="width:100%;background:var(--panelAlt);border:1px solid var(--borderBright);color:var(--white);font-size:13px;font-weight:700;font-family:'IBM Plex Mono',monospace;padding:0 6px;height:100%;box-sizing:border-box;min-width:0;text-align:center" placeholder="BUY">
+          </div>
+        </div>
+        <div style="flex:0.6;min-width:45px">
+          <div class="label" style="margin-bottom:3px">SIZE</div>
+          <input id="log-cts-o" type="number" value="${adjContracts}" style="width:100%;height:30px;text-align:center;background:var(--panelAlt);border:1px solid var(--borderBright);color:var(--green);font-size:13px;font-weight:700;font-family:'Chakra Petch',sans-serif;padding:0 4px;box-sizing:border-box;min-width:0">
+        </div>
+        <div style="flex:0.8;min-width:55px">
+          <div class="label" style="margin-bottom:3px">CREDIT</div>
+          <input id="log-credit-o" type="number" step="0.01" value="${f2(orderCredit)}" style="width:100%;height:30px;text-align:center;background:var(--panelAlt);border:1px solid var(--borderBright);color:${oc};font-size:13px;font-weight:700;font-family:'Chakra Petch',sans-serif;padding:0 4px;box-sizing:border-box;min-width:0" placeholder="0.00">
+        </div>
+        <div style="flex:0.8;min-width:55px">
+          <div class="label" style="margin-bottom:3px">P&L $</div>
+          <input id="log-pnl-o" type="number" step="1" value="${Math.round(adjIncome)}" style="width:100%;height:30px;text-align:center;background:var(--panelAlt);border:1px solid var(--borderBright);color:var(--green);font-size:13px;font-weight:700;font-family:'Chakra Petch',sans-serif;padding:0 4px;box-sizing:border-box;min-width:0" placeholder="0">
+        </div>
+        <div style="flex:0.6;min-width:50px">
+          <div class="label" style="margin-bottom:3px">RESULT</div>
+          <select id="log-win-o" style="width:100%;height:30px;background:var(--panelAlt);border:1px solid var(--borderBright);color:var(--green);font-size:11px;font-weight:700;font-family:'IBM Plex Mono',monospace;padding:0 4px;cursor:pointer;box-sizing:border-box" onchange="this.style.color=this.value==='true'?'var(--green)':'var(--red)'">
+            <option value="true" style="color:var(--green)">WIN</option>
+            <option value="false" style="color:var(--red)">LOSS</option>
+          </select>
+        </div>
+        <div style="width:1px;height:30px;background:var(--border);flex-shrink:0"></div>
+        <div style="flex:1.2;min-width:90px">
+          <div class="label" style="margin-bottom:3px">SESSION</div>
+          <select id="log-session-o" style="width:100%;height:30px;background:var(--panelAlt);border:1px solid var(--borderBright);color:var(--gold);font-size:9px;font-weight:700;font-family:'IBM Plex Mono',monospace;padding:0 4px;cursor:pointer;letter-spacing:1px;box-sizing:border-box">
+            <option value="morning" ${state.mode==='morning'?'selected':''}>MORNING 0DTE</option>
+            <option value="arvo" ${state.mode==='arvo'?'selected':''}>ARVO 0DTE</option>
+            <option value="weekly" ${state.mode==='weekly'?'selected':''}>WEEKLY 5DTE</option>
+          </select>
+        </div>
+        <div style="flex:0.8;min-width:70px">
+          <div class="label" style="margin-bottom:3px">&nbsp;</div>
+          <button onclick="logTradeFromOrder(document.getElementById('log-session-o').value, 'o')" style="width:100%;height:30px;font-size:10px;font-weight:700;font-family:'IBM Plex Mono',monospace;letter-spacing:2px;cursor:pointer;border:1px solid var(--green);background:rgba(0,208,132,0.1);color:var(--green);white-space:nowrap">LOG \u2713</button>
+        </div>
+      </div>
+    </div>`;
+  document.getElementById('orderPanel').innerHTML = bannerHtml + orderStripHtml;
 
-  // Order panel
-  document.getElementById('orderPanel').innerHTML = `
-    ${bannerHtml}
-    <div class="panel" style="padding:12px 16px">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-        <span style="font-size:10px;color:var(--textDim);letter-spacing:2px">TODAY'S ORDER</span>
-        <div style="display:flex;gap:6px;align-items:center">
-          <span style="font-size:10px;padding:3px 8px;border:1px solid ${sessionColor};color:${sessionColor}">${sessionStatus}</span>
-        </div>
-      </div>
-      <div style="padding:10px 12px;border:1px solid var(--border);border-left:3px solid ${orderColor}">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
-          <span class="chakra" style="font-size:14px;font-weight:700;color:var(--white)">${orderIcon} ${orderType}</span>
-          <span class="chakra" style="font-size:14px;font-weight:700;color:${convColor}">${conviction}</span>
-        </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1fr;gap:6px">
-          <div style="border:1px solid var(--border);padding:6px;text-align:center">
-            <div style="font-size:8px;color:var(--textDim);margin-bottom:2px">SELL / BUY</div>
-            <div class="mono" style="font-size:12px;font-weight:700;color:var(--white)">${useCall ? recRow.sC : recRow.sP} / ${useCall ? recRow.lC : recRow.lP}</div>
-            <div style="font-size:8px;color:var(--textDim);margin-top:1px">${useCall ? 'CALL' : 'PUT'} ${state.width}pt</div>
-          </div>
-          <div style="border:1px solid var(--border);padding:6px;text-align:center">
-            <div style="font-size:8px;color:var(--textDim);margin-bottom:2px">SIZE</div>
-            <div class="chakra" style="font-size:16px;font-weight:700;color:var(--green)">${adjContracts}ct</div>
-          </div>
-          <div style="border:1px solid var(--border);padding:6px;text-align:center">
-            <div style="font-size:8px;color:var(--textDim);margin-bottom:2px">CREDIT</div>
-            <div class="chakra" style="font-size:16px;font-weight:700;color:var(--white)">$${f2(orderCredit)}</div>
-            <div style="font-size:8px;color:var(--textDim)">${fmt$(adjIncome)} total</div>
-          </div>
-          <div style="border:1px solid rgba(255,165,0,0.3);background:rgba(255,165,0,0.05);padding:6px;text-align:center">
-            <div style="font-size:8px;color:rgba(255,165,0,0.7);margin-bottom:2px">2\u00D7 (0-30min)</div>
-            <div class="mono" style="font-size:14px;font-weight:700;color:var(--white)">$${f2(orderCredit*2)}</div>
-          </div>
-          <div style="border:1px solid rgba(255,71,87,0.3);background:rgba(255,71,87,0.05);padding:6px;text-align:center">
-            <div style="font-size:8px;color:rgba(255,71,87,0.7);margin-bottom:2px">1\u00D7 (30min+)</div>
-            <div class="mono" style="font-size:14px;font-weight:700;color:var(--white)">$${f2(orderCredit*1)}</div>
-          </div>
-        </div>
-        <div style="margin-top:4px;font-size:9px;color:var(--textDim)">\u0394${recDelta} \u00B7 Hold to expiry \u00B7 Max loss -${fmt$(orderCredit * adjContracts * 100)} @ 2\u00D7</div>
-      </div>
-    </div>
-  `;
-
-  // Market analysis panel
-  document.getElementById('marketAnalysisPanel').innerHTML = `
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-      <div style="font-size:10px;color:var(--textDim);letter-spacing:2px">MARKET ANALYSIS</div>
-      <div style="display:flex;align-items:center;gap:6px">
-        <span style="font-size:9px;padding:2px 8px;border:1px solid ${regime.color};color:${regime.color};font-weight:700">${regime.level}</span>
-        <span style="font-size:9px;padding:2px 8px;border:1px solid ${isBearish ? 'var(--red)' : isBullish ? 'var(--green)' : 'var(--cyan)'};color:${isBearish ? 'var(--red)' : isBullish ? 'var(--green)' : 'var(--cyan)'};font-weight:700">${isBearish ? '\u2193 BEAR' : isBullish ? '\u2191 BULL' : '\u2192 NEUT'}</span>
-      </div>
-    </div>
-    <div style="display:grid;grid-template-columns:repeat(${Math.min(regimeItems.length, 3)},1fr);gap:4px;margin-bottom:6px">
-      ${regimeItems.slice(0, 3).map(function(s) { return '<div style="border:1px solid var(--border);padding:6px 8px;text-align:center"><div style="font-size:8px;color:var(--textDim);letter-spacing:1px;margin-bottom:1px">' + s.l + '</div><div class="chakra" style="font-size:14px;font-weight:700;color:' + s.c + '">' + s.v + '</div></div>'; }).join('')}
-    </div>
-    ${regimeItems.length > 3 ? '<div style="display:grid;grid-template-columns:repeat(' + (regimeItems.length - 3) + ',1fr);gap:4px;margin-bottom:6px">' + regimeItems.slice(3).map(function(s) { return '<div style="border:1px solid var(--border);padding:6px 8px;text-align:center"><div style="font-size:8px;color:var(--textDim);letter-spacing:1px;margin-bottom:1px">' + s.l + '</div><div class="chakra" style="font-size:14px;font-weight:700;color:' + s.c + '">' + s.v + '</div></div>'; }).join('') + '</div>' : ''}
-    ${state.reasoning.length > 0 ? '<table style="width:100%;border-collapse:collapse;font-size:11px">' + state.reasoning.map(function(r) { return '<tr style="border-bottom:1px solid var(--border)"><td style="padding:3px 0;width:20px;color:var(--textMid)">' + r.icon + '</td><td style="padding:3px 6px;color:var(--text)">' + r.text + '</td><td style="padding:3px 0;text-align:right;font-weight:700;color:' + (r.bullish ? 'var(--green)' : 'var(--red)') + '">' + (r.bullish ? '\u2191' : '\u2193') + '</td></tr>'; }).join('') + '</table>' : ''}
-    ${state.prevHigh ? '<div style="margin-top:4px;padding-top:4px;border-top:1px solid var(--border);font-size:9px;color:var(--textDim)">\uD83D\uDD11 Prev ' + state.prevLow.toFixed(0) + '-' + state.prevHigh.toFixed(0) + (state.pivot ? ' \u00B7 P ' + state.pivot.toFixed(0) + ' \u00B7 S1 ' + state.s1.toFixed(0) + ' \u00B7 R1 ' + state.r1.toFixed(0) : '') + (state.weeklyLow ? ' \u00B7 Wk ' + state.weeklyLow.toFixed(0) + '-' + state.weeklyHigh.toFixed(0) : '') + '</div>' : ''}
-  `;
+  // Market analysis now on dedicated ANALYSIS tab
 
   // ── DELTA TABLE ──
   const activeColor = useIC ? 'var(--cyan)' : useCall ? 'var(--orange)' : 'var(--green)';
@@ -1793,11 +1704,8 @@ function scan() {
     </div>
     ${rows.map((row, i) => {
       const isRec = row.delta === recDelta;
-      const lP = state.liveQuotes[`${row.sP}_${row.lP}_P`];
-      const lC = state.liveQuotes[`${row.sC}_${row.lC}_C`];
-      const pf = lP ? lP.credit_bid : row.putFill;
-      const cf = lC ? lC.credit_bid : row.callFill;
-      const pOK = pf >= 0.60, cOK = cf >= 0.60;
+      const pf = row.putFill; const cf = row.callFill;
+      const pOK = pf >= 0.80, cOK = cf >= 0.80;
       return `<div style="display:grid;grid-template-columns:${cols};padding:9px 16px;background:${isRec?`color-mix(in srgb, ${activeColor} 5%, transparent)`:i%2===0?'var(--panelAlt)':'var(--panel)'};border-left:${isRec?`3px solid ${activeColor}`:'3px solid transparent'};border-bottom:1px solid var(--border);align-items:center">
         <div style="font-size:13px;color:${isRec?activeColor:'var(--textMid)'};font-weight:${isRec?700:400}">\u0394${row.label}</div>
         <div style="font-size:10px;color:${isRec?activeColor:'var(--textDim)'}">${isRec?'\u25C0 REC':row.tag}</div>
@@ -1805,19 +1713,25 @@ function scan() {
         <div style="font-size:13px;color:var(--white);font-weight:600">${row.sC}</div>
         <div style="font-size:12px;color:var(--textDim)">${row.lP}</div>
         <div style="font-size:12px;color:var(--textDim)">${row.lC}</div>
-        <div><span style="font-size:14px;color:${pOK?'var(--green)':'var(--red)'};font-weight:700">\$${f2(pf)}</span> <span style="font-size:9px;color:${pOK?'var(--green)':'var(--red)'}">${lP?'\u26A1':pOK?'\u2713':'\u2717'}</span></div>
-        <div><span style="font-size:14px;color:${cOK?'var(--orange)':'var(--red)'};font-weight:700">\$${f2(cf)}</span> <span style="font-size:9px;color:${cOK?'var(--orange)':'var(--red)'}">${lC?'\u26A1':cOK?'\u2713':'\u2717'}</span></div>
+        <div><span style="font-size:14px;color:${pOK?'var(--green)':'var(--red)'};font-weight:700">\$${f2(pf)}</span> <span style="font-size:9px;color:${pOK?'var(--green)':'var(--red)'}">${pOK?'\u2713':'\u2717'}</span></div>
+        <div><span style="font-size:14px;color:${cOK?'var(--orange)':'var(--red)'};font-weight:700">\$${f2(cf)}</span> <span style="font-size:9px;color:${cOK?'var(--orange)':'var(--red)'}">${cOK?'\u2713':'\u2717'}</span></div>
         <div><span style="font-size:14px;color:${row.icOK?'var(--cyan)':'var(--red)'};font-weight:700">\$${f2(row.icFill)}</span></div>
-        <div style="font-size:12px;color:var(--red)">\u2264${row.putStop}</div>
-        <div style="font-size:12px;color:var(--red)">\u2265${row.callStop}</div>
+        <div style="font-size:12px;color:var(--red)">\u2264${row.putStop}</div><div style="font-size:12px;color:var(--red)">\u2265${row.callStop}</div>
         <div style="font-size:11px;color:var(--green)">\$${f2(pf*0.5)}p <span style="color:var(--cyan)">\$${f2(row.icFill*0.5)}ic</span></div>
       </div>`;
     }).join('')}`;
 
   // ── BOTTOM: Income + Phase (2 columns) ──
   function mkRows(data) { return data.map(r => `<div class="row"><span${r.ls?' style="'+r.ls+'"':''}>${r.l}</span><span style="font-size:${r.big?14:12}px;color:${r.color||'var(--text)'};font-weight:${r.big?700:400}">${r.v}</span></div>`).join(''); }
-  const putW=recRow.putFill*adjContracts*100, calW=recRow.callFill*adjContracts*100;
-  const icW=recRow.icFill*adjContracts*100, icL=recRow.icFill*2*adjContracts*100;
+  const openFee = 3 * adjContracts; // $3 per spread to open
+  const closeFee = 3 * adjContracts; // $3 per spread if stopped out
+  const putW=recRow.putFill*adjContracts*100 - openFee, calW=recRow.callFill*adjContracts*100 - openFee;
+  // Max loss = stop mult × credit (spread price hits stop) + fees
+  const putL = recRow.putFill*stopInfo.mult*adjContracts*100 + openFee + closeFee;
+  const calL = recRow.callFill*stopInfo.mult*adjContracts*100 + openFee + closeFee;
+  const icW=recRow.icFill*adjContracts*100 - openFee;
+  const icL = recRow.icFill*stopInfo.mult*adjContracts*100 + openFee + closeFee;
+  const maxL = Math.max(putL, calL, icL);
   const wkD=wklyFill*100/5;
 
   document.getElementById('bottomArea').innerHTML = `
@@ -1825,11 +1739,11 @@ function scan() {
       <div class="panelAlt" style="border:1px solid var(--border);border-top:3px solid var(--gold);padding:12px 14px">
         <div style="font-size:11px;color:var(--gold);letter-spacing:2px;margin-bottom:8px;font-weight:700">INCOME SUMMARY</div>
         ${[
-          {l:'PUT WIN',v:fmt$(putW),c:'var(--green)'},{l:'CALL WIN',v:fmt$(calW),c:'var(--green)'},
-          {l:'IC WIN',v:fmt$(icW),c:'var(--cyan)'},{l:'IC LOSS',v:fmt$(-icL),c:'var(--red)'},
-          {l:'WEEKLY /day',v:fmt$(wkD),c:'var(--blue)'},
-          {l:'BEST DAY',v:fmt$(icW+wkD-5.60),c:'var(--green)'},
-          {l:'WORST DAY',v:fmt$(-icL+wkD-5.60),c:'var(--red)'},
+          {l:'PUT WIN (net)',v:fmt$(putW),c:'var(--green)'},{l:'CALL WIN (net)',v:fmt$(calW),c:'var(--green)'},
+          {l:'IC WIN (net)',v:fmt$(icW),c:'var(--cyan)'},{l:'MAX LOSS (${stopInfo.tier} ${stopInfo.mult}\u00D7 + fees)',v:fmt$(-maxL),c:'var(--red)'},
+          {l:'OPEN FEE',v:fmt$(-openFee),c:'var(--textDim)'},{l:'CLOSE FEE (stop)',v:fmt$(-closeFee),c:'var(--textDim)'},
+          {l:'BEST DAY',v:fmt$(icW+wkD),c:'var(--green)'},
+          {l:'WORST DAY',v:fmt$(-maxL+wkD),c:'var(--red)'},
         ].map(s => `<div class="row"><span>${s.l}</span><span style="font-size:12px;color:${s.c};font-weight:600">${s.v}</span></div>`).join('')}
       </div>
       <div class="panelAlt" style="border:1px solid var(--border);border-top:3px solid ${phase.color};padding:12px 14px">
@@ -1839,8 +1753,8 @@ function scan() {
           {l:'WEEKLY TGT',v:`$${phase.weekly.toLocaleString()}`,color:'var(--gold)'},
           {l:'ANNUAL ROI',v:phase.roi+'+',color:'var(--green)'},
           {l:'SIZING',v:phase.contracts},
-          {l:'BREAKEVEN WR',v:'67%',color:'var(--red)'},
-          {l:'TARGET WR',v:'82\u201385%',color:'var(--green)'},
+          {l:'STOP',v:stopInfo.window,color:stopInfo.windowColor},
+          {l:'TARGET WR',v:'55%+',color:'var(--green)'},
         ])}
       </div>
     </div>`;
@@ -2012,6 +1926,781 @@ function drawPnLChart(trades) {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
+// SPX LINE CHART (Analysis Tab)
+// ══════════════════════════════════════════════════════════════════════════════
+function drawSpxChart() {
+  const canvas = document.getElementById('spxChart');
+  if (!canvas || !state.spx) return;
+  const container = canvas.parentElement;
+  const dpr = window.devicePixelRatio || 1;
+  const W = container.clientWidth - 32;
+  const H = 280;
+  canvas.width = W * dpr;
+  canvas.height = H * dpr;
+  canvas.style.width = W + 'px';
+  canvas.style.height = H + 'px';
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+
+  // Layout: [Price Axis] [Col1: Key Levels] [Col2: Ranges] [Chart] [SPX price + Legend]
+  const priceAxisW = 52;
+  const col1W = 80;
+  const col2W = 80;
+  const rightW = 130;
+  const pad = { top: 18, bottom: 18, left: priceAxisW + col1W + col2W + 10, right: rightW + 12 };
+  const cw = W - pad.left - pad.right;
+  const ch = H - pad.top - pad.bottom;
+
+  // Collect all levels — SPX not assigned to a column (goes to right side)
+  const dailyMove = Math.round(state.spx * (state.vix / 100) / Math.sqrt(365));
+  const expHigh = state.spx + dailyMove;
+  const expLow = state.spx - dailyMove;
+  const levels = [
+    { val: state.spx, color: '#FFFFFF', label: 'SPX', dash: [], lw: 2.5, bold: true, desc: 'Current Price' },
+    { val: state.dma200, color: '#00E5FF', label: '200 DMA', dash: [6, 3], lw: 1.5, desc: '200-Day Avg', col: 1 },
+    { val: state.r2, color: '#00D084', label: 'R2', dash: [3, 3], lw: 1, desc: 'Resistance 2', col: 1 },
+    { val: state.r1, color: '#00D084', label: 'R1', dash: [3, 3], lw: 1, desc: 'Resistance 1', col: 1 },
+    { val: state.pivot, color: '#F0B429', label: 'PIVOT', dash: [3, 3], lw: 1, desc: 'Pivot Point', col: 1 },
+    { val: state.s1, color: '#FF4757', label: 'S1', dash: [3, 3], lw: 1, desc: 'Support 1', col: 1 },
+    { val: state.s2, color: '#FF4757', label: 'S2', dash: [3, 3], lw: 1, desc: 'Support 2', col: 1 },
+    { val: expHigh, color: '#FF9F43', label: 'EXP HI', dash: [4, 4], lw: 0.8, desc: 'Expected High', col: 2 },
+    { val: expLow, color: '#FF9F43', label: 'EXP LO', dash: [4, 4], lw: 0.8, desc: 'Expected Low', col: 2 },
+    { val: state.prevHigh, color: '#8395A7', label: 'PREV H', dash: [2, 2], lw: 0.7, desc: 'Prev Day High', col: 2 },
+    { val: state.prevLow, color: '#8395A7', label: 'PREV L', dash: [2, 2], lw: 0.7, desc: 'Prev Day Low', col: 2 },
+    { val: state.weeklyHigh, color: '#6A7A8A', label: 'WK HI', dash: [2, 4], lw: 0.6, desc: 'Weekly High', col: 2 },
+    { val: state.weeklyLow, color: '#6A7A8A', label: 'WK LO', dash: [2, 4], lw: 0.6, desc: 'Weekly Low', col: 2 },
+  ].filter(l => l.val && l.val > 0);
+
+  if (!levels.length) return;
+
+  const allVals = levels.map(l => l.val);
+  const dataMin = Math.min(...allVals) - 25;
+  const dataMax = Math.max(...allVals) + 25;
+  const range = dataMax - dataMin || 1;
+
+  function yPos(v) { return pad.top + (1 - (v - dataMin) / range) * ch; }
+
+  // Background
+  ctx.fillStyle = '#0D1117';
+  ctx.fillRect(0, 0, W, H);
+
+  // ── PRICE AXIS (far left column) ──
+  ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(priceAxisW, 0); ctx.lineTo(priceAxisW, H); ctx.stroke();
+
+  ctx.font = 'bold 7px IBM Plex Mono';
+  ctx.textAlign = 'center';
+  ctx.fillStyle = 'rgba(255,255,255,0.2)';
+  ctx.fillText('PRICE', priceAxisW / 2, 12);
+
+  // Price scale ticks
+  const gridStep = Math.pow(10, Math.floor(Math.log10(range / 5)));
+  const niceStep = range / 5 > gridStep * 5 ? gridStep * 5 : range / 5 > gridStep * 2 ? gridStep * 2 : gridStep;
+  ctx.font = '10px IBM Plex Mono';
+  ctx.textAlign = 'right';
+  for (let v = Math.ceil(dataMin / niceStep) * niceStep; v <= dataMax; v += niceStep) {
+    const yy = yPos(v);
+    // Tick mark
+    ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+    ctx.beginPath(); ctx.moveTo(priceAxisW - 4, yy); ctx.lineTo(priceAxisW, yy); ctx.stroke();
+    // Faint grid line across chart
+    ctx.strokeStyle = 'rgba(255,255,255,0.03)';
+    ctx.beginPath(); ctx.moveTo(pad.left, yy); ctx.lineTo(W - pad.right, yy); ctx.stroke();
+    // Price label
+    ctx.fillStyle = 'rgba(255,255,255,0.35)';
+    ctx.fillText(v.toFixed(0), priceAxisW - 8, yy + 4);
+  }
+
+  // Column separator lines
+  ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+  ctx.lineWidth = 1;
+  const c1x = priceAxisW;
+  const c2x = priceAxisW + col1W;
+  const c3x = priceAxisW + col1W + col2W;
+  ctx.beginPath(); ctx.moveTo(c2x, 0); ctx.lineTo(c2x, H); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(c3x, 0); ctx.lineTo(c3x, H); ctx.stroke();
+
+  // Column headers
+  ctx.font = 'bold 7px IBM Plex Mono';
+  ctx.textAlign = 'center';
+  ctx.fillStyle = 'rgba(255,255,255,0.2)';
+  ctx.fillText('KEY LEVELS', c1x + col1W / 2, 12);
+  ctx.fillText('RANGES', c2x + col2W / 2, 12);
+
+  // Expected range shaded band
+  if (state.spx && dailyMove) {
+    ctx.fillStyle = 'rgba(255,159,67,0.07)';
+    ctx.fillRect(pad.left, yPos(expHigh), cw, yPos(expLow) - yPos(expHigh));
+  }
+
+  // Non-bold levels first, bold (SPX) last on top
+  const colLevels = levels.filter(l => !l.bold);
+  const spxLevel = levels.find(l => l.bold);
+
+  // Separate collision tracking per column
+  const usedYCol1 = [];
+  const usedYCol2 = [];
+  function adjustY(targetY, col) {
+    const used = col === 1 ? usedYCol1 : usedYCol2;
+    const minGap = 18;
+    let y = Math.max(pad.top + 6, Math.min(H - pad.bottom - 6, targetY));
+    for (let pass = 0; pass < 10; pass++) {
+      let collision = false;
+      for (const uy of used) {
+        if (Math.abs(y - uy) < minGap) {
+          y = y <= uy ? uy - minGap : uy + minGap;
+          collision = true;
+        }
+      }
+      if (!collision) break;
+    }
+    y = Math.max(pad.top + 6, Math.min(H - pad.bottom - 6, y));
+    used.push(y);
+    return y;
+  }
+
+  // Draw non-SPX level lines and labels
+  colLevels.forEach(l => {
+    const yy = yPos(l.val);
+
+    // Horizontal line across chart area
+    ctx.strokeStyle = l.color;
+    ctx.lineWidth = l.lw;
+    ctx.setLineDash(l.dash);
+    ctx.beginPath();
+    ctx.moveTo(pad.left, yy);
+    ctx.lineTo(W - pad.right, yy);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Faint tick into label columns
+    ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+    ctx.lineWidth = 0.5;
+    ctx.beginPath();
+    ctx.moveTo(c1x, yy);
+    ctx.lineTo(pad.left, yy);
+    ctx.stroke();
+
+    // Label in assigned column
+    const colX = l.col === 1 ? c1x + 4 : c2x + 4;
+    const colEnd = l.col === 1 ? c2x - 4 : c3x - 4;
+    const labelY = adjustY(yy, l.col);
+
+    // Dark pill with label left, price right
+    ctx.fillStyle = 'rgba(13,17,23,0.9)';
+    ctx.beginPath();
+    ctx.roundRect(colX, labelY - 9, colEnd - colX, 18, 3);
+    ctx.fill();
+    ctx.strokeStyle = l.color + '40';
+    ctx.lineWidth = 0.5;
+    ctx.beginPath();
+    ctx.roundRect(colX, labelY - 9, colEnd - colX, 18, 3);
+    ctx.stroke();
+
+    ctx.fillStyle = l.color;
+    ctx.font = '10px IBM Plex Mono';
+    ctx.textAlign = 'left';
+    ctx.fillText(l.label, colX + 4, labelY + 4);
+    ctx.textAlign = 'right';
+    ctx.font = 'bold 10px IBM Plex Mono';
+    ctx.fillText(l.val.toFixed(0), colEnd - 3, labelY + 4);
+
+    // Connector if displaced
+    if (Math.abs(labelY - yy) > 4) {
+      ctx.strokeStyle = l.color + '30';
+      ctx.lineWidth = 0.7;
+      ctx.setLineDash([2, 2]);
+      ctx.beginPath();
+      ctx.moveTo(colEnd, labelY);
+      ctx.lineTo(pad.left, yy);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+  });
+
+  // ── SPX CURRENT PRICE — drawn on RIGHT side ──
+  if (spxLevel) {
+    const yy = yPos(spxLevel.val);
+
+    // Bold white line across full chart
+    ctx.strokeStyle = '#FFFFFF';
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.moveTo(pad.left, yy);
+    ctx.lineTo(W - pad.right, yy);
+    ctx.stroke();
+
+    // White badge on right edge (like TradingView price axis)
+    const badgeX = W - pad.right + 4;
+    const badgeW = rightW - 8;
+    const priceText = 'SPX  ' + spxLevel.val.toFixed(2);
+    ctx.fillStyle = '#FFFFFF';
+    ctx.beginPath();
+    ctx.roundRect(badgeX, yy - 11, badgeW, 22, 3);
+    ctx.fill();
+    // Arrow pointer on left edge of badge
+    ctx.beginPath();
+    ctx.moveTo(badgeX, yy - 6);
+    ctx.lineTo(badgeX - 6, yy);
+    ctx.lineTo(badgeX, yy + 6);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.fillStyle = '#0D1117';
+    ctx.font = 'bold 11px IBM Plex Mono';
+    ctx.textAlign = 'center';
+    ctx.fillText(priceText, badgeX + badgeW / 2, yy + 4);
+  }
+
+  // Distance markers from SPX to nearest levels above/below
+  const spxY = yPos(state.spx);
+  const aboveLevels = colLevels.filter(l => l.val > state.spx + 2).sort((a, b) => a.val - b.val);
+  const belowLevels = colLevels.filter(l => l.val < state.spx - 2).sort((a, b) => b.val - a.val);
+  const chartMidX = pad.left + cw / 2;
+
+  ctx.font = '9px IBM Plex Mono';
+  ctx.textAlign = 'center';
+
+  if (aboveLevels[0]) {
+    const midY = (spxY + yPos(aboveLevels[0].val)) / 2;
+    const dist = '+' + (aboveLevels[0].val - state.spx).toFixed(0) + ' pts';
+    const dtw = ctx.measureText(dist).width;
+    ctx.fillStyle = 'rgba(13,17,23,0.85)';
+    ctx.beginPath();
+    ctx.roundRect(chartMidX - dtw / 2 - 6, midY - 8, dtw + 12, 16, 3);
+    ctx.fill();
+    ctx.fillStyle = '#00D084';
+    ctx.fillText(dist, chartMidX, midY + 4);
+  }
+  if (belowLevels[0]) {
+    const midY = (spxY + yPos(belowLevels[0].val)) / 2;
+    const dist = '-' + (state.spx - belowLevels[0].val).toFixed(0) + ' pts';
+    const dtw = ctx.measureText(dist).width;
+    ctx.fillStyle = 'rgba(13,17,23,0.85)';
+    ctx.beginPath();
+    ctx.roundRect(chartMidX - dtw / 2 - 6, midY - 8, dtw + 12, 16, 3);
+    ctx.fill();
+    ctx.fillStyle = '#FF4757';
+    ctx.fillText(dist, chartMidX, midY + 4);
+  }
+
+  // ── RIGHT SIDE LEGEND (below SPX badge) ──
+  const lx = W - pad.right + 4;
+  const legendTop = spxY + 22;
+  const legendH = H - legendTop - 4;
+
+  // Only draw legend if there's room below SPX badge
+  if (legendH > 60) {
+    ctx.fillStyle = 'rgba(13,17,23,0.6)';
+    ctx.beginPath();
+    ctx.roundRect(lx, legendTop, rightW - 8, legendH, 4);
+    ctx.fill();
+
+    ctx.fillStyle = 'rgba(255,255,255,0.3)';
+    ctx.font = 'bold 7px IBM Plex Mono';
+    ctx.textAlign = 'left';
+    ctx.fillText('LEGEND', lx + 8, legendTop + 14);
+
+    const seen = new Set();
+    const legendItems = levels.filter(l => {
+      if (l.bold) return false;
+      if (seen.has(l.desc)) return false;
+      seen.add(l.desc);
+      return true;
+    });
+
+    const maxItems = Math.floor((legendH - 24) / 15);
+    legendItems.slice(0, maxItems).forEach((l, i) => {
+      const ly = legendTop + 28 + i * 15;
+      // Color swatch
+      ctx.strokeStyle = l.color;
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash(l.dash);
+      ctx.beginPath();
+      ctx.moveTo(lx + 6, ly);
+      ctx.lineTo(lx + 18, ly);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      // Label
+      ctx.fillStyle = 'rgba(255,255,255,0.5)';
+      ctx.font = '8px IBM Plex Mono';
+      ctx.textAlign = 'left';
+      ctx.fillText(l.desc, lx + 22, ly + 3);
+    });
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// GEX (Gamma Exposure) — 0DTE SPX Options
+// ══════════════════════════════════════════════════════════════════════════════
+function calcGexData() {
+  const S = state.spx;
+  if (!S) return null;
+
+  const iv = state.vix / 100;
+  const rf = 0.045;
+  const T = getT();
+
+  // Generate strikes every 5 pts within ±150 of spot
+  const maxRange = 150;
+  const step = 5;
+  const gexArray = [];
+
+  for (let K = Math.round((S - maxRange) / step) * step; K <= S + maxRange; K += step) {
+    const dist = Math.abs(K - S);
+    const sqrtT = Math.sqrt(T);
+    const d1 = (Math.log(S / K) + (rf + iv * iv / 2) * T) / (iv * sqrtT);
+    const gamma = normPDF(d1) / (S * iv * sqrtT);
+
+    // Model OI distribution: ATM peak + round-number clustering
+    // Base OI decays with distance from ATM (Gaussian, σ ~ daily expected move)
+    const dailyMove = S * iv / Math.sqrt(365);
+    const sigma = dailyMove * 1.2;
+    const baseOI = Math.exp(-0.5 * (dist / sigma) ** 2);
+
+    // Round-number bonus: 100-pt multiples get 3×, 50-pt get 2×, 25-pt get 1.5×
+    let roundBonus = 1;
+    if (K % 100 === 0) roundBonus = 3;
+    else if (K % 50 === 0) roundBonus = 2;
+    else if (K % 25 === 0) roundBonus = 1.5;
+
+    const oiScale = 10000; // arbitrary scale for relative comparison
+    // Puts dominate below ATM, calls above — reflects typical SPX OI skew
+    const putOI = Math.round(oiScale * baseOI * roundBonus * (K <= S ? 1.3 : 0.7));
+    const callOI = Math.round(oiScale * baseOI * roundBonus * (K >= S ? 1.3 : 0.7));
+
+    // GEX: calls positive (dealer long gamma), puts negative (dealer short gamma)
+    const callGex = gamma * callOI * 100;
+    const putGex = -gamma * putOI * 100;
+
+    gexArray.push({
+      strike: K,
+      callGex,
+      putGex,
+      callOI,
+      putOI,
+      netGex: callGex + putGex,
+    });
+  }
+
+  if (!gexArray.length) return null;
+
+  // GEX flip level — where net GEX transitions from positive to negative
+  let flipLevel = null;
+  for (let i = 1; i < gexArray.length; i++) {
+    if (gexArray[i - 1].netGex >= 0 && gexArray[i].netGex < 0 &&
+        gexArray[i].strike >= S - 60 && gexArray[i].strike <= S + 60) {
+      flipLevel = gexArray[i].strike;
+      break;
+    }
+  }
+
+  // Top positive GEX strikes (pin magnets)
+  const topPins = [...gexArray]
+    .filter(g => g.netGex > 0)
+    .sort((a, b) => b.netGex - a.netGex)
+    .slice(0, 5)
+    .map(g => g.strike);
+
+  // Highest negative GEX strikes
+  const dangerZones = [...gexArray]
+    .filter(g => g.netGex < 0)
+    .sort((a, b) => a.netGex - b.netGex)
+    .slice(0, 3)
+    .map(g => g.strike);
+
+  return { gexArray, flipLevel, topPins, dangerZones, spotPrice: S, dte: 0, expDate: new Date(), estimated: true };
+}
+
+function drawGexChart(gexData) {
+  const canvas = document.getElementById('gexChart');
+  if (!canvas) return;
+
+  const container = canvas.parentElement;
+  const dpr = window.devicePixelRatio || 1;
+  const W = container.clientWidth - 32;
+  const H = 300;
+  canvas.width = W * dpr;
+  canvas.height = H * dpr;
+  canvas.style.width = W + 'px';
+  canvas.style.height = H + 'px';
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+
+  // Background
+  ctx.fillStyle = '#0D1117';
+  ctx.fillRect(0, 0, W, H);
+
+  if (!gexData || !gexData.gexArray.length) {
+    ctx.fillStyle = '#4A6070';
+    ctx.font = '12px IBM Plex Mono';
+    ctx.textAlign = 'center';
+    ctx.fillText('GEX data unavailable — press REFRESH DATA', W / 2, H / 2);
+    return;
+  }
+
+  const bars = gexData.gexArray;
+  const S = gexData.spotPrice;
+
+  const pad = { top: 25, bottom: 35, left: 10, right: 95 };
+  const cw = W - pad.left - pad.right;
+  const ch = H - pad.top - pad.bottom;
+
+  // Y scale
+  const maxGex = Math.max(...bars.map(b => Math.abs(b.netGex))) || 1;
+  const yRange = maxGex * 1.15;
+  const zeroY = pad.top + ch / 2;
+
+  function yPos(v) { return zeroY - (v / yRange) * (ch / 2); }
+  function xPos(i) { return pad.left + ((i + 0.5) / bars.length) * cw; }
+
+  const barWidth = Math.max(2, (cw / bars.length) * 0.8);
+
+  // Zero line
+  ctx.strokeStyle = 'rgba(255,255,255,0.25)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(pad.left, zeroY);
+  ctx.lineTo(W - pad.right, zeroY);
+  ctx.stroke();
+
+  // Subtle grid
+  ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+  for (let i = -2; i <= 2; i++) {
+    if (i === 0) continue;
+    const y = zeroY - (i / 2.5) * (ch / 2);
+    ctx.beginPath();
+    ctx.moveTo(pad.left, y);
+    ctx.lineTo(W - pad.right, y);
+    ctx.stroke();
+  }
+
+  // Draw GEX bars
+  bars.forEach((b, i) => {
+    const x = xPos(i) - barWidth / 2;
+    const y = yPos(b.netGex);
+    const h = Math.abs(y - zeroY);
+    const isPin = gexData.topPins.includes(b.strike);
+    const isDanger = gexData.dangerZones.includes(b.strike);
+
+    if (b.netGex >= 0) {
+      ctx.fillStyle = isPin ? '#00FF88' : 'rgba(0,208,132,0.6)';
+      ctx.fillRect(x, y, barWidth, h);
+    } else {
+      ctx.fillStyle = isDanger ? '#FF4757' : 'rgba(255,71,87,0.5)';
+      ctx.fillRect(x, zeroY, barWidth, h);
+    }
+  });
+
+  // Current price vertical line
+  const priceIdx = bars.findIndex(b => b.strike >= S);
+  if (priceIdx >= 0) {
+    const px = xPos(priceIdx);
+    ctx.strokeStyle = '#FFFFFF';
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([3, 3]);
+    ctx.beginPath();
+    ctx.moveTo(px, pad.top);
+    ctx.lineTo(px, H - pad.bottom);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = '#FFFFFF';
+    ctx.font = 'bold 9px IBM Plex Mono';
+    ctx.textAlign = 'center';
+    ctx.fillText('SPX ' + S.toFixed(0), px, pad.top - 8);
+  }
+
+  // GEX flip line
+  if (gexData.flipLevel) {
+    const flipIdx = bars.findIndex(b => b.strike >= gexData.flipLevel);
+    if (flipIdx >= 0) {
+      const px = xPos(flipIdx);
+      ctx.strokeStyle = '#F0B429';
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([5, 3]);
+      ctx.beginPath();
+      ctx.moveTo(px, pad.top);
+      ctx.lineTo(px, H - pad.bottom);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = '#F0B429';
+      ctx.font = 'bold 9px IBM Plex Mono';
+      ctx.textAlign = 'center';
+      ctx.fillText('FLIP ' + gexData.flipLevel.toFixed(0), px, H - pad.bottom + 12);
+    }
+  }
+
+  // Recommended short strikes from scanner
+  const rows = typeof computeRows === 'function' ? computeRows() : [];
+  const recRow = rows.find(r => r.delta === 0.15) || rows[0];
+  if (recRow) {
+    [{ strike: recRow.sP, label: 'SP', color: '#FF6B35' }, { strike: recRow.sC, label: 'SC', color: '#00BFFF' }].forEach(s => {
+      const idx = bars.findIndex(b => b.strike >= s.strike);
+      if (idx >= 0) {
+        const px = xPos(idx);
+        ctx.strokeStyle = s.color;
+        ctx.lineWidth = 1;
+        ctx.setLineDash([2, 4]);
+        ctx.beginPath();
+        ctx.moveTo(px, pad.top + 10);
+        ctx.lineTo(px, H - pad.bottom);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.fillStyle = s.color;
+        ctx.font = 'bold 8px IBM Plex Mono';
+        ctx.textAlign = 'center';
+        ctx.fillText(s.label + ' ' + s.strike, px, H - pad.bottom + 24);
+      }
+    });
+  }
+
+  // X-axis strike labels
+  ctx.fillStyle = '#4A6070';
+  ctx.font = '8px IBM Plex Mono';
+  ctx.textAlign = 'center';
+  const labelEvery = Math.max(1, Math.floor(bars.length / 12));
+  bars.forEach((b, i) => {
+    if (i % labelEvery === 0) {
+      ctx.fillText(b.strike.toFixed(0), xPos(i), H - 4);
+    }
+  });
+
+  // Right side legend
+  ctx.textAlign = 'left';
+  ctx.font = 'bold 8px IBM Plex Mono';
+  ctx.fillStyle = '#00D084';
+  ctx.fillText('+GEX (pin)', W - pad.right + 6, pad.top + 12);
+  ctx.fillStyle = '#FF4757';
+  ctx.fillText('-GEX (volatile)', W - pad.right + 6, pad.top + 24);
+  ctx.fillStyle = '#F0B429';
+  ctx.fillText('GEX FLIP', W - pad.right + 6, pad.top + 36);
+
+  if (gexData.topPins.length) {
+    ctx.fillStyle = '#5A6A7A';
+    ctx.fillText('PIN MAGNETS:', W - pad.right + 6, pad.top + 56);
+    gexData.topPins.slice(0, 4).forEach((s, i) => {
+      ctx.fillStyle = '#00FF88';
+      ctx.fillText(s.toFixed(0), W - pad.right + 6, pad.top + 69 + i * 12);
+    });
+  }
+}
+
+function renderGexSummary(gexData) {
+  const el = document.getElementById('gex-summary');
+  const dteLabel = document.getElementById('gex-dte-label');
+  if (!el) return;
+
+  if (!gexData) {
+    el.innerHTML = '';
+    if (dteLabel) dteLabel.textContent = '';
+    return;
+  }
+
+  if (dteLabel) {
+    dteLabel.textContent = gexData.estimated ? 'BSM estimated — round-number OI model' : `${gexData.dte}DTE — Exp ${gexData.expDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
+  }
+
+  // Check if recommended strikes sit behind GEX walls
+  const rows = typeof computeRows === 'function' ? computeRows() : [];
+  const recRow = rows.find(r => r.delta === 0.15) || rows[0];
+  let putGexAssess = '—';
+  let callGexAssess = '—';
+  let putAssessColor = 'var(--textDim)';
+  let callAssessColor = 'var(--textDim)';
+
+  if (recRow && gexData.gexArray.length) {
+    // Check put side: is there positive GEX between spot and short put?
+    const putWall = gexData.gexArray.filter(g => g.strike >= recRow.sP && g.strike <= gexData.spotPrice && g.netGex > 0);
+    if (putWall.length >= 2) {
+      putGexAssess = 'PROTECTED';
+      putAssessColor = 'var(--green)';
+    } else if (putWall.length === 1) {
+      putGexAssess = 'PARTIAL';
+      putAssessColor = 'var(--gold)';
+    } else {
+      putGexAssess = 'EXPOSED';
+      putAssessColor = 'var(--red)';
+    }
+
+    // Check call side: is there positive GEX between spot and short call?
+    const callWall = gexData.gexArray.filter(g => g.strike <= recRow.sC && g.strike >= gexData.spotPrice && g.netGex > 0);
+    if (callWall.length >= 2) {
+      callGexAssess = 'PROTECTED';
+      callAssessColor = 'var(--green)';
+    } else if (callWall.length === 1) {
+      callGexAssess = 'PARTIAL';
+      callAssessColor = 'var(--gold)';
+    } else {
+      callGexAssess = 'EXPOSED';
+      callAssessColor = 'var(--red)';
+    }
+  }
+
+  const flipColor = gexData.flipLevel
+    ? (gexData.flipLevel > gexData.spotPrice ? 'var(--green)' : 'var(--red)')
+    : 'var(--textDim)';
+  const flipNote = gexData.flipLevel
+    ? (gexData.flipLevel > gexData.spotPrice ? 'ABOVE SPOT (bullish)' : 'BELOW SPOT (bearish)')
+    : '';
+
+  el.innerHTML = `
+    <div style="background:rgba(255,255,255,0.03);padding:10px;border-radius:4px">
+      <div style="font-size:7px;color:var(--textDim);letter-spacing:1px;margin-bottom:4px">GEX FLIP LEVEL</div>
+      <div style="font-size:16px;font-weight:700;color:${flipColor}">${gexData.flipLevel ? gexData.flipLevel.toFixed(0) : 'N/A'}</div>
+      <div style="font-size:8px;color:${flipColor};margin-top:2px">${flipNote}</div>
+    </div>
+    <div style="background:rgba(255,255,255,0.03);padding:10px;border-radius:4px">
+      <div style="font-size:7px;color:var(--textDim);letter-spacing:1px;margin-bottom:4px">TOP PIN MAGNETS</div>
+      <div style="font-size:13px;font-weight:700;color:var(--green)">${gexData.topPins.slice(0, 3).map(s => s.toFixed(0)).join(' · ')}</div>
+      <div style="font-size:8px;color:var(--textDim);margin-top:2px">Price gravitates here</div>
+    </div>
+    <div style="background:rgba(255,255,255,0.03);padding:10px;border-radius:4px">
+      <div style="font-size:7px;color:var(--textDim);letter-spacing:1px;margin-bottom:4px">PUT STRIKE GEX</div>
+      <div style="font-size:14px;font-weight:700;color:${putAssessColor}">${putGexAssess}</div>
+      <div style="font-size:8px;color:var(--textDim);margin-top:2px">${recRow ? 'Short ' + recRow.sP : ''}</div>
+    </div>
+    <div style="background:rgba(255,255,255,0.03);padding:10px;border-radius:4px">
+      <div style="font-size:7px;color:var(--textDim);letter-spacing:1px;margin-bottom:4px">CALL STRIKE GEX</div>
+      <div style="font-size:14px;font-weight:700;color:${callAssessColor}">${callGexAssess}</div>
+      <div style="font-size:8px;color:var(--textDim);margin-top:2px">${recRow ? 'Short ' + recRow.sC : ''}</div>
+    </div>
+  `;
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// KEY FINDINGS (Analysis Tab)
+// ══════════════════════════════════════════════════════════════════════════════
+function renderFindings() {
+  const el = document.getElementById('analysis-findings-list');
+  if (!el) return;
+
+  const findings = [];
+  const regime = getRegime(state.vix);
+  const dailyMove = Math.round(state.spx * (state.vix / 100) / Math.sqrt(365));
+  const dmaAbove = state.dma200 > 0 ? state.spx > state.dma200 : null;
+  const dmaDist = state.dma200 > 0 ? Math.round(state.spx - state.dma200) : null;
+  const isBearish = state.bias === 'bear';
+  const isBullish = state.bias === 'bull';
+
+  // 200 DMA — context only, does NOT determine trade direction
+  if (state.dma200 > 0) {
+    const pct = ((state.spx - state.dma200) / state.dma200 * 100).toFixed(1);
+    findings.push({
+      icon: '\uD83D\uDCCA',
+      text: `200 DMA at ${state.dma200.toFixed(0)} \u2014 SPX is ${Math.abs(dmaDist)}pts ${dmaAbove ? 'above' : 'below'} (${pct}%). ${dmaAbove ? 'Above = structural support' : 'Below = structural resistance overhead'}`,
+      bullish: null
+    });
+  }
+
+  // VIX regime
+  findings.push({
+    icon: regime.level === 'NORMAL' ? '\u2705' : regime.level === 'ELEVATED' ? '\u26A0\uFE0F' : '\u274C',
+    text: `VIX ${state.vix.toFixed(1)} (${regime.level}) \u2014 ${regime.action}, ${Math.round(regime.size * 100)}% position sizing`,
+    bullish: regime.level === 'NORMAL' ? true : regime.level === 'CRISIS' ? false : null
+  });
+
+  // Expected move
+  findings.push({
+    icon: '\uD83D\uDCCA',
+    text: `Expected daily move: \u00B1${dailyMove}pts (${(state.vix / Math.sqrt(365)).toFixed(1)}%) \u2014 range ${Math.round(state.spx - dailyMove).toLocaleString()} to ${Math.round(state.spx + dailyMove).toLocaleString()}`,
+    bullish: null
+  });
+
+  // S/R proximity
+  if (state.pivot) {
+    const nearS1 = Math.abs(state.spx - state.s1) < dailyMove * 0.5;
+    const nearR1 = Math.abs(state.spx - state.r1) < dailyMove * 0.5;
+    if (nearS1) findings.push({ icon: '\u26A0\uFE0F', text: `Near S1 support (${state.s1.toFixed(0)}) \u2014 potential bounce zone, tighten put stops`, bullish: true });
+    if (nearR1) findings.push({ icon: '\u26A0\uFE0F', text: `Near R1 resistance (${state.r1.toFixed(0)}) \u2014 potential rejection zone, tighten call stops`, bullish: false });
+    const pos = state.spx < state.s1 ? 'below S1' : state.spx < state.pivot ? 'between S1 and Pivot' : state.spx < state.r1 ? 'between Pivot and R1' : 'above R1';
+    findings.push({ icon: '\uD83D\uDCCD', text: `Price position: ${pos} \u2014 Pivot ${state.pivot.toFixed(0)}, S1 ${state.s1.toFixed(0)}, R1 ${state.r1.toFixed(0)}`, bullish: null });
+  }
+
+  // ES Futures direction
+  if (state.esFutures && state.esPrevClose) {
+    const esChg = state.esFutures - state.esPrevClose;
+    const esPct = (esChg / state.esPrevClose * 100).toFixed(2);
+    findings.push({
+      icon: esChg > 0 ? '\uD83D\uDFE2' : '\uD83D\uDD34',
+      text: `ES Futures ${state.esFutures.toFixed(2)} (${esChg > 0 ? '+' : ''}${esPct}%) \u2014 ${Math.abs(esChg) > 20 ? 'strong' : 'modest'} ${esChg > 0 ? 'bullish' : 'bearish'} overnight session`,
+      bullish: esChg > 0
+    });
+  }
+
+  // DXY
+  if (state.dxy && state.dxyPrevClose) {
+    const dxyChg = state.dxy - state.dxyPrevClose;
+    findings.push({
+      icon: dxyChg > 0 ? '\uD83D\uDCB5' : '\uD83D\uDCB5',
+      text: `US Dollar (DXY) ${state.dxy.toFixed(2)} (${dxyChg > 0 ? '+' : ''}${dxyChg.toFixed(2)}) \u2014 ${dxyChg > 0.3 ? 'rising dollar = headwind for equities' : dxyChg < -0.3 ? 'falling dollar = tailwind for equities' : 'stable dollar, neutral impact'}`,
+      bullish: dxyChg < -0.3 ? true : dxyChg > 0.3 ? false : null
+    });
+  }
+
+  // TNX (10Y yield)
+  if (state.tnx && state.tnxPrevClose) {
+    const tnxChg = state.tnx - state.tnxPrevClose;
+    findings.push({
+      icon: '\uD83C\uDFE6',
+      text: `10Y Yield ${state.tnx.toFixed(3)}% (${tnxChg > 0 ? '+' : ''}${tnxChg.toFixed(3)}%) \u2014 ${state.tnx > 4.5 ? 'elevated yields pressuring growth stocks' : tnxChg > 0.03 ? 'rising yields, risk-off tilt' : tnxChg < -0.03 ? 'falling yields, risk-on tilt' : 'stable yields'}`,
+      bullish: tnxChg < -0.03 ? true : tnxChg > 0.03 ? false : null
+    });
+  }
+
+  // Oil
+  if (state.oil && state.oilPrevClose) {
+    const oilChg = state.oil - state.oilPrevClose;
+    findings.push({
+      icon: '\uD83D\uDEE2\uFE0F',
+      text: `Crude Oil $${state.oil.toFixed(2)} (${oilChg > 0 ? '+' : ''}${oilChg.toFixed(2)}) \u2014 ${state.oil > 100 ? 'war premium elevated, inflation risk' : oilChg > 2 ? 'spike = stagflation concern' : oilChg < -2 ? 'drop = de-escalation signal' : 'stable'}`,
+      bullish: oilChg < -2 ? true : oilChg > 2 ? false : null
+    });
+  }
+
+  // GEX proxy
+  if (state.gexProxy && state.gexProxy !== 'positive') {
+    findings.push({
+      icon: '\u26A1',
+      text: `GEX proxy: ${state.gexProxy} \u2014 ${state.gexProxy === 'negative' ? 'dealer hedging amplifies moves, expect wider swings' : 'cautious positioning, moderate vol amplification'}`,
+      bullish: false
+    });
+  }
+
+  // Macro risk
+  if (state.macroRisk && state.macroRisk !== 'clear') {
+    const labels = { caution: 'Economic data release today \u2014 reduced size, delay entry', high: 'High-impact event \u2014 consider skipping or 1ct max', blackout: 'FOMC/Holiday blackout \u2014 NO TRADE' };
+    findings.push({
+      icon: state.macroRisk === 'blackout' ? '\uD83D\uDED1' : '\u26A0\uFE0F',
+      text: labels[state.macroRisk] || state.macroRisk,
+      bullish: null
+    });
+  }
+
+  // Trade direction summary — based on user's bias selection
+  if (isBearish) {
+    findings.push({ icon: '\uD83D\uDFE5', text: 'Your bias: BEAR \u2014 CALL CREDIT SPREAD (sell above, market falling away)', bullish: false });
+  } else if (isBullish) {
+    findings.push({ icon: '\uD83D\uDFE9', text: 'Your bias: BULL \u2014 PUT CREDIT SPREAD (sell below, market rising away)', bullish: true });
+  } else {
+    findings.push({ icon: '\u26A0\uFE0F', text: 'Bias: NEUTRAL \u2014 Set your bias (Bull/Bear) based on today\'s price action, headlines & ES direction before scanning', bullish: null });
+  }
+
+  if (!findings.length) {
+    el.innerHTML = '<div style="color:var(--textDim);font-size:11px">Press REFRESH DATA to generate findings</div>';
+    return;
+  }
+
+  el.innerHTML = findings.map(f => `
+    <div style="display:flex;align-items:flex-start;gap:10px;padding:8px 12px;border:1px solid ${f.bullish === true ? 'rgba(0,208,132,0.25)' : f.bullish === false ? 'rgba(255,71,87,0.25)' : 'rgba(255,255,255,0.08)'};background:${f.bullish === true ? 'rgba(0,208,132,0.04)' : f.bullish === false ? 'rgba(255,71,87,0.04)' : 'rgba(255,255,255,0.02)'}">
+      <span style="font-size:14px;flex-shrink:0;line-height:1.2">${f.icon}</span>
+      <span style="font-size:12px;color:var(--text);line-height:1.5">${f.text}</span>
+      <span style="margin-left:auto;font-size:12px;font-weight:700;color:${f.bullish === true ? 'var(--green)' : f.bullish === false ? 'var(--red)' : 'var(--textDim)'};flex-shrink:0">${f.bullish === true ? '\u25B2' : f.bullish === false ? '\u25BC' : '\u2013'}</span>
+    </div>
+  `).join('');
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
 // PLAYBOOK TAB
 // ══════════════════════════════════════════════════════════════════════════════
 // Phase-aware playbook: All phases get morning session (primary), Phase 3+ adds arvo
@@ -2050,7 +2739,7 @@ function getPlaybook() {
   ];
 
   // All-Weather AUTO — δ0.15 · 15w · 11:30 AM ET (2:30 AM AEDT) · TG 0.5h · 2×/1×
-  const autoSide = 'auto'; // puts above 200 SMA, calls below
+  const autoSide = 'auto'; // open bullish (above 200 SMA) → puts, bearish → calls
   return {
     Mon: {
       trades: [
@@ -2170,7 +2859,7 @@ function renderPlaybook() {
   const todayIdx = new Date().getDay();
   const todayName = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][todayIdx];
   const ph = getPhase(traderData.currentCapital);
-  const dual = ph.id >= 3;
+  const dual = false; // Single session — All-Weather AUTO
 
   // Day selector buttons
   document.getElementById('playbook-day-btns').innerHTML = ['Mon','Tue','Wed','Thu','Fri'].map(d =>
@@ -2182,73 +2871,74 @@ function renderPlaybook() {
 
   const day = PLAYBOOK[selectedPlaybookDay];
   const pbPhase = getPhase(traderData.currentCapital);
-  const pbContractsRaw = pbPhase.perK ? Math.max(1, Math.floor(traderData.currentCapital / pbPhase.perK)) : 2;
-  // Apply regime size adjustment (same as order panel)
   const pbRegime = getRegime(state.vix);
-  const pbContracts = Math.max(1, Math.round(pbContractsRaw * pbRegime.size));
   const pbSizeNote = pbRegime.size < 1 ? ` (${Math.round(pbRegime.size*100)}% — ${pbRegime.level} VIX)` : '';
+  const pbContractsRaw = pbPhase.perK ? Math.max(1, Math.floor(traderData.currentCapital / pbPhase.perK)) : 2;
+  const adjContracts = state._order ? state._order.adjContracts : Math.max(1, Math.round(pbContractsRaw * pbRegime.size));
 
   document.getElementById('playbook-day-content').innerHTML = `
     <div class="day-card ${selectedPlaybookDay===todayName?'today':''}">
       <div class="day-header" style="color:var(--white)">${selectedPlaybookDay.toUpperCase()} PLAYBOOK</div>
       <div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap">
         <span style="font-size:10px;padding:4px 8px;background:rgba(255,71,87,0.1);border:1px solid rgba(255,71,87,0.3);color:var(--red)">HARD CLOSE: ${day.hardClose}</span>
-        <span style="font-size:10px;padding:4px 8px;background:rgba(0,208,132,0.1);border:1px solid rgba(0,208,132,0.3);color:var(--green)">PHASE ${pbPhase.id}: ${pbContracts} CONTRACTS${pbSizeNote}</span>
+        <span style="font-size:10px;padding:4px 8px;background:rgba(0,208,132,0.1);border:1px solid rgba(0,208,132,0.3);color:var(--green)">PHASE ${pbPhase.id}: ${adjContracts} CONTRACTS${pbSizeNote}</span>
         <span style="font-size:10px;padding:4px 8px;background:rgba(59,158,255,0.1);border:1px solid rgba(59,158,255,0.3);color:var(--blue)">ALL-WEATHER AUTO \u00B7 11:30 AM ET</span>
       </div>
 
       <!-- Trades + Rules (left) | Timing (right) -->
       <div style="display:flex;flex-wrap:wrap;gap:12px">
         <div style="flex:1 1 260px;min-width:0">
-          <div class="label" style="margin-bottom:6px">SCHEDULED TRADES</div>
-          ${day.trades.map(t => {
-            const ctDisplay = t.contracts === '-' ? '-' : (t.contracts === '1ct' ? '1ct' : t.contracts === 'phase' ? pbContracts + 'ct' : t.contracts);
-            const showStagger = t.contracts === 'phase' && pbPhase.id >= 3 && pbContracts >= 4;
+          <div class="label" style="margin-bottom:6px">TRADES</div>
+          ${day.trades.map((t, tIdx) => {
+            const o = state._order || {};
+            const is0DTE = t.dte === '0DTE';
+            const isWeekly = t.dte === '5DTE';
+            const isMorn = t.name.toLowerCase().includes('morning');
+            const isArvo = t.name.toLowerCase().includes('arvo');
+            const hasOrder = is0DTE && o.recRow && ((isMorn && state.mode === 'morning') || (isArvo && state.mode === 'arvo') || (!isMorn && !isArvo));
+            const ctDisplay = hasOrder ? o.adjContracts + 'ct' : (t.contracts === '-' ? '-' : (t.contracts === '1ct' ? '1ct' : t.contracts === 'phase' ? adjContracts + 'ct' : t.contracts));
+            const showStagger = (hasOrder ? o.adjContracts : adjContracts) >= 4 && pbPhase.id >= 3 && t.contracts === 'phase';
+            const cts = hasOrder ? o.adjContracts : adjContracts;
             const batches3 = pbPhase.id >= 4;
-            const b1 = showStagger ? (batches3 ? Math.floor(pbContracts / 3) : Math.floor(pbContracts / 2)) : 0;
-            const b2 = showStagger ? (batches3 ? Math.floor(pbContracts / 3) : pbContracts - Math.floor(pbContracts / 2)) : 0;
-            const b3 = showStagger && batches3 ? pbContracts - b1 - b2 : 0;
-            const tColor = t.type === 'call' ? 'var(--orange)' : t.type === 'put' ? 'var(--green)' : t.type === 'close' ? 'var(--red)' : 'var(--textDim)';
-            const tBg = 'var(--panel)';
+            const b1 = showStagger ? (batches3 ? Math.floor(cts / 3) : Math.floor(cts / 2)) : 0;
+            const b2 = showStagger ? (batches3 ? Math.floor(cts / 3) : cts - Math.floor(cts / 2)) : 0;
+            const b3 = showStagger && batches3 ? cts - b1 - b2 : 0;
+            const tColor = hasOrder ? o.orderColor : (t.type === 'call' ? 'var(--orange)' : t.type === 'put' ? 'var(--green)' : t.type === 'close' ? 'var(--red)' : 'var(--textDim)');
             return `
-            <div style="padding:8px 10px;border-left:3px solid ${tColor};background:${tBg};font-size:11px;margin-bottom:4px;border-radius:0 3px 3px 0">
+            <div style="padding:8px 10px;border-left:3px solid ${tColor};background:var(--panel);font-size:11px;margin-bottom:4px;border-radius:0 3px 3px 0">
               <div style="display:flex;justify-content:space-between;margin-bottom:3px">
                 <span style="font-size:12px;font-weight:600;color:var(--white)">${t.name}</span>
                 <span style="font-size:10px;color:var(--cyan)">${t.dte}</span>
               </div>
               <div style="display:flex;gap:16px;flex-wrap:wrap">
                 <span style="color:var(--textDim)">Time: <span style="color:var(--textMid)">${t.time}</span></span>
-                <span style="color:var(--textDim)">Delta: <span style="color:var(--cyan)">${t.delta}</span></span>
-                <span style="color:var(--textDim)">Credit: <span style="color:var(--green)">${t.credit}</span></span>
+                <span style="color:var(--textDim)">Delta: <span style="color:var(--cyan)">${hasOrder ? '\u0394' + o.recDelta : t.delta}</span></span>
+                <span style="color:var(--textDim)">Credit: <span style="color:var(--green)">${hasOrder ? '$' + f2(o.orderCredit) : t.credit}</span></span>
                 <span style="color:var(--textDim)">Size: <span style="color:var(--white);font-weight:600">${ctDisplay}</span></span>
               </div>
               ${showStagger ? `
               <div style="margin-top:8px;padding:8px 10px;background:rgba(0,229,255,0.05);border:1px solid rgba(0,229,255,0.15);border-radius:4px">
-                <div style="font-size:10px;color:var(--cyan);letter-spacing:2px;margin-bottom:6px;font-weight:700">STAGGER PLAN — ${pbContracts} CONTRACTS (${batches3?'3':'2'} BATCHES)</div>
+                <div style="font-size:10px;color:var(--cyan);letter-spacing:2px;margin-bottom:6px;font-weight:700">STAGGER PLAN \u2014 ${cts} CONTRACTS (${batches3?'3':'2'} BATCHES)</div>
                 <div style="display:grid;grid-template-columns:${batches3?'1fr 1fr 1fr':'1fr 1fr'};gap:6px">
                   <div style="text-align:center;padding:6px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:3px">
                     <div style="font-size:9px;color:var(--textDim);margin-bottom:2px">BATCH 1</div>
                     <div style="font-size:16px;font-weight:700;color:var(--green)">${b1}ct</div>
-                    <div style="font-size:9px;color:var(--textDim)">Enter first</div>
                   </div>
                   <div style="text-align:center;padding:6px;background:rgba(255,215,0,0.08);border:1px solid rgba(255,215,0,0.2);border-radius:3px">
                     <div style="font-size:9px;color:var(--textDim);margin-bottom:2px">BATCH 2</div>
                     <div style="font-size:16px;font-weight:700;color:var(--gold)">${b2}ct</div>
-                    <div style="font-size:9px;color:var(--textDim)">+2 min wait</div>
                   </div>
                   ${batches3 ? `<div style="text-align:center;padding:6px;background:rgba(0,229,255,0.08);border:1px solid rgba(0,229,255,0.2);border-radius:3px">
                     <div style="font-size:9px;color:var(--textDim);margin-bottom:2px">BATCH 3</div>
                     <div style="font-size:16px;font-weight:700;color:var(--cyan)">${b3}ct</div>
-                    <div style="font-size:9px;color:var(--textDim)">+2 min wait</div>
                   </div>` : ''}
                 </div>
-                <div style="margin-top:6px;font-size:10px;color:var(--textDim)">\u26A0 If fill slips below min credit after Batch 1 — STOP. Do not force remaining batches.</div>
               </div>` : ''}
             </div>`;
           }).join('')}
 
-          <div class="label" style="margin-top:10px;margin-bottom:4px">RULES</div>
-          ${day.rules.map(r => `<div style="padding:3px 0;font-size:11px;color:var(--textMid);border-bottom:1px solid var(--border)">\u2022 ${r}</div>`).join('')}
+          ${day.rules.length ? `<div class="label" style="margin-top:10px;margin-bottom:4px">RULES</div>
+          ${day.rules.map(r => '<div style="padding:3px 0;font-size:11px;color:var(--textMid);border-bottom:1px solid var(--border)">\u2022 ' + r + '</div>').join('')}` : ''}
         </div>
         <div style="flex:0 0 250px;border-left:1px solid var(--border);padding-left:12px">
           <div class="label" style="margin-bottom:6px">\u23F0 TODAY'S ENTRY WINDOWS <span style="font-size:9px;color:var(--textDim)">(AEDT)</span></div>
@@ -2553,17 +3243,37 @@ function renderCalendarMonth() {
     </div>`;
   }
 
+  // Build trade lookup by date
+  const tradeLookup = {};
+  (traderData.trades || []).forEach(t => {
+    if (!t.date) return;
+    if (!tradeLookup[t.date]) tradeLookup[t.date] = { total: 0, trades: [] };
+    tradeLookup[t.date].total += (t.result || 0);
+    tradeLookup[t.date].trades.push(t);
+  });
+
   // Current month
   for (let d = 1; d <= daysInMonth; d++) {
     const dt = new Date(calViewYear, calViewMonth, d);
     const isToday = isThisMonth && d === today.getDate();
     const isWeekend = dt.getDay() === 0 || dt.getDay() === 6;
     const evts = getEventsForDate(calViewYear, calViewMonth, d).filter(e => e.name !== 'SPX 0DTE Expiry');
+    const dateKey = `${calViewYear}-${String(calViewMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const dayTrade = tradeLookup[dateKey];
+    const hasTrade = dayTrade && dayTrade.trades.length > 0;
+    const dayPnl = hasTrade ? dayTrade.total : 0;
+    const isWin = dayPnl > 0;
+    const isLoss = dayPnl < 0;
+    const tradeBg = isWin ? 'rgba(0,230,118,0.12)' : isLoss ? 'rgba(255,82,82,0.12)' : '';
+    const tradeBorder = isWin ? 'border-left:3px solid var(--green)' : isLoss ? 'border-left:3px solid var(--red)' : '';
+    const cellStyle = [tradeBg ? `background:${tradeBg}` : '', tradeBorder, evts.length || hasTrade ? 'cursor:pointer' : ''].filter(Boolean).join(';');
 
-    html += `<div class="cal-day-cell ${isToday?'today':''} ${isWeekend?'weekend':''}" ${evts.length ? `onclick="showDayDetail(${calViewYear},${calViewMonth},${d})"` : ''} ${evts.length ? 'style="cursor:pointer"' : ''}>
+    html += `<div class="cal-day-cell ${isToday?'today':''} ${isWeekend?'weekend':''}" ${evts.length ? `onclick="showDayDetail(${calViewYear},${calViewMonth},${d})"` : ''} style="position:relative;${cellStyle}">
       <div class="cal-day-num">${d}</div>
-      ${evts.slice(0,3).map(e => `<div class="cal-event ${e.impact}">${e.name}</div>`).join('')}
-      ${evts.length > 3 ? `<div style="font-size:8px;color:var(--textDim)">+${evts.length-3} more</div>` : ''}
+      ${hasTrade ? `<div style="position:absolute;top:4px;right:6px;font-size:14px;font-weight:700;color:${isWin?'var(--green)':'var(--red)'};font-family:'IBM Plex Mono',monospace">${isWin?'+':''}$${dayPnl.toFixed(0)}</div>
+      <div style="font-size:8px;color:var(--textDim);margin-top:2px">${dayTrade.trades.length} trade${dayTrade.trades.length>1?'s':''}</div>` : ''}
+      ${evts.slice(0,2).map(e => `<div class="cal-event ${e.impact}">${e.name}</div>`).join('')}
+      ${evts.length > 2 ? `<div style="font-size:8px;color:var(--textDim)">+${evts.length-2} more</div>` : ''}
     </div>`;
   }
 
@@ -2683,6 +3393,63 @@ function addTrade() {
   document.getElementById('trade-notes').value = '';
 
   renderTradeHistory();
+}
+
+function logTradeFromOrder(session, suffix) {
+  const o = state._order || {};
+  const hasScan = o && o.recRow;
+  // Read from editable input fields
+  const sfx = suffix || (session === 'morning' ? 'm' : 'a');
+  const ctsEl = document.getElementById('log-cts-' + sfx);
+  const creditEl = document.getElementById('log-credit-' + sfx);
+  const pnlEl = document.getElementById('log-pnl-' + sfx);
+  const winEl = document.getElementById('log-win-' + sfx);
+  const sellEl = document.getElementById('log-sell-' + sfx);
+  const buyEl = document.getElementById('log-buy-' + sfx);
+  const typeEl = document.getElementById('log-type-' + sfx);
+  const cts = ctsEl ? parseInt(ctsEl.value) || 1 : 1;
+  const credit = creditEl ? parseFloat(creditEl.value) || 0 : 0;
+  const pnl = pnlEl ? parseFloat(pnlEl.value) || 0 : 0;
+  const win = winEl ? winEl.value === 'true' : true;
+  const sell = sellEl ? parseInt(sellEl.value) || 0 : 0;
+  const buy = buyEl ? parseInt(buyEl.value) || 0 : 0;
+  const tradeType = typeEl ? typeEl.value : 'Put Spread';
+  // Validate required fields
+  if (!sell || !buy) { alert('Please fill in sell and buy strikes'); return; }
+  if (!credit) { alert('Please fill in credit received'); return; }
+  const typeSuffix = tradeType === 'Call Spread' ? ' C' : tradeType === 'IC' ? ' IC' : ' P';
+  const ny = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }));
+  const dateStr = ny.getFullYear() + '-' + String(ny.getMonth()+1).padStart(2,'0') + '-' + String(ny.getDate()).padStart(2,'0');
+  const dayName = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][ny.getDay()];
+  const strikeLabel = sell + '/' + buy + typeSuffix;
+  const dteLabel = session === 'weekly' ? '5DTE' : '0DTE';
+  const batchMatch = sfx.match(/b(\d)$/);
+  const batchLabel = batchMatch ? ' BATCH ' + batchMatch[1] : '';
+  const notesArr = [session.toUpperCase() + batchLabel, strikeLabel, dteLabel];
+  if (hasScan) notesArr.push('\u0394' + o.recDelta, o.conviction, o.stopInfo?.window || '');
+  const trade = {
+    id: Date.now().toString(36) + Math.random().toString(36).slice(2,6),
+    date: dateStr,
+    day: dayName,
+    type: tradeType,
+    credit: credit,
+    contracts: cts,
+    result: pnl,
+    win: win,
+    notes: notesArr.filter(Boolean).join(' | ')
+  };
+  traderData.trades.push(trade);
+  traderData.currentCapital += trade.result;
+  saveData(traderData);
+  renderTradeHistory();
+  // Visual feedback
+  const btn = event.target;
+  btn.textContent = 'LOGGED \u2713';
+  btn.style.borderColor = 'var(--green)';
+  btn.style.background = 'rgba(0,208,132,0.3)';
+  btn.disabled = true;
+  // Switch to log tab after brief delay
+  setTimeout(() => switchTab('log'), 800);
 }
 
 function deleteTrade(id) {
@@ -3158,14 +3925,19 @@ updateClock();
 // ══════════════════════════════════════════════════════════════════════════════
 // INIT
 // ══════════════════════════════════════════════════════════════════════════════
-const savedUrl = localStorage.getItem('ibkr_url');
-if (savedUrl) document.getElementById('urlInput').value = savedUrl;
 if (state.dma200 > 0) document.getElementById('dma200Input').value = state.dma200;
 renderDashboard();
 renderProjections();
 renderEconHeadline();
 scan();
-updateStopDesc();
+
+// Auto-fetch live prices on load then start refresh
+(async () => {
+  await fetchLivePrices();
+  fetchPrices();
+  scan();
+  startPriceAutoRefresh();
+})();
 
 // Auto-load from cloud on startup if configured
 (async () => {
@@ -3176,631 +3948,239 @@ updateStopDesc();
   }
 })();
 
+
 // ══════════════════════════════════════════════════════════════════════════════
-// BACKTEST ENGINE
+// ANALYSIS TAB
 // ══════════════════════════════════════════════════════════════════════════════
-function runBacktest() {
-  const stopMode = document.getElementById('bt-stopMode').value;
-  const stopVal = parseFloat(document.getElementById('bt-stopVal').value);
-  const delta = parseFloat(document.getElementById('bt-delta').value);
-  const width = parseInt(document.getElementById('bt-width').value);
-  const strategy = document.getElementById('bt-strategy').value;
-  const startCap = parseFloat(document.getElementById('bt-capital').value);
-  const profitPct = parseFloat(document.getElementById('bt-profitTgt').value);
-  const contractMode = document.getElementById('bt-contracts').value;
-  const minCredit = parseFloat(document.getElementById('bt-minCredit').value);
-  const proximity = parseFloat(document.getElementById('bt-proximity').value) / 100;
-  const SLIPPAGE = 0.05;
 
-  document.getElementById('bt-dataRange').textContent = `${HIST_DATA[0][0]} to ${HIST_DATA[HIST_DATA.length-1][0]} · ${HIST_DATA.length} trading days`;
-
-  // ── Pre-calculate rolling indicators ──
-  const closes = HIST_DATA.map(d => d[4]);
-
-  // 200 SMA
-  const sma200 = [];
-  for (let i = 0; i < closes.length; i++) {
-    if (i < 199) { sma200.push(null); continue; }
-    let sum = 0;
-    for (let j = i - 199; j <= i; j++) sum += closes[j];
-    sma200.push(sum / 200);
+async function refreshAnalysis() {
+  const btn = document.getElementById('analysisRefreshBtn');
+  btn.textContent = 'FETCHING...';
+  btn.disabled = true;
+  try {
+    await fetchLivePrices();
+    state.gexData = calcGexData();
+    fetchPrices();
+    scan();
+    renderAnalysis();
+  } finally {
+    btn.textContent = 'REFRESH DATA';
+    btn.disabled = false;
   }
+}
 
-  // VIX regime classification for market mechanics (GEX proxy)
-  // Approximate GEX using VIX change rate + level:
-  // - Falling VIX + low VIX = positive GEX (dealer hedging supports, mean-reversion)
-  // - Rising VIX + high VIX = negative GEX (dealer hedging amplifies moves, trend)
-  const vixArr = HIST_DATA.map(d => d[5]);
-  const gexProxy = [];
-  for (let i = 0; i < vixArr.length; i++) {
-    if (i < 5) { gexProxy.push('neutral'); continue; }
-    const vixChg = vixArr[i] - vixArr[i-5];
-    const vixLevel = vixArr[i];
-    if (vixLevel < 18 && vixChg <= 0) gexProxy.push('positive');
-    else if (vixLevel > 25 && vixChg > 2) gexProxy.push('negative');
-    else if (vixLevel > 22 && vixChg > 0) gexProxy.push('cautious');
-    else gexProxy.push('neutral');
+function maybeRefreshAnalysis() {
+  const staleMs = 5 * 60 * 1000;
+  if (!state.analysisLastFetch || (Date.now() - state.analysisLastFetch > staleMs)) {
+    refreshAnalysis();
   }
+}
 
-  function getPhaseForCap(cap) {
-    if (cap >= 300000) return { perK: 12000 };
-    if (cap >= 75000) return { perK: 8000 };
-    if (cap >= 25000) return { perK: 6000 };
-    return { perK: 0 };
-  }
-
-  const trades = [];
-  let capital = startCap;
-  let equity = [{ date: HIST_DATA[0][0], value: capital }];
-  let maxEquity = capital;
-  let maxDrawdown = 0;
-  let monthlyPnL = {};
-  let dayOfWeekStats = { Mon:{ w:0,l:0 }, Tue:{ w:0,l:0 }, Wed:{ w:0,l:0 }, Thu:{ w:0,l:0 }, Fri:{ w:0,l:0 } };
-  let vixBuckets = { 'VIX<15':{ w:0,l:0 }, '15-20':{ w:0,l:0 }, '20-25':{ w:0,l:0 }, '25-30':{ w:0,l:0 }, 'VIX>30':{ w:0,l:0 } };
-  let biasStats = { 'BULL→Put':{ w:0,l:0 }, 'BEAR→Call':{ w:0,l:0 }, 'NEUT→IC':{ w:0,l:0 }, 'CAUTION→Skip':{ w:0,l:0,skipped:0 }, 'No200SMA':{ w:0,l:0 } };
-  let gexStats = { 'positive':{ w:0,l:0 }, 'neutral':{ w:0,l:0 }, 'cautious':{ w:0,l:0 }, 'negative':{ w:0,l:0 } };
-  const dayNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-
-  for (let i = 0; i < HIST_DATA.length; i++) {
-    const [date, open, high, low, close, vix] = HIST_DATA[i];
-    const dow = new Date(date).getDay();
-    const dayName = dayNames[dow];
-    if (dow === 0 || dow === 6) continue;
-
-    const iv = vix / 100;
-    const T = (3.5/24)/365;
-    const r = 0.045;
-
-    // ── Determine strategy ──
-    let strat = strategy;
-    let biasLabel = '';
-    let skipDay = false;
-
-    if (strategy === 'auto') {
-      const s200 = sma200[i];
-      const gex = gexProxy[i];
-
-      if (s200 === null) {
-        // Not enough data for 200 SMA yet — use puts as default
-        strat = 'put';
-        biasLabel = 'No200SMA';
-      } else {
-        const aboveSMA = open > s200;
-        const distPct = Math.abs(open - s200) / s200;
-
-        if (aboveSMA) {
-          // BULL: price above 200 SMA → sell puts
-          strat = 'put';
-          biasLabel = 'BULL→Put';
-        } else {
-          // BEAR: price below 200 SMA → sell calls
-          strat = 'call';
-          biasLabel = 'BEAR→Call';
-        }
-
-        // Market mechanics override: negative GEX + high VIX = skip entirely
-        if (gex === 'negative' && vix > 28) {
-          skipDay = true;
-          biasLabel = 'CAUTION→Skip';
-        }
-
-        // Cautious GEX + VIX > 25 = skip
-        if (gex === 'cautious' && vix > 25) {
-          skipDay = true;
-          biasLabel = 'CAUTION→Skip';
-        }
-
-        // Neutral zone: price within 0.5% of 200 SMA → IC opportunity
-        if (!skipDay && distPct < 0.005 && gex !== 'negative') {
-          strat = 'ic';
-          biasLabel = 'NEUT→IC';
-        }
-      }
-    }
-
-    if (skipDay) {
-      if (biasStats[biasLabel]) biasStats[biasLabel].skipped = (biasStats[biasLabel].skipped || 0) + 1;
-      continue;
-    }
-
-    // ── Calculate contracts (margin-aware) ──
-    // Margin per contract = (width - estimated credit) × 100
-    // Use conservative credit estimate for margin calc (before exact BSM)
-    const estCredit = Math.min(width * 0.08, 1.50); // rough estimate
-    const marginPerCt = (width - estCredit) * 100;
-    let cts;
-    if (contractMode === 'phase') {
-      const ph = getPhaseForCap(capital);
-      // Scale perK by actual margin: base phases assume ~15pt ($1,400 margin)
-      // Adjust proportionally for different widths
-      const baseMargin = 1400; // 15pt - $1.00 credit
-      const marginRatio = marginPerCt / baseMargin;
-      const adjPerK = ph.perK > 0 ? ph.perK * marginRatio : 0;
-      cts = adjPerK > 0 ? Math.max(1, Math.floor(capital / adjPerK)) : 2;
-    } else {
-      cts = Math.max(1, Math.floor(capital / (marginPerCt * 6)));
-    }
-
-    // GEX-based size adjustment: reduce on cautious/negative GEX
-    const gex = gexProxy[i];
-    if (strategy === 'auto') {
-      if (gex === 'cautious') cts = Math.max(1, Math.round(cts * 0.5));
-      // negative GEX days that weren't skipped: minimum size
-      if (gex === 'negative') cts = 1;
-    }
-
-    // Find strikes
-    const sP = findStrike(open, iv, T, delta, 'put'), lP = sP - width;
-    const sC = findStrike(open, iv, T, delta, 'call'), lC = sC + width;
-
-    // Calculate credits
-    const putCredit = Math.max(bsm(open,sP,T,r,iv,'put').price - bsm(open,lP,T,r,iv,'put').price - SLIPPAGE, 0);
-    const callCredit = Math.max(bsm(open,sC,T,r,iv,'call').price - bsm(open,lC,T,r,iv,'call').price - SLIPPAGE, 0);
-    const icCredit = putCredit + callCredit;
-
-    let credit;
-    if (strat === 'ic') credit = icCredit;
-    else if (strat === 'call') credit = callCredit;
-    else credit = putCredit;
-
-    if (!(credit >= minCredit)) continue; // NaN-safe: skips NaN credits
-
-    // ── Breach detection with proximity model ──
-    const dailyRange = high - low;
-    const arvoFraction = 0.54;
-    const arvoRange = dailyRange * arvoFraction;
-    const arvoLow = Math.min(close, open) - arvoRange * 0.3;
-    const arvoHigh = Math.max(close, open) + arvoRange * 0.3;
-    const putBuffer = open - sP;
-    const callBuffer = sC - open;
-    const putStopLevel = sP + putBuffer * proximity;
-    const callStopLevel = sC - callBuffer * proximity;
-    let putBreached = arvoLow <= putStopLevel;
-    let callBreached = arvoHigh >= callStopLevel;
-    let result, pnl;
-
-    // Stop calculation — TWO-TIER SYSTEM
-    // Premium mode: single fixed multiplier (e.g. 2×)
-    // Time-gated mode: 2× first 30min (wide, survive noise), 1× after (tight, theta decayed)
-    let stopPrice, earlyStopPrice, lateStopPrice, emergencyStopPrice;
-    if (stopMode === 'premium') {
-      stopPrice = credit * stopVal;
-    } else if (stopMode === 'timegated') {
-      earlyStopPrice = credit * 2;     // first 30 min: wide stop
-      lateStopPrice = credit * 1;      // after 30 min: tight stop (1×)
-      emergencyStopPrice = credit * 2; // emergency = early stop
-      stopPrice = lateStopPrice; // default for breach calc
-    } else if (stopMode === 'points') {
-      stopPrice = null;
-    } else {
-      stopPrice = credit * 2.5;
-    }
-
-    // Time-gated stop (TG 0.5h): 2× first 30min, 1× after
-    // Use close position to estimate WHEN the breach happened:
-    // - Close near extreme = late sustained move → 1× stop
-    // - Close recovered from extreme = early noise → 2× stop applies (wider, may survive)
-    const closePos = (high !== low) ? (close - low) / (high - low) : 0.5;
-
-    let putStopped = putBreached;
-    let callStopped = callBreached;
-
-    if (stopMode === 'timegated' && (putBreached || callBreached)) {
-      if (putBreached) {
-        if (closePos > 0.6) {
-          // Price recovered → early noise, 2× wide stop
-          const putBuffer = open - sP;
-          const moveDepth = putBuffer > 0 ? (open - arvoLow) / putBuffer : 1;
-          putStopped = moveDepth > 0.85;
-        }
-        // else: close near low → sustained move, 1× tight stop → putStopped stays true
-      }
-      if (callBreached) {
-        if (closePos < 0.4) {
-          const callBuffer = sC - open;
-          const moveDepth = callBuffer > 0 ? (arvoHigh - open) / callBuffer : 1;
-          callStopped = moveDepth > 0.85;
-        }
-      }
-    }
-
-    // For time-gated losses: early noise = 2× loss, sustained = 1× loss
-    function tieredLoss(cr, cts, isEarlyNoise) {
-      if (stopMode === 'timegated') {
-        const sp = isEarlyNoise ? earlyStopPrice : lateStopPrice;
-        return -(sp - cr) * cts * 100;
-      }
-      return -(stopPrice - cr) * cts * 100;
-    }
-    // For time-gated: determine if it was an early or late stop
-    const putEarlyNoise = putBreached && closePos > 0.4; // recovered somewhat
-    const callEarlyNoise = callBreached && closePos < 0.6;
-
-    if (strat === 'put') {
-      if (stopMode === 'points' && arvoLow <= (sP - stopVal)) {
-        result = 'LOSS';
-        pnl = -(stopVal / width) * (width - credit) * cts * 100;
-      } else if (putStopped && (stopPrice || stopMode === 'timegated')) {
-        result = 'LOSS';
-        pnl = tieredLoss(credit, cts, putEarlyNoise);
-      } else if (putBreached && !putStopped) {
-        // Time-gated: breach was early noise, price recovered → survived
-        result = 'WIN';
-        pnl = credit * profitPct * cts * 100;
-      } else {
-        result = 'WIN';
-        pnl = credit * profitPct * cts * 100;
-      }
-    } else if (strat === 'call') {
-      if (stopMode === 'points' && arvoHigh >= (sC + stopVal)) {
-        result = 'LOSS';
-        pnl = -(stopVal / width) * (width - credit) * cts * 100;
-      } else if (callStopped && (stopPrice || stopMode === 'timegated')) {
-        result = 'LOSS';
-        pnl = tieredLoss(credit, cts, callEarlyNoise);
-      } else if (callBreached && !callStopped) {
-        result = 'WIN';
-        pnl = credit * profitPct * cts * 100;
-      } else {
-        result = 'WIN';
-        pnl = credit * profitPct * cts * 100;
-      }
-    } else { // IC
-      if (stopMode === 'points' && (arvoLow <= (sP - stopVal) || arvoHigh >= (sC + stopVal))) {
-        result = 'LOSS';
-        pnl = -(stopVal / width) * (width - icCredit) * cts * 100;
-      } else if ((putStopped || callStopped) && (stopPrice || stopMode === 'timegated')) {
-        result = 'LOSS';
-        const icEarly = putStopped ? putEarlyNoise : callEarlyNoise;
-        pnl = tieredLoss(icCredit, cts, icEarly);
-      } else if ((putBreached || callBreached) && !(putStopped || callStopped)) {
-        result = 'WIN';
-        pnl = icCredit * profitPct * cts * 100;
-      } else {
-        result = 'WIN';
-        pnl = icCredit * profitPct * cts * 100;
-      }
-    }
-
-    capital += pnl;
-    if (capital < 0) capital = 0;
-
-    trades.push({ date, strat, credit: credit.toFixed(2), cts, result, pnl: Math.round(pnl), capital: Math.round(capital), vix, dayName, bias: biasLabel, gex });
-    equity.push({ date, value: Math.round(capital) });
-
-    if (capital > maxEquity) maxEquity = capital;
-    const dd = (maxEquity - capital) / maxEquity;
-    if (dd > maxDrawdown) maxDrawdown = dd;
-
-    const month = date.slice(0,7);
-    if (!monthlyPnL[month]) monthlyPnL[month] = 0;
-    monthlyPnL[month] += pnl;
-
-    if (dayOfWeekStats[dayName]) {
-      if (result === 'WIN') dayOfWeekStats[dayName].w++;
-      else dayOfWeekStats[dayName].l++;
-    }
-
-    let bucket;
-    if (vix < 15) bucket = 'VIX<15';
-    else if (vix < 20) bucket = '15-20';
-    else if (vix < 25) bucket = '20-25';
-    else if (vix < 30) bucket = '25-30';
-    else bucket = 'VIX>30';
-    if (result === 'WIN') vixBuckets[bucket].w++;
-    else vixBuckets[bucket].l++;
-
-    // Track bias stats (auto mode)
-    if (biasLabel && biasStats[biasLabel]) {
-      if (result === 'WIN') biasStats[biasLabel].w++;
-      else biasStats[biasLabel].l++;
-    }
-
-    // Track GEX stats
-    if (gexStats[gex]) {
-      if (result === 'WIN') gexStats[gex].w++;
-      else gexStats[gex].l++;
-    }
-  }
-
-  // Calculate summary stats
-  const wins = trades.filter(t => t.result === 'WIN').length;
-  const losses = trades.filter(t => t.result === 'LOSS').length;
-  const total = trades.length;
-  const winRate = total > 0 ? (wins/total*100).toFixed(1) : '0';
-  const totalPnL = Math.round(capital - startCap);
-  const avgWin = wins > 0 ? Math.round(trades.filter(t=>t.result==='WIN').reduce((s,t)=>s+t.pnl,0)/wins) : 0;
-  const avgLoss = losses > 0 ? Math.round(trades.filter(t=>t.result==='LOSS').reduce((s,t)=>s+t.pnl,0)/losses) : 0;
-  const profitFactor = losses > 0 && avgLoss !== 0 ? ((wins * avgWin) / Math.abs(losses * avgLoss)).toFixed(2) : '∞';
-  const roi = ((capital - startCap) / startCap * 100).toFixed(1);
-
-  // Find worst streak
-  let maxLoseStreak = 0, curStreak = 0;
-  trades.forEach(t => { if(t.result==='LOSS') { curStreak++; maxLoseStreak=Math.max(maxLoseStreak,curStreak); } else curStreak=0; });
-
-  // Render results
-  const el = document.getElementById('bt-results');
-  el.innerHTML = `
-    <!-- SUMMARY STATS -->
-    <div style="display:grid;grid-template-columns:repeat(8,1fr);gap:8px;margin-bottom:12px">
-      ${[
-        { l:'TOTAL TRADES', v:total, c:'var(--white)' },
-        { l:'WIN RATE', v:winRate+'%', c:parseFloat(winRate)>=75?'var(--green)':parseFloat(winRate)>=60?'var(--gold)':'var(--red)' },
-        { l:'TOTAL P&L', v:(totalPnL>=0?'+':'')+totalPnL.toLocaleString(), c:totalPnL>=0?'var(--green)':'var(--red)' },
-        { l:'ROI', v:roi+'%', c:parseFloat(roi)>=0?'var(--green)':'var(--red)' },
-        { l:'PROFIT FACTOR', v:profitFactor, c:parseFloat(profitFactor)>=1.5?'var(--green)':parseFloat(profitFactor)>=1?'var(--gold)':'var(--red)' },
-        { l:'MAX DRAWDOWN', v:(maxDrawdown*100).toFixed(1)+'%', c:maxDrawdown<0.1?'var(--green)':maxDrawdown<0.2?'var(--gold)':'var(--red)' },
-        { l:'AVG WIN/LOSS', v:'$'+avgWin+' / $'+avgLoss, c:'var(--white)' },
-        { l:'MAX LOSE STREAK', v:maxLoseStreak+' days', c:maxLoseStreak<=3?'var(--green)':maxLoseStreak<=5?'var(--gold)':'var(--red)' },
-      ].map(s=>`<div class="panel" style="padding:12px"><div style="font-size:9px;color:var(--textDim);letter-spacing:1px;margin-bottom:4px">${s.l}</div><div class="chakra" style="font-size:18px;font-weight:700;color:${s.c}">${s.v}</div></div>`).join('')}
-    </div>
-
-    <!-- EQUITY CURVE -->
-    <div class="panel" style="padding:16px;margin-bottom:12px">
-      <div style="font-size:12px;color:var(--textDim);letter-spacing:2px;margin-bottom:12px">EQUITY CURVE</div>
-      <canvas id="bt-equity" width="1200" height="300" style="width:100%;height:300px"></canvas>
-    </div>
-
-    <!-- BREAKDOWNS ROW 1 -->
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:12px">
-      <!-- DAY OF WEEK -->
-      <div class="panel" style="padding:14px">
-        <div style="font-size:11px;color:var(--textDim);letter-spacing:2px;margin-bottom:10px">WIN RATE BY DAY</div>
-        ${Object.entries(dayOfWeekStats).map(([day,s])=>{
-          const t=s.w+s.l; const wr=t>0?(s.w/t*100).toFixed(0):'–';
-          const c = parseInt(wr)>=80?'var(--green)':parseInt(wr)>=65?'var(--gold)':'var(--red)';
-          return `<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border)">
-            <span style="font-size:12px;color:var(--text)">${day}</span>
-            <span style="font-size:12px;color:var(--textDim)">${s.w}W ${s.l}L</span>
-            <span class="chakra" style="font-size:14px;font-weight:700;color:${c}">${wr}%</span>
-          </div>`;
-        }).join('')}
-      </div>
-      <!-- VIX REGIME -->
-      <div class="panel" style="padding:14px">
-        <div style="font-size:11px;color:var(--textDim);letter-spacing:2px;margin-bottom:10px">WIN RATE BY VIX</div>
-        ${Object.entries(vixBuckets).map(([bucket,s])=>{
-          const t=s.w+s.l; const wr=t>0?(s.w/t*100).toFixed(0):'–';
-          const c = parseInt(wr)>=80?'var(--green)':parseInt(wr)>=65?'var(--gold)':'var(--red)';
-          return `<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border)">
-            <span style="font-size:12px;color:var(--text)">${bucket}</span>
-            <span style="font-size:12px;color:var(--textDim)">${s.w}W ${s.l}L</span>
-            <span class="chakra" style="font-size:14px;font-weight:700;color:${c}">${wr}%</span>
-          </div>`;
-        }).join('')}
-      </div>
-      <!-- MONTHLY P&L -->
-      <div class="panel" style="padding:14px;max-height:300px;overflow-y:auto">
-        <div style="font-size:11px;color:var(--textDim);letter-spacing:2px;margin-bottom:10px">MONTHLY P&L</div>
-        ${Object.entries(monthlyPnL).map(([m,pnl])=>{
-          const c = pnl>=0?'var(--green)':'var(--red)';
-          return `<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--border)">
-            <span style="font-size:11px;color:var(--text)">${m}</span>
-            <span class="mono" style="font-size:12px;font-weight:700;color:${c}">${pnl>=0?'+':''}$${Math.round(pnl).toLocaleString()}</span>
-          </div>`;
-        }).join('')}
-      </div>
-    </div>
-
-    <!-- BREAKDOWNS ROW 2: BIAS + GEX (only shown in Auto mode) -->
-    ${strategy === 'auto' ? `
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
-      <!-- BIAS FILTER STATS -->
-      <div class="panel" style="padding:14px">
-        <div style="font-size:11px;color:var(--textDim);letter-spacing:2px;margin-bottom:10px">BIAS FILTER (200 SMA + VIX/GEX)</div>
-        ${Object.entries(biasStats).map(([label,s])=>{
-          const t=s.w+s.l; const wr=t>0?(s.w/t*100).toFixed(0):'–';
-          const c = parseInt(wr)>=80?'var(--green)':parseInt(wr)>=65?'var(--gold)':'var(--red)';
-          const skipped = s.skipped || 0;
-          const labelColor = label.includes('BULL')?'var(--green)':label.includes('BEAR')?'var(--red)':label.includes('NEUT')?'var(--cyan)':'var(--gold)';
-          return '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border)">' +
-            '<span style="font-size:11px;color:' + labelColor + ';font-weight:700">' + label + '</span>' +
-            '<span style="font-size:11px;color:var(--textDim)">' + (t > 0 ? s.w + 'W ' + s.l + 'L' : '') + (skipped > 0 ? ' · ' + skipped + ' skipped' : '') + '</span>' +
-            '<span class="chakra" style="font-size:14px;font-weight:700;color:' + (t > 0 ? c : 'var(--textDim)') + '">' + (t > 0 ? wr + '%' : '–') + '</span>' +
-          '</div>';
-        }).join('')}
-        <div style="margin-top:8px;font-size:10px;color:var(--textDim)">
-          Auto strategy uses close vs 200 SMA (structural trend) + VIX/GEX filter. Skips high-risk days with negative GEX + elevated VIX.
-        </div>
-      </div>
-      <!-- GEX PROXY STATS -->
-      <div class="panel" style="padding:14px">
-        <div style="font-size:11px;color:var(--textDim);letter-spacing:2px;margin-bottom:10px">⚡ MARKET MECHANICS (GEX PROXY)</div>
-        ${Object.entries(gexStats).map(([gex,s])=>{
-          const t=s.w+s.l; const wr=t>0?(s.w/t*100).toFixed(0):'–';
-          const c = parseInt(wr)>=80?'var(--green)':parseInt(wr)>=65?'var(--gold)':'var(--red)';
-          const gexLabels = { positive: '+GEX (Low VIX, Falling)', neutral: 'Neutral GEX', cautious: 'Cautious (Elevated VIX)', negative: '-GEX (High VIX, Spiking)' };
-          const gexColors = { positive: 'var(--green)', neutral: 'var(--cyan)', cautious: 'var(--gold)', negative: 'var(--red)' };
-          return '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border)">' +
-            '<span style="font-size:11px;color:' + gexColors[gex] + ';font-weight:700">' + gexLabels[gex] + '</span>' +
-            '<span style="font-size:11px;color:var(--textDim)">' + s.w + 'W ' + s.l + 'L</span>' +
-            '<span class="chakra" style="font-size:14px;font-weight:700;color:' + c + '">' + (t > 0 ? wr + '%' : '–') + '</span>' +
-          '</div>';
-        }).join('')}
-        <div style="margin-top:8px;font-size:10px;color:var(--textDim)">
-          GEX approximated from VIX level + 5-day VIX change. +GEX = mean-reversion (good for credit spreads). -GEX = trending (skip or reduce size).
-        </div>
-      </div>
-    </div>` : ''}
-
-    <!-- COMPOUNDING MILESTONES -->
-    <div class="panel" style="padding:16px;margin-bottom:12px">
-      <div style="font-size:12px;color:var(--textDim);letter-spacing:2px;margin-bottom:12px">COMPOUNDING GROWTH — CAPITAL MILESTONES</div>
-      <canvas id="bt-compound" width="1200" height="280" style="width:100%;height:280px"></canvas>
-      <div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:14px">
-        ${(() => {
-          const milestones = [25000, 50000, 75000, 100000, 250000, 500000, 1000000];
-          return milestones.map(m => {
-            const hit = equity.find(e => e.value >= m);
-            const label = m >= 1000000 ? '$' + (m/1000000) + 'M' : '$' + (m/1000).toFixed(0) + 'K';
-            if (hit) {
-              const startDate = new Date(equity[0].date);
-              const hitDate = new Date(hit.date);
-              const days = Math.round((hitDate - startDate) / (1000*60*60*24));
-              return '<div class="panel" style="padding:10px 14px;flex:1;min-width:120px;border-left:3px solid var(--green)">' +
-                '<div style="font-size:9px;color:var(--textDim);letter-spacing:1px;margin-bottom:3px">' + label + '</div>' +
-                '<div class="chakra" style="font-size:14px;font-weight:700;color:var(--green)">' + hit.date + '</div>' +
-                '<div style="font-size:10px;color:var(--textMid);margin-top:2px">' + days + ' trading days</div></div>';
-            } else {
-              return '<div class="panel" style="padding:10px 14px;flex:1;min-width:120px;border-left:3px solid var(--border)">' +
-                '<div style="font-size:9px;color:var(--textDim);letter-spacing:1px;margin-bottom:3px">' + label + '</div>' +
-                '<div class="chakra" style="font-size:14px;font-weight:700;color:var(--textDim)">Not reached</div></div>';
-            }
-          }).join('');
-        })()}
-      </div>
-    </div>
-
-    <!-- TRADE LOG (last 50) -->
-    <div class="panel" style="padding:14px;max-height:400px;overflow-y:auto">
-      <div style="font-size:11px;color:var(--textDim);letter-spacing:2px;margin-bottom:10px">RECENT TRADES (last 50)</div>
-      <div style="display:grid;grid-template-columns:${strategy==='auto'?'85px 40px 55px 55px 45px 40px 85px 55px 55px 75px':'90px 50px 60px 60px 50px 50px 70px 80px'};gap:0;font-size:10px;color:var(--textDim);letter-spacing:1px;padding:4px 0;border-bottom:1px solid var(--border)">
-        <div>DATE</div><div>DAY</div><div>STRAT</div><div>CREDIT</div><div>VIX</div><div>CTS</div>${strategy==='auto'?'<div>BIAS</div><div>GEX</div>':''}<div>RESULT</div><div>P&L</div>
-      </div>
-      ${trades.slice(-50).reverse().map(t=>{
-        const gexColors = { positive:'var(--green)', neutral:'var(--cyan)', cautious:'var(--gold)', negative:'var(--red)' };
-        const gexLabels = { positive:'+GEX', neutral:'NEUT', cautious:'CAUT', negative:'-GEX' };
-        return `<div style="display:grid;grid-template-columns:${strategy==='auto'?'85px 40px 55px 55px 45px 40px 85px 55px 55px 75px':'90px 50px 60px 60px 50px 50px 70px 80px'};gap:0;padding:4px 0;border-bottom:1px solid var(--border);font-size:11px">
-          <div style="color:var(--text)">${t.date}</div>
-          <div style="color:var(--textDim)">${t.dayName}</div>
-          <div style="color:${t.strat==='put'?'var(--green)':t.strat==='call'?'var(--orange)':'var(--cyan)'}">${t.strat.toUpperCase()}</div>
-          <div style="color:var(--text)">$${t.credit}</div>
-          <div style="color:${t.vix>25?'var(--red)':t.vix>18?'var(--gold)':'var(--green)'}">${t.vix.toFixed(0)}</div>
-          <div style="color:var(--text)">${t.cts}</div>
-          ${strategy==='auto'?'<div style="font-size:9px;color:'+(t.bias.includes('BULL')?'var(--green)':t.bias.includes('BEAR')?'var(--red)':'var(--cyan)')+'">'+t.bias+'</div><div style="font-size:9px;color:'+(gexColors[t.gex]||'var(--textDim)')+'">'+( gexLabels[t.gex]||'')+'</div>':''}
-          <div style="color:${t.result==='WIN'?'var(--green)':'var(--red)'};font-weight:700">${t.result}</div>
-          <div class="mono" style="color:${t.pnl>=0?'var(--green)':'var(--red)'};font-weight:700">${t.pnl>=0?'+':''}$${t.pnl.toLocaleString()}</div>
-        </div>`;
-      }).join('')}
+function renderAnalysis() {
+  // ── A: Market Dashboard Grid ──
+  const mkts = [
+    { label: 'SPX', val: state.spx, chg: state.prevClose ? state.spx - state.prevClose : null, prev: state.prevClose, dec: 2 },
+    { label: 'ES FUTURES', val: state.esFutures, chg: state.esChange, prev: state.esPrevClose, dec: 2 },
+    { label: 'VIX', val: state.vix, chg: null, prev: null, dec: 2, invert: true },
+    { label: 'DXY', val: state.dxy, chg: state.dxyChange, prev: state.dxyPrevClose, dec: 2 },
+    { label: '10Y YIELD', val: state.tnx, chg: state.tnxChange, prev: state.tnxPrevClose, dec: 3, suffix: '%' },
+    { label: 'CRUDE OIL', val: state.oil, chg: state.oilChange, prev: state.oilPrevClose, dec: 2, prefix: '$' },
+  ];
+  const gridEl = document.getElementById('analysis-market-grid');
+  gridEl.innerHTML = mkts.map(m => {
+    if (m.val == null) return `<div style="border:1px solid var(--border);padding:12px;text-align:center">
+      <div style="font-size:8px;color:var(--textDim);letter-spacing:1.5px;margin-bottom:4px">${m.label}</div>
+      <div class="chakra" style="font-size:20px;color:var(--textDim)">--</div>
     </div>`;
+    const pct = m.prev ? ((m.val - m.prev) / m.prev * 100).toFixed(2) : null;
+    const chgVal = m.chg != null ? m.chg : 0;
+    const isUp = m.invert ? chgVal < 0 : chgVal > 0;
+    const isDown = m.invert ? chgVal > 0 : chgVal < 0;
+    const color = isUp ? 'var(--green)' : isDown ? 'var(--red)' : 'var(--white)';
+    const arrow = isUp ? '▲' : isDown ? '▼' : '';
+    const prefix = m.prefix || '';
+    const suffix = m.suffix || '';
+    const chgStr = m.chg != null ? `<span style="color:${color};font-size:11px">${arrow} ${m.chg > 0 ? '+' : ''}${m.chg.toFixed(m.dec)}${pct ? ' (' + (pct > 0 ? '+' : '') + pct + '%)' : ''}</span>` : '';
+    return `<div style="border:1px solid var(--border);padding:12px;text-align:center">
+      <div style="font-size:8px;color:var(--textDim);letter-spacing:1.5px;margin-bottom:4px">${m.label}</div>
+      <div class="chakra" style="font-size:20px;font-weight:700;color:${color}">${prefix}${m.val.toFixed(m.dec)}${suffix}</div>
+      <div style="margin-top:2px;min-height:16px">${chgStr}</div>
+    </div>`;
+  }).join('');
 
-  // Draw equity curve
-  setTimeout(() => {
-    const canvas = document.getElementById('bt-equity');
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    const W = canvas.width, H = canvas.height;
-    ctx.clearRect(0,0,W,H);
+  // ── B: Key Levels ──
+  const regime = getRegime(state.vix);
+  const dailyMove = Math.round(state.spx * (state.vix / 100) / Math.sqrt(365));
+  const expLow = Math.round(state.spx - dailyMove);
+  const expHigh = Math.round(state.spx + dailyMove);
+  const dmaAbove = state.dma200 > 0 ? state.spx > state.dma200 : null;
+  const dmaDist = state.dma200 > 0 ? Math.round(state.spx - state.dma200) : null;
 
-    const vals = equity.map(e=>e.value);
-    const minV = Math.min(...vals) * 0.95;
-    const maxV = Math.max(...vals) * 1.05;
-    const range = maxV - minV || 1;
+  const levelsEl = document.getElementById('analysis-levels');
+  const lvls = [];
+  if (state.dma200 > 0) lvls.push({ l: '200 DMA', v: state.dma200.toFixed(0), sub: `${dmaAbove ? '▲' : '▼'} ${Math.abs(dmaDist)}pts ${dmaAbove ? 'above' : 'below'}`, c: dmaAbove ? 'var(--green)' : 'var(--red)' });
+  lvls.push({ l: 'EXP RANGE', v: `${expLow.toLocaleString()} – ${expHigh.toLocaleString()}`, sub: `±${dailyMove}pts (VIX ${state.vix})`, c: 'var(--cyan)' });
+  if (state.prevHigh) lvls.push({ l: 'PREV DAY', v: `${state.prevLow?.toFixed(0)} – ${state.prevHigh?.toFixed(0)}`, sub: `Close ${state.prevClose?.toFixed(0)}`, c: 'var(--textDim)' });
+  if (state.weeklyHigh) lvls.push({ l: 'WEEKLY', v: `${state.weeklyLow?.toFixed(0)} – ${state.weeklyHigh?.toFixed(0)}`, sub: '', c: 'var(--textDim)' });
 
-    // Grid lines
-    ctx.strokeStyle = '#333';
-    ctx.lineWidth = 0.5;
-    for (let i = 0; i <= 4; i++) {
-      const y = H - (i/4) * H;
-      ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke();
-      ctx.fillStyle = '#666';
-      ctx.font = '11px monospace';
-      ctx.fillText('$'+Math.round(minV + (i/4)*range).toLocaleString(), 4, y-4);
-    }
+  const srLvls = [];
+  if (state.pivot) {
+    srLvls.push({ l: 'S2', v: state.s2?.toFixed(0), c: 'var(--red)' });
+    srLvls.push({ l: 'S1', v: state.s1?.toFixed(0), c: 'var(--red)' });
+    srLvls.push({ l: 'PIVOT', v: state.pivot?.toFixed(0), c: 'var(--gold)' });
+    srLvls.push({ l: 'R1', v: state.r1?.toFixed(0), c: 'var(--green)' });
+    srLvls.push({ l: 'R2', v: state.r2?.toFixed(0), c: 'var(--green)' });
+  }
 
-    // Starting capital line
-    const startY = H - ((startCap - minV) / range) * H;
-    ctx.strokeStyle = '#555';
-    ctx.setLineDash([5,5]);
-    ctx.beginPath(); ctx.moveTo(0,startY); ctx.lineTo(W,startY); ctx.stroke();
-    ctx.setLineDash([]);
+  levelsEl.innerHTML = `
+    <div style="font-size:9px;color:var(--textDim);letter-spacing:1.5px;margin-bottom:12px">KEY LEVELS</div>
+    <div style="display:grid;grid-template-columns:repeat(${Math.min(lvls.length, 4)},1fr);gap:10px;margin-bottom:${srLvls.length ? '16' : '0'}px">
+      ${lvls.map(l => `<div style="border:1px solid var(--border);padding:16px;text-align:center">
+        <div style="font-size:9px;color:var(--textDim);letter-spacing:1.5px;margin-bottom:4px">${l.l}</div>
+        <div class="chakra" style="font-size:22px;font-weight:700;color:${l.c}">${l.v}</div>
+        ${l.sub ? `<div style="font-size:10px;color:var(--textDim);margin-top:4px">${l.sub}</div>` : ''}
+      </div>`).join('')}
+    </div>
+    ${srLvls.length ? `
+    <div style="font-size:9px;color:var(--textDim);letter-spacing:1.5px;margin-bottom:8px">SUPPORT / RESISTANCE</div>
+    <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px">
+      ${srLvls.map(s => `<div style="border:1px solid var(--border);padding:14px;text-align:center">
+        <div style="font-size:8px;color:var(--textDim);letter-spacing:1.5px;margin-bottom:2px">${s.l}</div>
+        <div class="chakra" style="font-size:20px;font-weight:700;color:${s.c}">${s.v}</div>
+      </div>`).join('')}
+    </div>` : ''}
+  `;
 
-    // Equity line
-    ctx.beginPath();
-    ctx.strokeStyle = capital >= startCap ? '#00D084' : '#FF4757';
-    ctx.lineWidth = 2;
-    equity.forEach((e,i) => {
-      const x = (i/(equity.length-1)) * W;
-      const y = H - ((e.value - minV) / range) * H;
-      if (i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
-    });
-    ctx.stroke();
+  // ── C: Regime & Signals ──
+  const regimeEl = document.getElementById('analysis-regime');
+  const isBearish = state.bias === 'bear';
+  const isBullish = state.bias === 'bull';
+  const biasLabel = isBearish ? '▼ BEAR' : isBullish ? '▲ BULL' : '→ NEUTRAL';
+  const biasColor = isBearish ? 'var(--red)' : isBullish ? 'var(--green)' : 'var(--gold)';
 
-    // Fill under
-    const lastX = W, lastY = H - ((equity[equity.length-1].value - minV) / range) * H;
-    ctx.lineTo(lastX, H); ctx.lineTo(0, H); ctx.closePath();
-    ctx.fillStyle = capital >= startCap ? 'rgba(0,208,132,0.08)' : 'rgba(255,71,87,0.08)';
-    ctx.fill();
+  const signals = [
+    { l: 'VIX REGIME', v: regime.level, c: regime.color, sub: `${Math.round(regime.size * 100)}% sizing · ${regime.action}` },
+    { l: 'BIAS', v: biasLabel, c: biasColor, sub: isBearish ? 'Sell calls above' : isBullish ? 'Sell puts below' : 'Set bias before trading' },
+    { l: 'EXP MOVE', v: `±${dailyMove}pts`, c: 'var(--gold)', sub: `${(state.vix / Math.sqrt(365) * 100 / 100).toFixed(1)}% daily` },
+  ];
 
-    // Draw compounding growth chart (log scale)
-    const cCanvas = document.getElementById('bt-compound');
-    if (cCanvas && equity.length > 1) {
-      const cCtx = cCanvas.getContext('2d');
-      const cW = cCanvas.width, cH = cCanvas.height;
-      cCtx.clearRect(0, 0, cW, cH);
+  regimeEl.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+      <div style="font-size:9px;color:var(--textDim);letter-spacing:1.5px">REGIME & SIGNALS</div>
+      <div style="display:flex;gap:6px">
+        <span style="font-size:9px;padding:2px 8px;border:1px solid ${regime.color};color:${regime.color};font-weight:700">${regime.level}</span>
+        <span style="font-size:9px;padding:2px 8px;border:1px solid ${biasColor};color:${biasColor};font-weight:700">${biasLabel}</span>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px">
+      ${signals.map(s => `<div style="border:1px solid var(--border);padding:10px;text-align:center">
+        <div style="font-size:8px;color:var(--textDim);letter-spacing:1px;margin-bottom:2px">${s.l}</div>
+        <div class="chakra" style="font-size:15px;font-weight:700;color:${s.c}">${s.v}</div>
+        <div style="font-size:9px;color:var(--textDim);margin-top:2px">${s.sub}</div>
+      </div>`).join('')}
+    </div>
+    ${state.reasoning.length > 0 ? `
+    <div style="font-size:8px;color:var(--textDim);letter-spacing:1px;margin-bottom:6px">ANALYSIS</div>
+    <div style="display:flex;flex-direction:column;gap:4px">
+      ${state.reasoning.map(r => `<div style="border:1px solid ${r.bullish ? 'rgba(0,208,132,0.3)' : r.bullish === false ? 'rgba(255,71,87,0.3)' : 'rgba(255,255,255,0.1)'};padding:6px 10px;display:flex;align-items:center;gap:8px;background:${r.bullish ? 'rgba(0,208,132,0.04)' : r.bullish === false ? 'rgba(255,71,87,0.04)' : 'rgba(255,255,255,0.02)'}">
+        <span style="font-size:13px;flex-shrink:0">${r.icon}</span>
+        <span style="font-size:11px;color:var(--text);flex:1">${r.text}</span>
+        <span style="font-size:11px;font-weight:700;color:${r.bullish ? 'var(--green)' : r.bullish === false ? 'var(--red)' : 'var(--textDim)'}">${r.bullish ? '▲' : r.bullish === false ? '▼' : '–'}</span>
+      </div>`).join('')}
+    </div>` : '<div style="color:var(--textDim);font-size:11px">Press REFRESH DATA to load analysis</div>'}
+  `;
 
-      const cVals = equity.map(e => Math.max(1, e.value));
-      const logMin = Math.log10(Math.min(...cVals) * 0.9);
-      const logMax = Math.log10(Math.max(...cVals) * 1.1);
-      const logRange = logMax - logMin || 1;
+  // ── D: Trade Verdict ──
+  const verdictEl = document.getElementById('analysis-verdict');
+  const o = state._order;
+  if (!o || !o.recRow) {
+    verdictEl.innerHTML = `
+      <div style="font-size:9px;color:var(--textDim);letter-spacing:1.5px;margin-bottom:10px">TRADE VERDICT</div>
+      <div style="color:var(--textDim);font-size:12px;text-align:center;padding:20px">Press REFRESH DATA to generate trade recommendation</div>
+    `;
+  } else {
+    const phase = getPhase(traderData.currentCapital);
+    const phaseLabel = `Phase ${phase.id}: ${phase.name}`;
+    verdictEl.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <div style="font-size:9px;color:var(--textDim);letter-spacing:1.5px">TRADE VERDICT</div>
+        <div style="display:flex;gap:6px;align-items:center">
+          <span class="chakra" style="font-size:22px;font-weight:900;color:${o.convColor}">${o.conviction}</span>
+          <span style="font-size:9px;color:var(--textDim)">${o.convLabel}</span>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;padding:10px;border:1px solid ${o.orderColor};background:${o.orderColor}11">
+        <span style="font-size:20px">${o.orderIcon}</span>
+        <span class="chakra" style="font-size:16px;font-weight:700;color:${o.orderColor}">${o.orderType}</span>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px">
+        <div style="border:1px solid var(--border);padding:8px;text-align:center">
+          <div style="font-size:7px;color:var(--textDim);letter-spacing:1px">DELTA</div>
+          <div class="chakra" style="font-size:14px;font-weight:700;color:var(--cyan)">Δ${o.recDelta}</div>
+        </div>
+        <div style="border:1px solid var(--border);padding:8px;text-align:center">
+          <div style="font-size:7px;color:var(--textDim);letter-spacing:1px">WIDTH</div>
+          <div class="chakra" style="font-size:14px;font-weight:700;color:var(--white)">${state.width}pt</div>
+        </div>
+        <div style="border:1px solid var(--border);padding:8px;text-align:center">
+          <div style="font-size:7px;color:var(--textDim);letter-spacing:1px">SIZE</div>
+          <div class="chakra" style="font-size:14px;font-weight:700;color:var(--white)">${o.adjContracts}ct</div>
+        </div>
+        <div style="border:1px solid var(--border);padding:8px;text-align:center">
+          <div style="font-size:7px;color:var(--textDim);letter-spacing:1px">CREDIT</div>
+          <div class="chakra" style="font-size:14px;font-weight:700;color:var(--green)">$${o.orderCredit?.toFixed(2)}</div>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:12px">
+        <div style="border:1px solid var(--border);padding:8px">
+          <div style="font-size:7px;color:var(--textDim);letter-spacing:1px;margin-bottom:4px">STRIKES</div>
+          <div style="font-size:12px;color:var(--white)">
+            ${o.useIC ? `Put: ${o.recRow.sP}/${o.recRow.lP} · Call: ${o.recRow.sC}/${o.recRow.lC}` : o.useCall ? `Sell ${o.recRow.sC} / Buy ${o.recRow.lC}` : `Sell ${o.recRow.sP} / Buy ${o.recRow.lP}`}
+          </div>
+        </div>
+        <div style="border:1px solid var(--border);padding:8px">
+          <div style="font-size:7px;color:var(--textDim);letter-spacing:1px;margin-bottom:4px">INCOME</div>
+          <div style="font-size:12px;color:var(--green)">$${o.adjIncome?.toFixed(0)} (${o.adjContracts}ct × $${o.orderCredit?.toFixed(2)} × 100)</div>
+        </div>
+      </div>
+      <div style="border:1px solid var(--border);padding:8px;margin-bottom:8px">
+        <div style="font-size:7px;color:var(--textDim);letter-spacing:1px;margin-bottom:4px">STOP LEVELS</div>
+        <div style="font-size:11px;color:var(--white);line-height:1.6">
+          ${o.stopInfo ? `<div>Early (0-30min): <span style="color:var(--gold)">2× $${o.stopInfo.stopSpreadVal}</span></div>
+          <div>Late (30min+): <span style="color:var(--orange)">1× $${(o.orderCredit * 1).toFixed(2)}</span></div>` : '—'}
+        </div>
+      </div>
+      <div style="display:flex;gap:8px">
+        <div style="flex:1;border:1px solid var(--border);padding:8px">
+          <div style="font-size:7px;color:var(--textDim);letter-spacing:1px;margin-bottom:2px">SESSION</div>
+          <div style="font-size:11px;color:${o.sessionColor}">${o.sessionStatus}</div>
+        </div>
+        <div style="flex:1;border:1px solid var(--border);padding:8px">
+          <div style="font-size:7px;color:var(--textDim);letter-spacing:1px;margin-bottom:2px">PHASE</div>
+          <div style="font-size:11px;color:var(--white)">${phaseLabel}</div>
+        </div>
+      </div>
+    `;
+  }
 
-      // Milestone lines
-      const milestones = [10000, 25000, 50000, 75000, 100000, 250000, 500000, 1000000];
-      const mColors = { 10000: '#555', 25000: '#F0B429', 50000: '#3B9EFF', 75000: '#A855F7', 100000: '#00D084', 250000: '#00E5FF', 500000: '#FF6B35', 1000000: '#FF4757' };
-      milestones.forEach(m => {
-        const logM = Math.log10(m);
-        if (logM >= logMin && logM <= logMax) {
-          const y = cH - ((logM - logMin) / logRange) * cH;
-          cCtx.strokeStyle = mColors[m] || '#444';
-          cCtx.lineWidth = 0.5;
-          cCtx.setLineDash([4, 4]);
-          cCtx.beginPath(); cCtx.moveTo(0, y); cCtx.lineTo(cW, y); cCtx.stroke();
-          cCtx.setLineDash([]);
-          const label = m >= 1000000 ? '$' + (m / 1000000) + 'M' : '$' + (m / 1000) + 'K';
-          cCtx.fillStyle = mColors[m] || '#666';
-          cCtx.font = '11px monospace';
-          cCtx.fillText(label, 4, y - 4);
-        }
-      });
+  // ── A: SPX Chart ──
+  drawSpxChart();
 
-      // Equity line (log scale)
-      cCtx.beginPath();
-      cCtx.strokeStyle = '#00D084';
-      cCtx.lineWidth = 2;
-      equity.forEach((e, i) => {
-        const x = (i / (equity.length - 1)) * cW;
-        const y = cH - ((Math.log10(Math.max(1, e.value)) - logMin) / logRange) * cH;
-        if (i === 0) cCtx.moveTo(x, y); else cCtx.lineTo(x, y);
-      });
-      cCtx.stroke();
+  // ── A2: GEX Chart ──
+  drawGexChart(state.gexData);
+  renderGexSummary(state.gexData);
 
-      // Fill under
-      const cLastX = cW;
-      cCtx.lineTo(cLastX, cH); cCtx.lineTo(0, cH); cCtx.closePath();
-      cCtx.fillStyle = 'rgba(0,208,132,0.06)';
-      cCtx.fill();
+  // ── F: Key Findings ──
+  renderFindings();
 
-      // Phase markers
-      const phases = [{ cap: 25000, label: 'P2', color: '#F0B429' }, { cap: 75000, label: 'P3', color: '#A855F7' }, { cap: 300000, label: 'P4', color: '#00E5FF' }];
-      phases.forEach(p => {
-        const idx = equity.findIndex(e => e.value >= p.cap);
-        if (idx > 0) {
-          const x = (idx / (equity.length - 1)) * cW;
-          cCtx.strokeStyle = p.color;
-          cCtx.lineWidth = 1;
-          cCtx.setLineDash([3, 3]);
-          cCtx.beginPath(); cCtx.moveTo(x, 0); cCtx.lineTo(x, cH); cCtx.stroke();
-          cCtx.setLineDash([]);
-          cCtx.fillStyle = p.color;
-          cCtx.font = 'bold 12px sans-serif';
-          cCtx.fillText(p.label, x + 4, 14);
-        }
-      });
-    }
-  }, 100);
+  // ── Timestamp ──
+  const ts = document.getElementById('analysis-timestamp');
+  if (state.lastUpdated) {
+    ts.textContent = 'Last updated: ' + state.lastUpdated;
+  }
+
 }
 
-// Update stop description on mode change
-function updateStopDesc() {
-  const mode = document.getElementById('bt-stopMode').value;
-  const desc = document.getElementById('bt-stopDesc');
-  const valInput = document.getElementById('bt-stopVal');
-  valInput.disabled = false;
-  if (mode === 'premium') { desc.innerHTML = '× credit received<br><span style="color:var(--gold)">e.g. 2× = close if spread hits 2× your credit ($1.00 → stop at $2.00)</span>'; valInput.value = '2'; valInput.step = '0.5'; }
-  else if (mode === 'timegated') { desc.innerHTML = 'Time-gated stop (TG 0.5h)<br><span style="color:var(--gold)">2× wide first 30min (noise protection)</span><br><span style="color:var(--red)">1× tight after 30min (theta decayed)</span>'; valInput.value = '2'; valInput.step = '0.5'; valInput.disabled = true; }
-  else if (mode === 'points') { desc.innerHTML = 'SPX points past short strike<br><span style="color:var(--gold)">e.g. 10 = close if SPX moves 10pts through your short strike</span>'; valInput.value = '10'; valInput.step = '5'; }
-  else { desc.innerHTML = '× credit (time-weighted avg)<br><span style="color:var(--gold)">Simulates tighter stops later in session (avg 2.5× across day)</span>'; valInput.value = '2.5'; valInput.step = '0.5'; }
-}
 </script>
 </body>
 </html>
