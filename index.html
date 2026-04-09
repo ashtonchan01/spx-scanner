@@ -1424,7 +1424,7 @@ function computeRows() {
     const putProb = (bsm(S, sP, T, 0.045, iv, 'put').prob_otm * 100).toFixed(0);
     const callProb = (bsm(S, sC, T, 0.045, iv, 'call').prob_otm * 100).toFixed(0);
     return { ...dl, sP, lP, sC, lC, putMid, callMid, putFill, callFill, icFill,
-      putOK: putFill >= 0.80, callOK: callFill >= 0.80, icOK: icFill >= 0.80,
+      putOK: putFill >= 0.60, callOK: callFill >= 0.60, icOK: icFill >= 0.60,
       putStop: sP + sb, callStop: sC - sb, putProb, callProb, profitZone: `${sP} \u2014 ${sC}` };
   });
 }
@@ -1521,8 +1521,9 @@ function scan() {
   const wklyMid = Math.max(bsm(state.spx, wklyShort, wklyT, 0.045, iv, 'put').price - bsm(state.spx, wklyLong, wklyT, 0.045, iv, 'put').price, 0);
   const wklyFill = Math.max(wklyMid - SLIPPAGE, 0);
 
-  const modeLabel = state.mode === 'weekly' ? 'WEEKLY 5DTE' : state.mode.toUpperCase() + ' 0DTE';
-  document.getElementById('scanInfo').innerHTML = `${state.lastUpdated || ''} &middot; ${modeLabel} \u0394 ${recDelta} ${recDelta !== (state.mode === 'arvo' ? 0.15 : 0.12) ? '(auto-widened for VIX ' + f2(state.vix) + ')' : ''} &middot; Fill = mid (live)`;
+  const modeLabel = state.mode === 'weekly' ? 'WEEKLY 5DTE' : '11:30 AUTO';
+  const sideLabel = state.strategy === 'auto' ? (autoStrat === 'call' ? 'CALLS' : 'PUTS') : state.strategy.toUpperCase();
+  document.getElementById('scanInfo').innerHTML = `${state.lastUpdated || ''} &middot; ${modeLabel} \u0394${recDelta} &middot; ${sideLabel} &middot; 15w &middot; TG 0.5h`;
   updateInputSummary();
 
   // ── COMPUTED VALUES FOR RENDERING ──
