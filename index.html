@@ -1591,26 +1591,25 @@ function scan() {
   else if (state.gexProxy === 'cautious' && conviction === 'A+') { conviction = 'B'; convColor = 'var(--gold)'; convLabel = 'MODERATE \u2014 Cautious GEX'; adjContracts = Math.max(1, Math.round(adjContracts * 0.5)); }
   const adjIncome = orderCredit * adjContracts * 100;
 
-  // Session check
-  const nowAEDT = new Date();
-  const aedtStr = nowAEDT.toLocaleString('en-AU', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Australia/Sydney' });
-  const [aH, aM] = aedtStr.split(':').map(Number);
-  const aT = aH + aM / 60;
+  // Session check — uses ET directly (DST-safe, no AEST/AEDT offset issues)
+  const sessNow = new Date();
+  const sessH = parseInt(sessNow.toLocaleString('en-US', { timeZone: 'America/New_York', hour: 'numeric', hour12: false }));
+  const sessM = parseInt(sessNow.toLocaleString('en-US', { timeZone: 'America/New_York', minute: 'numeric' }));
+  const etNow = sessH + sessM / 60;
   let sessionStatus, sessionColor, sessionNote;
   if (state.mode === 'weekly') {
-    // Weekly trades can be entered any time during market hours
-    if ((aT >= 23.5) || (aT >= 0 && aT < 5.5)) { sessionStatus = 'WEEKLY ENTRY'; sessionColor = 'var(--cyan)'; sessionNote = 'Weekly 5DTE \u2014 enter during regular hours'; }
-    else if (aT >= 5.5 && aT < 7.0) { sessionStatus = 'HARD CLOSE'; sessionColor = 'var(--red)'; sessionNote = 'Close all positions NOW'; }
+    if (etNow >= 9.5 && etNow < 15.75) { sessionStatus = 'WEEKLY ENTRY'; sessionColor = 'var(--cyan)'; sessionNote = 'Weekly 5DTE \u2014 enter during regular hours'; }
+    else if (etNow >= 15.75 && etNow < 16.0) { sessionStatus = 'HARD CLOSE'; sessionColor = 'var(--red)'; sessionNote = 'Close all positions NOW'; }
     else { sessionStatus = 'MARKET CLOSED'; sessionColor = 'var(--textDim)'; sessionNote = 'US market not open'; }
   } else {
-    if ((aT >= 23.5) || (aT >= 0 && aT < 1.25)) { sessionStatus = 'MORNING ENTRY'; sessionColor = 'var(--gold)'; sessionNote = 'Morning session open \u2014 \u03940.12'; }
-    else if (aT >= 1.25 && aT < 3.0) { sessionStatus = 'BETWEEN SESSIONS'; sessionColor = 'var(--textDim)'; sessionNote = 'Wait for arvo session at 3:00 AM'; }
-    else if (aT >= 3.0 && aT < 4.0) { sessionStatus = 'ARVO ENTRY'; sessionColor = 'var(--green)'; sessionNote = 'Arvo session open \u2014 \u03940.15'; }
-    else if (aT >= 4.0 && aT < 5.5) { sessionStatus = 'CLOSE ONLY'; sessionColor = 'var(--orange)'; sessionNote = 'No new entries \u2014 manage existing'; }
-    else if (aT >= 5.5 && aT < 7.0) { sessionStatus = 'HARD CLOSE'; sessionColor = 'var(--red)'; sessionNote = 'Close all positions NOW'; }
+    if (state.vix >= 28) { sessionStatus = 'VIX SKIP'; sessionColor = 'var(--red)'; sessionNote = 'VIX > 28 \u2014 AUTO skips (sit out chaos)'; }
+    else if (etNow >= 11.5 && etNow < 12.0) { sessionStatus = '11:30 ENTRY'; sessionColor = 'var(--gold)'; sessionNote = '11:30 window \u2014 \u03940.15, 2\u00D7 stop (30min gate)'; }
+    else if (etNow >= 12.0 && etNow < 15.75) { sessionStatus = 'LATE SESSION'; sessionColor = 'var(--green)'; sessionNote = 'Post-noon \u2014 1\u00D7 tight stop'; }
+    else if (etNow >= 15.75 && etNow < 16.0) { sessionStatus = 'HARD CLOSE'; sessionColor = 'var(--red)'; sessionNote = 'Close all positions NOW'; }
+    else if (etNow >= 9.5 && etNow < 11.5) { sessionStatus = 'PRE-ENTRY'; sessionColor = 'var(--textDim)'; sessionNote = 'Wait for 11:30 AM ET entry window'; }
     else { sessionStatus = 'MARKET CLOSED'; sessionColor = 'var(--textDim)'; sessionNote = 'US market not open'; }
   }
-  const canTrade = sessionStatus === 'MORNING ENTRY' || sessionStatus === 'ARVO ENTRY' || sessionStatus === 'WEEKLY ENTRY';
+  const canTrade = (sessionStatus === '11:30 ENTRY' || sessionStatus === 'LATE SESSION' || sessionStatus === 'WEEKLY ENTRY') && state.vix < 28;
 
   // ── STORE SCAN RESULTS FOR PLAYBOOK ──
   state._order = {
@@ -2975,19 +2974,25 @@ function renderPlaybook() {
       ].map(s => `<div class="stat-card"><div class="stat-label">${s.label}</div><div class="stat-value" style="font-size:20px;color:${s.color}">${s.value}</div></div>`).join('')}
     </div>`;
 
-  // Economic calendar
+  // Economic calendar — dynamic, uses getEventsForDate() which already resolves all data
   const now = new Date();
   const weekStart = new Date(now);
-  weekStart.setDate(now.getDate() - now.getDay() + 1);
-  const econEvents = [
-    { day: 'Mon', event: 'Market Open', time: '12:30 AM AEDT', impact: 'low' },
-    { day: 'Tue', event: 'Check for CPI / PPI', time: 'Pre-market', impact: 'high' },
-    { day: 'Wed', event: 'FOMC Check', time: 'All day', impact: 'high' },
-    { day: 'Thu', event: 'Jobless Claims', time: '12:30 AM AEDT', impact: 'medium' },
-    { day: 'Fri', event: 'Options Expiry', time: 'All day', impact: 'medium' },
-  ];
+  weekStart.setDate(now.getDate() - now.getDay() + 1); // Monday
+  const dayNames = ['Mon','Tue','Wed','Thu','Fri'];
+  const econEvents = [];
+  for (let i = 0; i < 5; i++) {
+    const d = new Date(weekStart); d.setDate(weekStart.getDate() + i);
+    const dayLabel = dayNames[i];
+    const resolved = getEventsForDate(d.getFullYear(), d.getMonth(), d.getDate())
+      .filter(e => e.name !== 'SPX 0DTE Expiry');
+    if (resolved.length === 0) {
+      econEvents.push({ day: dayLabel, event: '\u2014', time: '', impact: 'low' });
+    } else {
+      resolved.forEach(e => econEvents.push({ day: dayLabel, event: e.name, time: e.time || '', impact: e.impact }));
+    }
+  }
   document.getElementById('playbook-econ').innerHTML = `
-    <div class="label" style="margin-bottom:8px">ECONOMIC CALENDAR - WEEK OF ${weekStart.toLocaleDateString('en-AU',{month:'short',day:'numeric'})}</div>
+    <div class="label" style="margin-bottom:8px">ECONOMIC CALENDAR \u2014 WEEK OF ${weekStart.toLocaleDateString('en-AU',{month:'short',day:'numeric'})}</div>
     ${econEvents.map(e => {
       const impactColor = e.impact === 'high' ? 'var(--red)' : e.impact === 'medium' ? 'var(--gold)' : 'var(--green)';
       return `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border)">
