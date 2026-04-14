@@ -220,6 +220,7 @@ input, select, button, textarea { font-family: 'IBM Plex Mono', monospace; outli
 
   /* Charts: shorter on mobile */
   canvas { max-height: 200px; }
+  #liveSpxChart { max-height: 260px; }
 
   /* Larger touch targets */
   .btn { padding: 10px 16px; font-size: 12px; min-height: 44px; }
@@ -312,6 +313,21 @@ input, select, button, textarea { font-family: 'IBM Plex Mono', monospace; outli
 
 <!-- ORDER PANEL (populated by scan) -->
 <div id="orderPanel" style="margin-bottom:8px"></div>
+
+<!-- LIVE SPX CHART -->
+<div class="panel" style="padding:12px 16px;margin-bottom:8px">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+    <div class="chakra" style="font-size:13px;font-weight:700;color:var(--white)">SPX <span id="chartPrice" style="color:var(--cyan)"></span> <span id="chartChange" style="font-size:11px"></span></div>
+    <div style="display:flex;gap:3px" id="chartTfBtns">
+      <button class="btn chart-tf-btn" data-tf="5m" onclick="switchChartTf('5m')" style="font-size:9px;padding:4px 8px;border-color:var(--border);color:var(--textDim)">5M</button>
+      <button class="btn chart-tf-btn" data-tf="15m" onclick="switchChartTf('15m')" style="font-size:9px;padding:4px 8px;border-color:var(--cyan);color:var(--cyan)">15M</button>
+      <button class="btn chart-tf-btn" data-tf="30m" onclick="switchChartTf('30m')" style="font-size:9px;padding:4px 8px;border-color:var(--border);color:var(--textDim)">30M</button>
+      <button class="btn chart-tf-btn" data-tf="1h" onclick="switchChartTf('1h')" style="font-size:9px;padding:4px 8px;border-color:var(--border);color:var(--textDim)">1H</button>
+      <button class="btn chart-tf-btn" data-tf="1d" onclick="switchChartTf('1d')" style="font-size:9px;padding:4px 8px;border-color:var(--border);color:var(--textDim)">1D</button>
+    </div>
+  </div>
+  <canvas id="liveSpxChart" style="width:100%;height:260px"></canvas>
+</div>
 
 <!-- INPUT + MARKET ANALYSIS GRID (side by side after scan) -->
 <div id="inputMarketGrid" style="margin-bottom:8px">
@@ -1471,10 +1487,191 @@ async function todaysSetup() {
     await fetchLivePrices();
     fetchPrices();
     scan();
+    fetchChartData(); // load chart in background
   } finally {
     btn.textContent = 'SCAN';
     btn.style.opacity = '1';
     btn.disabled = false;
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// LIVE SPX CANDLESTICK CHART
+// ══════════════════════════════════════════════════════════════════════════════
+let chartTf = '15m';
+let chartCandles = [];
+
+const CHART_TF_CONFIG = {
+  '5m':  { interval: '5m',  range: '5d',  label: '5 Min' },
+  '15m': { interval: '15m', range: '5d',  label: '15 Min' },
+  '30m': { interval: '30m', range: '1mo', label: '30 Min' },
+  '1h':  { interval: '60m', range: '1mo', label: '1 Hour' },
+  '1d':  { interval: '1d',  range: '6mo', label: 'Daily' },
+};
+
+function switchChartTf(tf) {
+  chartTf = tf;
+  document.querySelectorAll('.chart-tf-btn').forEach(b => {
+    const active = b.dataset.tf === tf;
+    b.style.borderColor = active ? 'var(--cyan)' : 'var(--border)';
+    b.style.color = active ? 'var(--cyan)' : 'var(--textDim)';
+    b.style.background = active ? 'rgba(0,229,255,0.08)' : 'transparent';
+  });
+  fetchChartData();
+}
+
+async function fetchChartData() {
+  const cfg = CHART_TF_CONFIG[chartTf];
+  const YAHOO = 'https://query1.finance.yahoo.com/v8/finance/chart/';
+  const PROXY = 'https://corsproxy.io/?';
+  const url = `${YAHOO}${encodeURIComponent('^GSPC')}?interval=${cfg.interval}&range=${cfg.range}&_t=${Date.now()}`;
+  const proxied = `${PROXY}${encodeURIComponent(url)}`;
+
+  for (const base of [proxied, url]) {
+    try {
+      const r = await fetch(base, { signal: AbortSignal.timeout(15000) });
+      if (!r.ok) continue;
+      const d = await r.json();
+      const result = d?.chart?.result?.[0];
+      if (!result) continue;
+      const ts = result.timestamp;
+      const q = result.indicators?.quote?.[0];
+      if (!ts || !q) continue;
+      chartCandles = [];
+      for (let i = 0; i < ts.length; i++) {
+        const o = q.open?.[i], h = q.high?.[i], l = q.low?.[i], c = q.close?.[i], v = q.volume?.[i];
+        if (o == null || h == null || l == null || c == null) continue;
+        chartCandles.push({ t: ts[i] * 1000, o, h, l, c, v: v || 0 });
+      }
+      drawLiveChart();
+      return;
+    } catch {}
+  }
+}
+
+function drawLiveChart() {
+  const canvas = document.getElementById('liveSpxChart');
+  if (!canvas || !chartCandles.length) return;
+  const container = canvas.parentElement;
+  const dpr = window.devicePixelRatio || 1;
+  const W = container.clientWidth - 32;
+  const H = 260;
+  canvas.width = W * dpr;
+  canvas.height = H * dpr;
+  canvas.style.width = W + 'px';
+  canvas.style.height = H + 'px';
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+
+  // Show only last N candles that fit
+  const candleSpacing = chartTf === '1d' ? 8 : 6;
+  const candleWidth = chartTf === '1d' ? 5 : 4;
+  const priceAxisW = 55;
+  const pad = { top: 10, bottom: 22, left: 4, right: priceAxisW + 8 };
+  const cw = W - pad.left - pad.right;
+  const ch = H - pad.top - pad.bottom;
+  const maxCandles = Math.floor(cw / candleSpacing);
+  const candles = chartCandles.slice(-maxCandles);
+
+  if (!candles.length) return;
+
+  // Price range
+  let dataMin = Infinity, dataMax = -Infinity;
+  candles.forEach(c => { if (c.l < dataMin) dataMin = c.l; if (c.h > dataMax) dataMax = c.h; });
+  const margin = (dataMax - dataMin) * 0.06 || 10;
+  dataMin -= margin; dataMax += margin;
+  const range = dataMax - dataMin || 1;
+  function yPos(v) { return pad.top + (1 - (v - dataMin) / range) * ch; }
+
+  // Background
+  ctx.fillStyle = '#0D1117';
+  ctx.fillRect(0, 0, W, H);
+
+  // Grid lines + price axis
+  const gridStep = Math.pow(10, Math.floor(Math.log10(range / 5)));
+  const niceStep = range / 5 > gridStep * 5 ? gridStep * 5 : range / 5 > gridStep * 2 ? gridStep * 2 : gridStep;
+  ctx.font = '10px IBM Plex Mono';
+  ctx.textAlign = 'right';
+  for (let v = Math.ceil(dataMin / niceStep) * niceStep; v <= dataMax; v += niceStep) {
+    const yy = yPos(v);
+    ctx.strokeStyle = 'rgba(255,255,255,0.04)';
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(pad.left, yy); ctx.lineTo(W - pad.right, yy); ctx.stroke();
+    ctx.fillStyle = 'rgba(255,255,255,0.4)';
+    ctx.fillText(v.toFixed(0), W - 6, yy + 4);
+  }
+
+  // Time axis labels
+  ctx.textAlign = 'center';
+  ctx.font = '9px IBM Plex Mono';
+  ctx.fillStyle = 'rgba(255,255,255,0.25)';
+  const labelEvery = Math.max(1, Math.floor(candles.length / 6));
+  let prevDateStr = '';
+  candles.forEach((c, i) => {
+    if (i % labelEvery !== 0 && i !== candles.length - 1) return;
+    const x = pad.left + i * candleSpacing + candleSpacing / 2;
+    const d = new Date(c.t);
+    let label;
+    if (chartTf === '1d') {
+      label = d.toLocaleDateString('en-AU', { day: 'numeric', month: 'short', timeZone: 'America/New_York' });
+    } else {
+      const dateStr = d.toLocaleDateString('en-AU', { day: 'numeric', month: 'short', timeZone: 'America/New_York' });
+      const timeStr = d.toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'America/New_York' });
+      label = dateStr !== prevDateStr ? dateStr : timeStr;
+      prevDateStr = dateStr;
+    }
+    ctx.fillText(label, x, H - 4);
+  });
+
+  // Draw candles
+  candles.forEach((c, i) => {
+    const x = pad.left + i * candleSpacing + candleSpacing / 2;
+    const isGreen = c.c >= c.o;
+    const color = isGreen ? '#00D084' : '#FF4757';
+    const bodyTop = yPos(Math.max(c.o, c.c));
+    const bodyBot = yPos(Math.min(c.o, c.c));
+    const bodyH = Math.max(1, bodyBot - bodyTop);
+
+    // Wick
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(x, yPos(c.h));
+    ctx.lineTo(x, yPos(c.l));
+    ctx.stroke();
+
+    // Body
+    ctx.fillStyle = isGreen ? color : color;
+    ctx.fillRect(x - candleWidth / 2, bodyTop, candleWidth, bodyH);
+  });
+
+  // Current price line
+  const last = candles[candles.length - 1];
+  if (last) {
+    const yLast = yPos(last.c);
+    ctx.setLineDash([3, 3]);
+    ctx.strokeStyle = 'rgba(0,229,255,0.5)';
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(pad.left, yLast); ctx.lineTo(W - pad.right, yLast); ctx.stroke();
+    ctx.setLineDash([]);
+    // Price label on axis
+    ctx.fillStyle = '#00E5FF';
+    ctx.fillRect(W - priceAxisW - 6, yLast - 8, priceAxisW + 2, 16);
+    ctx.fillStyle = '#0D1117';
+    ctx.font = 'bold 10px IBM Plex Mono';
+    ctx.textAlign = 'right';
+    ctx.fillText(last.c.toFixed(2), W - 8, yLast + 4);
+  }
+
+  // Update header
+  const first = candles[0];
+  if (last && first) {
+    const change = last.c - first.o;
+    const changePct = (change / first.o * 100);
+    document.getElementById('chartPrice').textContent = last.c.toFixed(2);
+    const chEl = document.getElementById('chartChange');
+    chEl.textContent = `${change >= 0 ? '+' : ''}${change.toFixed(2)} (${changePct >= 0 ? '+' : ''}${changePct.toFixed(2)}%)`;
+    chEl.style.color = change >= 0 ? 'var(--green)' : 'var(--red)';
   }
 }
 
@@ -3972,7 +4169,9 @@ scan();
   await fetchLivePrices();
   fetchPrices();
   scan();
+  fetchChartData();
   startPriceAutoRefresh();
+  window.addEventListener('resize', () => { if (chartCandles.length) drawLiveChart(); });
 })();
 
 // Auto-load from cloud on startup if configured
