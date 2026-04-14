@@ -340,6 +340,7 @@ input, select, button, textarea { font-family: 'IBM Plex Mono', monospace; outli
           <div style="display:flex;height:30px">
             <span style="display:flex;align-items:center;padding:0 5px;background:var(--panelAlt);border:1px solid var(--borderBright);border-right:none;color:var(--textDim);font-size:10px">V</span>
             <input id="vixInput" type="number" step="0.1" value="22" style="width:100%;background:var(--panelAlt);border:1px solid var(--borderBright);color:var(--white);padding:0 6px;font-size:13px;font-weight:700;height:100%;box-sizing:border-box;min-width:0" onkeydown="if(event.key==='Enter')todaysSetup()">
+            <button id="vixLockBtn" onclick="toggleVixLock()" title="Lock VIX to manual value" style="display:flex;align-items:center;padding:0 6px;background:var(--panelAlt);border:1px solid var(--borderBright);border-left:none;color:var(--textDim);font-size:12px;cursor:pointer">🔓</button>
           </div>
         </div>
         <!-- 200DMA -->
@@ -1015,6 +1016,15 @@ function switchTab(tab) {
 // ══════════════════════════════════════════════════════════════════════════════
 // SCANNER STATE (original)
 // ══════════════════════════════════════════════════════════════════════════════
+let vixLocked = false;
+function toggleVixLock() {
+  vixLocked = !vixLocked;
+  const btn = document.getElementById('vixLockBtn');
+  btn.textContent = vixLocked ? '🔒' : '🔓';
+  btn.style.color = vixLocked ? 'var(--gold)' : 'var(--textDim)';
+  btn.style.background = vixLocked ? 'rgba(240,180,41,0.12)' : 'var(--panelAlt)';
+  document.getElementById('vixInput').style.borderColor = vixLocked ? 'var(--gold)' : 'var(--borderBright)';
+}
 let state = {
   spx: 5800, vix: 22, width: 10, mode: 'morning', strategy: 'auto',
   bias: 'neutral', dma200: parseFloat(localStorage.getItem('spx_dma200')) || 0,
@@ -1155,8 +1165,8 @@ async function fetchLivePrices() {
       state.prevClose = parseFloat(spxHistory._closes[spxHistory._closes.length - 2].toFixed(2));
     }
 
-    // VIX
-    if (vixMeta?.regularMarketPrice) {
+    // VIX — skip if user has locked to manual value
+    if (vixMeta?.regularMarketPrice && !vixLocked) {
       const vix = parseFloat(vixMeta.regularMarketPrice.toFixed(2));
       state.vix = vix;
       document.getElementById('vixInput').value = vix;
