@@ -652,6 +652,7 @@ const HIST_DATA=[["2024-03-22",5253.43,5261.1,5240.66,5241.53,12.92],["2024-03-2
 // ══════════════════════════════════════════════════════════════════════════════
 // DATA MODEL & PHASES
 // ══════════════════════════════════════════════════════════════════════════════
+const LOCAL_TZ = new Intl.DateTimeFormat('en-AU', { timeZone: 'Australia/Sydney', timeZoneName: 'short' }).formatToParts(new Date()).find(p => p.type === 'timeZoneName')?.value || 'AEST';
 const PHASES = [
   { id: 1, name: 'Survival', min: 10000, target: 25000, contracts: '2 fixed', perK: 0, fixedCt: 2, weekly: 576, roi: '90%', color: 'var(--green)' },
   { id: 2, name: 'Building', min: 25000, target: 75000, contracts: '1ct per $6k', perK: 6000, weekly: 1500, roi: '70%', color: 'var(--blue)' },
@@ -1188,7 +1189,7 @@ async function fetchLivePrices() {
 
     state.analysisLastFetch = Date.now();
     const dmaStr = state.dma200 ? ` · 200DMA ${state.dma200.toLocaleString()}` : '';
-    state.lastUpdated = new Date().toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: 'Australia/Sydney' }) + ' AEDT (live)';
+    state.lastUpdated = new Date().toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: 'Australia/Sydney' }) + ' ' + LOCAL_TZ + ' (live)';
     if (scanInfo) scanInfo.innerHTML = `✅ ${state.lastUpdated} · SPX ${state.spx?.toLocaleString()} · VIX ${state.vix}${dmaStr}`;
   } catch(e) {
     if (scanInfo) scanInfo.innerHTML = '⚠️ Live fetch failed — using manual values';
@@ -1242,7 +1243,7 @@ function fetchPrices() {
     // Build reasoning
     state.reasoning = buildReasoning();
 
-    state.lastUpdated = new Date().toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: 'Australia/Sydney' }) + ' AEDT';
+    state.lastUpdated = new Date().toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: 'Australia/Sydney' }) + ' ' + LOCAL_TZ;
     flashPanel('inputPanel');
     scan();
 }
@@ -1474,7 +1475,7 @@ function scan() {
   state.spx = parseFloat(document.getElementById('spxInput').value) || state.spx;
   state.vix = parseFloat(document.getElementById('vixInput').value) || state.vix;
   state.width = parseInt(document.getElementById('widthSelect').value) || 15;
-  if (!state.lastUpdated) state.lastUpdated = new Date().toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit', timeZone: 'Australia/Sydney' }) + ' AEDT (manual)';
+  if (!state.lastUpdated) state.lastUpdated = new Date().toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit', timeZone: 'Australia/Sydney' }) + ' ' + LOCAL_TZ + ' (manual)';
 
   // Bias is set manually by user — 200 DMA is context only, does NOT override bias
 
@@ -2739,13 +2740,31 @@ function getPlaybook() {
     'Two stops in a row → done for the day, no more trades',
   ];
 
-  // All-Weather AUTO — δ0.15 · 15w · 11:30 AM ET (2:30 AM AEDT) · TG 0.5h · 2×/1×
+  // Convert ET hour (e.g. 11.5 = 11:30 AM) to local Sydney time string
+  // Dynamically determines EDT/EST offset so both US and AU DST are handled
+  function etToLocal(etHour) {
+    // Find current ET→UTC offset by checking what hour it is in New York vs UTC
+    const probe = new Date();
+    const utcH = probe.getUTCHours();
+    const nyH = parseInt(probe.toLocaleString('en-US', { timeZone: 'America/New_York', hour: 'numeric', hour12: false }));
+    const etOffset = ((utcH - nyH) % 24 + 24) % 24; // hours to add to ET to get UTC (4 for EDT, 5 for EST)
+    const ref = new Date();
+    const h = Math.floor(etHour);
+    const m = Math.round((etHour % 1) * 60);
+    ref.setUTCHours(h + etOffset, m, 0, 0);
+    const fmt = new Intl.DateTimeFormat('en-AU', { timeZone: 'Australia/Sydney', hour: 'numeric', minute: '2-digit', hour12: true });
+    return fmt.format(ref).replace(/\s/g, ' ');
+  }
+  function etRangeLocal(etStart, etEnd) { return etToLocal(etStart) + '-' + etToLocal(etEnd); }
+  const localTz = new Intl.DateTimeFormat('en-AU', { timeZone: 'Australia/Sydney', timeZoneName: 'short' }).formatToParts(new Date()).find(p => p.type === 'timeZoneName')?.value || 'AEST';
+
+  // All-Weather AUTO — δ0.15 · 15w · 11:30 AM ET · TG 0.5h · 2×/1×
   const autoSide = 'auto'; // open bullish (above 200 SMA) → puts, bearish → calls
   return {
     Mon: {
       trades: [
-        { name: 'Weekly Spread', time: '2:00-2:15 AM', dte: '5DTE', delta: '\u0394 0.10', credit: '$1.00 min', contracts: wklyLabel, type: 'put' },
-        { name: '0DTE Auto', time: '2:30 AM', dte: '0DTE', delta: sweepDelta, credit: '$0.60 min', contracts: 'phase', type: autoSide },
+        { name: 'Weekly Spread', time: etRangeLocal(11, 11.25), dte: '5DTE', delta: '\u0394 0.10', credit: '$1.00 min', contracts: wklyLabel, type: 'put' },
+        { name: '0DTE Auto', time: etToLocal(11.5), dte: '0DTE', delta: sweepDelta, credit: '$0.60 min', contracts: 'phase', type: autoSide },
       ],
       rules: [
         `Open weekly put spread first (${wklyCt}ct)`,
@@ -2755,18 +2774,18 @@ function getPlaybook() {
         ...(stagger ? [sizeNote] : []),
       ].filter(Boolean),
       timing: [
-        { t: '2:00-2:15 AM', e: 'Enter weekly spread' },
-        { t: '2:15-2:30 AM', e: 'Pre-scan — check levels + direction' },
-        { t: '2:30 AM', e: '0DTE ENTRY (11:30 AM ET)' },
-        { t: '2:30-3:00 AM', e: '2× stop window (30min)' },
-        { t: '3:00-5:30 AM', e: 'Theta zone — 1× stop active' },
-        { t: '5:30-6:00 AM', e: 'Hard close all positions' },
+        { t: etRangeLocal(11, 11.25), e: 'Enter weekly spread' },
+        { t: etRangeLocal(11.25, 11.5), e: 'Pre-scan — check levels + direction' },
+        { t: etToLocal(11.5), e: '0DTE ENTRY (11:30 AM ET)' },
+        { t: etRangeLocal(11.5, 12), e: '2× stop window (30min)' },
+        { t: etRangeLocal(12, 15.5), e: 'Theta zone — 1× stop active' },
+        { t: etRangeLocal(15.5, 16), e: 'Hard close all positions' },
       ],
-      hardClose: '6:00 AM AEDT',
+      hardClose: etToLocal(16) + ' ' + localTz,
     },
     Tue: {
       trades: [
-        { name: '0DTE Auto', time: '2:30 AM', dte: '0DTE', delta: sweepDelta, credit: '$0.60 min', contracts: 'phase', type: autoSide },
+        { name: '0DTE Auto', time: etToLocal(11.5), dte: '0DTE', delta: sweepDelta, credit: '$0.60 min', contracts: 'phase', type: autoSide },
       ],
       rules: [
         'Read opening trend: bullish → puts, bearish → calls',
@@ -2776,17 +2795,17 @@ function getPlaybook() {
         ...(stagger ? [sizeNote] : []),
       ].filter(Boolean),
       timing: [
-        { t: '2:00-2:30 AM', e: 'Pre-scan — levels + direction' },
-        { t: '2:30 AM', e: '0DTE ENTRY (11:30 AM ET)' },
-        { t: '2:30-3:00 AM', e: '2× stop window (30min)' },
-        { t: '3:00-5:30 AM', e: 'Theta zone — 1× stop active' },
-        { t: '5:30-6:00 AM', e: 'Hard close all positions' },
+        { t: etRangeLocal(11, 11.5), e: 'Pre-scan — levels + direction' },
+        { t: etToLocal(11.5), e: '0DTE ENTRY (11:30 AM ET)' },
+        { t: etRangeLocal(11.5, 12), e: '2× stop window (30min)' },
+        { t: etRangeLocal(12, 15.5), e: 'Theta zone — 1× stop active' },
+        { t: etRangeLocal(15.5, 16), e: 'Hard close all positions' },
       ],
-      hardClose: '6:00 AM AEDT',
+      hardClose: etToLocal(16) + ' ' + localTz,
     },
     Wed: {
       trades: [
-        { name: '0DTE Auto', time: '2:30 AM', dte: '0DTE', delta: sweepDelta, credit: '$0.60 min', contracts: 'phase', type: autoSide },
+        { name: '0DTE Auto', time: etToLocal(11.5), dte: '0DTE', delta: sweepDelta, credit: '$0.60 min', contracts: 'phase', type: autoSide },
       ],
       rules: [
         ...(isFomcWeek ? ['FOMC day = NO TRADE'] : []),
@@ -2797,18 +2816,18 @@ function getPlaybook() {
         ...(stagger ? [sizeNote] : []),
       ].filter(Boolean),
       timing: [
-        { t: '2:00-2:30 AM', e: 'Pre-scan — levels + direction' },
-        { t: '2:30 AM', e: '0DTE ENTRY (11:30 AM ET)' },
-        { t: '2:30-3:00 AM', e: '2× stop window (30min)' },
-        { t: '3:00-5:00 AM', e: 'Theta zone — 1× stop active' },
-        { t: '5:00-5:30 AM', e: 'Hard close all positions' },
+        { t: etRangeLocal(11, 11.5), e: 'Pre-scan — levels + direction' },
+        { t: etToLocal(11.5), e: '0DTE ENTRY (11:30 AM ET)' },
+        { t: etRangeLocal(11.5, 12), e: '2× stop window (30min)' },
+        { t: etRangeLocal(12, 15.5), e: 'Theta zone — 1× stop active' },
+        { t: etRangeLocal(15.5, 16), e: 'Hard close all positions' },
       ],
-      hardClose: '5:30 AM AEDT',
+      hardClose: etToLocal(16) + ' ' + localTz,
     },
     Thu: {
       trades: [
         { name: 'Weekly Check', time: '-', dte: '5DTE', delta: '-', credit: '-', contracts: wklyLabel, type: 'check' },
-        { name: '0DTE Auto', time: '2:30 AM', dte: '0DTE', delta: sweepDelta, credit: '$0.60 min', contracts: 'phase', type: autoSide },
+        { name: '0DTE Auto', time: etToLocal(11.5), dte: '0DTE', delta: sweepDelta, credit: '$0.60 min', contracts: 'phase', type: autoSide },
       ],
       rules: [
         'Check weekly — roll or close if tested',
@@ -2818,19 +2837,19 @@ function getPlaybook() {
         ...(stagger ? [sizeNote] : []),
       ].filter(Boolean),
       timing: [
-        { t: '2:00-2:15 AM', e: 'Check weekly health' },
-        { t: '2:15-2:30 AM', e: 'Pre-scan — levels + direction' },
-        { t: '2:30 AM', e: '0DTE ENTRY (11:30 AM ET)' },
-        { t: '2:30-3:00 AM', e: '2× stop window (30min)' },
-        { t: '3:00-5:15 AM', e: 'Theta zone — 1× stop active' },
-        { t: '5:15-5:45 AM', e: 'Hard close all positions' },
+        { t: etRangeLocal(11, 11.25), e: 'Check weekly health' },
+        { t: etRangeLocal(11.25, 11.5), e: 'Pre-scan — levels + direction' },
+        { t: etToLocal(11.5), e: '0DTE ENTRY (11:30 AM ET)' },
+        { t: etRangeLocal(11.5, 12), e: '2× stop window (30min)' },
+        { t: etRangeLocal(12, 15.5), e: 'Theta zone — 1× stop active' },
+        { t: etRangeLocal(15.5, 16), e: 'Hard close all positions' },
       ],
-      hardClose: '5:45 AM AEDT',
+      hardClose: etToLocal(16) + ' ' + localTz,
     },
     Fri: {
       trades: [
         { name: 'Close Weekly', time: '-', dte: '5DTE', delta: '-', credit: '-', contracts: wklyLabel, type: 'close' },
-        { name: '0DTE Auto (careful)', time: '2:30 AM', dte: '0DTE', delta: sweepDelta, credit: '$0.60 min', contracts: 'phase', type: autoSide },
+        { name: '0DTE Auto (careful)', time: etToLocal(11.5), dte: '0DTE', delta: sweepDelta, credit: '$0.60 min', contracts: 'phase', type: autoSide },
       ],
       rules: [
         'Close weekly first',
@@ -2841,14 +2860,14 @@ function getPlaybook() {
         ...(stagger ? [sizeNote] : []),
       ].filter(Boolean),
       timing: [
-        { t: '2:00-2:15 AM', e: 'Close weekly spread' },
-        { t: '2:15-2:30 AM', e: 'Pre-scan — levels + direction' },
-        { t: '2:30 AM', e: '0DTE ENTRY (11:30 AM ET)' },
-        { t: '2:30-3:00 AM', e: '2× stop window (30min)' },
-        { t: '3:00-5:00 AM', e: 'Theta zone — 1× stop active' },
-        { t: '5:00-5:30 AM', e: 'Hard close — protect weekly P&L' },
+        { t: etRangeLocal(11, 11.25), e: 'Close weekly spread' },
+        { t: etRangeLocal(11.25, 11.5), e: 'Pre-scan — levels + direction' },
+        { t: etToLocal(11.5), e: '0DTE ENTRY (11:30 AM ET)' },
+        { t: etRangeLocal(11.5, 12), e: '2× stop window (30min)' },
+        { t: etRangeLocal(12, 15.5), e: 'Theta zone — 1× stop active' },
+        { t: etRangeLocal(15.5, 16), e: 'Hard close — protect weekly P&L' },
       ],
-      hardClose: '5:30 AM AEDT',
+      hardClose: etToLocal(16) + ' ' + localTz,
     },
   };
 }
@@ -2942,7 +2961,7 @@ function renderPlaybook() {
           ${day.rules.map(r => '<div style="padding:3px 0;font-size:11px;color:var(--textMid);border-bottom:1px solid var(--border)">\u2022 ' + r + '</div>').join('')}` : ''}
         </div>
         <div style="flex:0 0 250px;border-left:1px solid var(--border);padding-left:12px">
-          <div class="label" style="margin-bottom:6px">\u23F0 TODAY'S ENTRY WINDOWS <span style="font-size:9px;color:var(--textDim)">(AEDT)</span></div>
+          <div class="label" style="margin-bottom:6px">\u23F0 TODAY'S ENTRY WINDOWS <span style="font-size:9px;color:var(--textDim)">(${localTz})</span></div>
           ${(day.timing||[]).map(ti => {
             const el = ti.e.toLowerCase();
             const isEntry = el.includes('entry');
@@ -3141,14 +3160,14 @@ function getEventsForDate(year, month, day) {
   // FOMC
   FOMC_DATES_2026.forEach(f => {
     if (year === 2026 && f[0] === month && f[1] === day) {
-      events.push({ name: 'FOMC Rate Decision', impact: 'high', time: '4:00 AM AEDT', tradingNote: 'NO TRADE day. 50% size all FOMC week.' });
+      events.push({ name: 'FOMC Rate Decision', impact: 'high', time: '4:00 AM ' + LOCAL_TZ, tradingNote: 'NO TRADE day. 50% size all FOMC week.' });
     }
   });
 
   // FOMC minutes
   FOMC_MINUTES_2026.forEach(f => {
     if (year === 2026 && f[0] === month && f[1] === day) {
-      events.push({ name: 'FOMC Minutes Release', impact: 'high', time: '4:00 AM AEDT', tradingNote: 'Reduced size. Close before release.' });
+      events.push({ name: 'FOMC Minutes Release', impact: 'high', time: '4:00 AM ' + LOCAL_TZ, tradingNote: 'Reduced size. Close before release.' });
     }
   });
 
@@ -3170,7 +3189,7 @@ function getEventsForDate(year, month, day) {
     if (match) {
       // Avoid duplicating FOMC if already added from fixed dates
       if (evt.name.includes('FOMC')) return;
-      events.push({ name: evt.name, impact: evt.impact, time: evt.time + ' AEDT', tradingNote: evt.tradingNote || '' });
+      events.push({ name: evt.name, impact: evt.impact, time: evt.time + ' ' + LOCAL_TZ, tradingNote: evt.tradingNote || '' });
     }
   });
 
