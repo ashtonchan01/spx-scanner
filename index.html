@@ -1663,14 +1663,14 @@ function drawLiveChart() {
     ctx.fillText(last.c.toFixed(2), W - 8, yLast + 4);
   }
 
-  // Update header — price always, change only on daily
+  // Update header — price + today's change (from previous close)
   if (last) {
     document.getElementById('chartPrice').textContent = last.c.toFixed(2);
     const chEl = document.getElementById('chartChange');
-    if (chartTf === '1d' && candles.length >= 2) {
-      const prev = candles[candles.length - 2];
-      const change = last.c - prev.c;
-      const changePct = (change / prev.c * 100);
+    const prevClose = state.prevClose || state.spxOpen;
+    if (prevClose) {
+      const change = last.c - prevClose;
+      const changePct = (change / prevClose * 100);
       chEl.textContent = `${change >= 0 ? '+' : ''}${change.toFixed(2)} (${changePct >= 0 ? '+' : ''}${changePct.toFixed(2)}%)`;
       chEl.style.color = change >= 0 ? 'var(--green)' : 'var(--red)';
     } else {
