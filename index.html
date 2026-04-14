@@ -2961,7 +2961,7 @@ function renderPlaybook() {
           ${day.rules.map(r => '<div style="padding:3px 0;font-size:11px;color:var(--textMid);border-bottom:1px solid var(--border)">\u2022 ' + r + '</div>').join('')}` : ''}
         </div>
         <div style="flex:0 0 250px;border-left:1px solid var(--border);padding-left:12px">
-          <div class="label" style="margin-bottom:6px">\u23F0 TODAY'S ENTRY WINDOWS <span style="font-size:9px;color:var(--textDim)">(${localTz})</span></div>
+          <div class="label" style="margin-bottom:6px">\u23F0 TODAY'S ENTRY WINDOWS <span style="font-size:9px;color:var(--textDim)">(${LOCAL_TZ})</span></div>
           ${(day.timing||[]).map(ti => {
             const el = ti.e.toLowerCase();
             const isEntry = el.includes('entry');
