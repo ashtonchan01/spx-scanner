@@ -298,6 +298,7 @@ input, select, button, textarea { font-family: 'IBM Plex Mono', monospace; outli
   <button class="tab-btn" data-tab="phases" onclick="switchTab('phases')">PHASES</button>
   <button class="tab-btn" data-tab="log" onclick="switchTab('log')">LOG TRADES</button>
   <button class="tab-btn" data-tab="settings" onclick="switchTab('settings')">SETTINGS</button>
+  <button class="tab-btn" data-tab="backtest" onclick="switchTab('backtest')">BACKTEST</button>
 </div>
 
 <!-- ============================================================ -->
@@ -651,6 +652,126 @@ input, select, button, textarea { font-family: 'IBM Plex Mono', monospace; outli
     <button class="btn" style="border-color:var(--red);color:var(--red);font-size:12px;padding:10px 20px;font-weight:700" onclick="resetAllData()">RESET ALL DATA</button>
   </div>
 </div>
+
+<!-- ============================================================ -->
+<!-- TAB: BACKTEST -->
+<!-- ============================================================ -->
+<div id="tab-backtest" class="tab-content">
+
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+    <div>
+      <div class="chakra" style="font-size:22px;font-weight:700;color:var(--white)">BACKTEST</div>
+      <div style="font-size:10px;color:var(--textDim);margin-top:2px;letter-spacing:1.5px">ATM PUT SPREAD &middot; NEXT MONDAY EXPIRY &middot; BSM PRICING &middot; SPX OPEN AS ENTRY SPOT</div>
+    </div>
+  </div>
+
+  <!-- Input panel -->
+  <div class="panel" style="padding:16px;margin-bottom:12px">
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:12px">
+      <div class="form-group">
+        <label>FROM</label>
+        <input type="date" id="bt-start" style="color-scheme:dark;width:100%;background:var(--panelAlt);border:1px solid var(--borderBright);color:var(--white);padding:8px 10px;font-size:12px;font-family:'IBM Plex Mono',monospace">
+      </div>
+      <div class="form-group">
+        <label>TO</label>
+        <input type="date" id="bt-end" style="color-scheme:dark;width:100%;background:var(--panelAlt);border:1px solid var(--borderBright);color:var(--white);padding:8px 10px;font-size:12px;font-family:'IBM Plex Mono',monospace">
+      </div>
+      <div class="form-group">
+        <label>STARTING CAPITAL ($)</label>
+        <input type="number" id="bt-capital" value="100000" style="width:100%;background:var(--panelAlt);border:1px solid var(--borderBright);color:var(--white);padding:8px 10px;font-size:13px;font-weight:700">
+      </div>
+      <div class="form-group">
+        <label>STRATEGY</label>
+        <select id="bt-strategy" style="width:100%;background:var(--panelAlt);border:1px solid var(--borderBright);color:var(--white);padding:8px 10px;font-size:12px;cursor:pointer;height:38px" onchange="btStrategyChange()">
+          <option value="daily">Daily (Mon&ndash;Fri)</option>
+          <option value="monday">Mon Only (7DTE)</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>ENTRY TIME (ET)</label>
+        <select id="bt-entry-time" style="width:100%;background:var(--panelAlt);border:1px solid var(--borderBright);color:var(--white);padding:8px 10px;font-size:12px;cursor:pointer;height:38px">
+          <option value="9:30">9:30 AM (open)</option>
+          <option value="9:45" selected>9:45 AM &#9733;</option>
+          <option value="10:00">10:00 AM</option>
+          <option value="10:30">10:30 AM</option>
+          <option value="11:00">11:00 AM</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>CONTRACTS</label>
+        <select id="bt-contracts" style="width:100%;background:var(--panelAlt);border:1px solid var(--borderBright);color:var(--white);padding:8px 10px;font-size:12px;cursor:pointer;height:38px" onchange="btContractsChange()">
+          <option value="fixed">Fixed</option>
+          <option value="risk2pct">2% Risk Scaling (start 1ct)</option>
+          <option value="phase">Phase-Based (1 per $20k)</option>
+        </select>
+      </div>
+      <div class="form-group" id="bt-fixed-cts-group">
+        <label>FIXED CONTRACTS</label>
+        <input type="number" id="bt-fixed-cts" value="1" min="1" style="width:100%;background:var(--panelAlt);border:1px solid var(--borderBright);color:var(--white);padding:8px 10px;font-size:13px;font-weight:700">
+      </div>
+    </div>
+    <div style="background:var(--panelAlt);border:1px solid var(--border);border-left:3px solid var(--gold);padding:8px 12px;margin-bottom:12px;font-size:10px;color:var(--textMid);line-height:1.6">
+      <span style="color:var(--gold);font-weight:700">METHODOLOGY:</span>
+      Short ATM put (nearest 5pt) + long ATM&minus;5 put &mdash; expiry next Monday AM settlement (open).
+      Credit priced with BSM using entry-day VIX as IV and calendar DTE/365 as T.
+      No intraday stop &mdash; held to Monday open.
+      <span id="bt-risk-note" style="color:var(--cyan)"> &middot; 2% risk: max(1, &lfloor;capital &times; 2% &divide; $500&rfloor;) contracts.</span>
+    </div>
+    <div style="display:flex;gap:10px;align-items:center">
+      <button onclick="runBacktest()" style="padding:10px 28px;background:rgba(0,229,255,0.08);border:1px solid var(--cyan);color:var(--cyan);font-size:11px;font-weight:700;letter-spacing:2px;cursor:pointer;font-family:'IBM Plex Mono',monospace;transition:all 0.15s" onmouseover="this.style.background='rgba(0,229,255,0.18)'" onmouseout="this.style.background='rgba(0,229,255,0.08)'">&#9654; RUN BACKTEST</button>
+      <div id="bt-status" style="font-size:10px;color:var(--textDim);font-family:'IBM Plex Mono',monospace"></div>
+    </div>
+  </div>
+
+  <!-- Results (hidden until run) -->
+  <div id="bt-results" style="display:none">
+
+    <!-- Summary stat cards -->
+    <div id="bt-summary" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin-bottom:12px"></div>
+
+    <!-- Monthly P&L + Win Rate by DTE -->
+    <div style="display:grid;grid-template-columns:2fr 1fr;gap:12px;margin-bottom:12px">
+      <div class="panel" style="padding:16px">
+        <div style="font-size:9px;color:var(--textDim);letter-spacing:1.5px;margin-bottom:10px">MONTHLY P&amp;L + OUTCOMES</div>
+        <div id="bt-monthly" style="overflow-y:auto;max-height:420px"></div>
+      </div>
+      <div class="panel" style="padding:16px" id="bt-dte-panel">
+        <div style="font-size:9px;color:var(--textDim);letter-spacing:1.5px;margin-bottom:10px">WIN RATE BY DTE</div>
+        <div id="bt-dte-breakdown"></div>
+      </div>
+    </div>
+
+    <!-- Trade log -->
+    <div class="panel" style="padding:16px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <div style="font-size:9px;color:var(--textDim);letter-spacing:1.5px">TRADE LOG</div>
+        <div style="font-size:9px;color:var(--textDim);font-family:'IBM Plex Mono',monospace" id="bt-log-count"></div>
+      </div>
+      <div style="overflow-x:auto">
+        <table class="trade-table" style="white-space:nowrap">
+          <thead>
+            <tr>
+              <th>DAY</th>
+              <th>ENTRY DATE</th>
+              <th>EXPIRY</th>
+              <th>DTE</th>
+              <th>SPOT</th>
+              <th>STRIKES</th>
+              <th>CREDIT</th>
+              <th>SETTLE</th>
+              <th>OUTCOME</th>
+              <th>CTS</th>
+              <th>P&amp;L</th>
+              <th>CAPITAL</th>
+            </tr>
+          </thead>
+          <tbody id="bt-log-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+  </div><!-- /bt-results -->
+</div><!-- /tab-backtest -->
 
 <!-- FOOTER -->
 <div style="margin-top:12px;text-align:center;font-size:8px;color:var(--textDim);letter-spacing:1px">
@@ -4410,6 +4531,297 @@ function renderAnalysis() {
     ts.textContent = 'Last updated: ' + state.lastUpdated;
   }
 
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// BACKTEST ENGINE — ATM PUT SPREAD · NEXT MONDAY EXPIRY
+// ══════════════════════════════════════════════════════════════════════════════
+
+// Initialise date pickers from HIST_DATA bounds
+(function() {
+  const s = document.getElementById('bt-start');
+  const e = document.getElementById('bt-end');
+  if (s && e && HIST_DATA.length) {
+    s.value = HIST_DATA[0][0];
+    e.value = HIST_DATA[HIST_DATA.length - 1][0];
+  }
+})();
+
+function btContractsChange() {
+  const v = document.getElementById('bt-contracts').value;
+  const fg = document.getElementById('bt-fixed-cts-group');
+  const note = document.getElementById('bt-risk-note');
+  if (fg) fg.style.display = v === 'fixed' ? '' : 'none';
+  if (note) note.style.display = v === 'risk2pct' ? '' : 'none';
+}
+
+function btStrategyChange() {
+  // DTE panel visibility is controlled after a run; nothing to do pre-run
+}
+
+function runBacktest() {
+  const startDate = document.getElementById('bt-start').value;
+  const endDate   = document.getElementById('bt-end').value;
+  const startCap  = parseFloat(document.getElementById('bt-capital').value) || 100000;
+  const ctMode    = document.getElementById('bt-contracts').value;
+  const fixedCts  = parseInt(document.getElementById('bt-fixed-cts').value) || 1;
+  const strategy  = document.getElementById('bt-strategy').value;
+  const statusEl  = document.getElementById('bt-status');
+
+  if (!startDate || !endDate) { statusEl.textContent = 'Select a date range.'; return; }
+
+  statusEl.textContent = 'Running…';
+
+  // Build O(1) date lookup: "YYYY-MM-DD" → row
+  const byDate = {};
+  HIST_DATA.forEach(r => { byDate[r[0]] = r; });
+
+  const rows = HIST_DATA.filter(r => r[0] >= startDate && r[0] <= endDate);
+  if (!rows.length) { statusEl.textContent = 'No trading days in range.'; return; }
+
+  const trades   = [];
+  let capital    = startCap;
+  let peak       = startCap;
+  let maxDD      = 0;
+  const DAY_NAMES = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  // DTE map: dow→daysToNextMonday
+  // Mon=1→7, Tue=2→6, Wed=3→5, Thu=4→4, Fri=5→3
+  const DTE_MAP = { 1:7, 2:6, 3:5, 4:4, 5:3 };
+
+  for (const row of rows) {
+    const [date, open, , , , vix] = row;
+    const d   = new Date(date + 'T12:00:00Z');
+    const dow = d.getUTCDay();
+    if (dow === 0 || dow === 6) continue;
+    if (strategy === 'monday' && dow !== 1) continue;
+
+    const dte = DTE_MAP[dow];
+    if (!dte) continue;
+
+    // Expiry = entry date + dte calendar days
+    const expD = new Date(d);
+    expD.setUTCDate(expD.getUTCDate() + dte);
+    const expiryStr = expD.toISOString().slice(0, 10);
+
+    const expiryRow = byDate[expiryStr];
+    if (!expiryRow) continue; // holiday or beyond data
+
+    const S  = open;           // entry spot = open price
+    const iv = vix / 100;
+    const T  = dte / 365;      // calendar days fraction
+
+    // ATM short put = nearest 5-pt strike; long put = short − 5
+    const shortPut = Math.round(S / 5) * 5;
+    const longPut  = shortPut - 5;
+
+    // BSM credit for the 5-wide put spread
+    const credit = Math.max(0,
+      bsm(S, shortPut, T, 0.045, iv, 'put').price -
+      bsm(S, longPut,  T, 0.045, iv, 'put').price
+    );
+
+    // Settlement = Monday open (AM settlement proxy)
+    const settlement = expiryRow[1];
+
+    // Spread value at expiry: intrinsic of short − intrinsic of long
+    const spreadAtExpiry =
+      Math.max(0, shortPut - settlement) -
+      Math.max(0, longPut  - settlement);
+
+    const pnlPerShare = credit - spreadAtExpiry; // max +credit, min -(width-credit)
+    const pnlPerCt    = pnlPerShare * 100;        // SPX 100× multiplier
+
+    // Contract sizing
+    let cts;
+    if (ctMode === 'fixed') {
+      cts = fixedCts;
+    } else if (ctMode === 'risk2pct') {
+      // Risk unit = width × $100 = $500 per contract on 5-wide
+      cts = Math.max(1, Math.floor(capital * 0.02 / 500));
+    } else {
+      // Phase-based: 1 per $20k
+      cts = Math.max(1, Math.floor(capital / 20000));
+    }
+
+    const totalPnl = pnlPerCt * cts;
+    capital += totalPnl;
+    if (capital > peak) peak = capital;
+    const dd = peak > 0 ? (peak - capital) / peak * 100 : 0;
+    if (dd > maxDD) maxDD = dd;
+
+    const outcome =
+      settlement >= shortPut ? 'win' :
+      settlement <= longPut  ? 'max_loss' : 'partial';
+
+    trades.push({
+      date, expiryStr, day: DAY_NAMES[dow], dte,
+      spot: S, shortPut, longPut,
+      credit, settlement,
+      cts, pnlPerCt, totalPnl, capital, outcome
+    });
+  }
+
+  const nT   = trades.length;
+  const wins = trades.filter(t => t.outcome === 'win');
+  const loss = trades.filter(t => t.outcome !== 'win');
+  const nW   = wins.length;
+  const nP   = trades.filter(t => t.outcome === 'partial').length;
+  const nML  = trades.filter(t => t.outcome === 'max_loss').length;
+  const totPnl  = trades.reduce((s, t) => s + t.totalPnl, 0);
+  const avgWin  = nW > 0 ? wins.reduce((s,t) => s + t.totalPnl, 0) / nW : 0;
+  const avgLoss = loss.length > 0 ? loss.reduce((s,t) => s + t.totalPnl, 0) / loss.length : 0;
+  const winRate = nT > 0 ? nW / nT * 100 : 0;
+  const roi     = startCap > 0 ? totPnl / startCap * 100 : 0;
+
+  // Monthly breakdown
+  const monthly = {};
+  trades.forEach(t => {
+    const m = t.date.slice(0, 7);
+    if (!monthly[m]) monthly[m] = { pnl: 0, wins: 0, partials: 0, maxLosses: 0, total: 0 };
+    monthly[m].pnl += t.totalPnl;
+    monthly[m].total++;
+    if (t.outcome === 'win')      monthly[m].wins++;
+    else if (t.outcome === 'partial') monthly[m].partials++;
+    else                          monthly[m].maxLosses++;
+  });
+
+  // Win rate by DTE
+  const byDTE = {};
+  trades.forEach(t => {
+    if (!byDTE[t.dte]) byDTE[t.dte] = { wins: 0, total: 0, pnl: 0 };
+    byDTE[t.dte].total++;
+    byDTE[t.dte].pnl += t.totalPnl;
+    if (t.outcome === 'win') byDTE[t.dte].wins++;
+  });
+
+  statusEl.textContent = `${nT} trades · ${startDate} → ${endDate}`;
+
+  renderBacktestResults({
+    trades, nT, nW, nP, nML,
+    totPnl, avgWin, avgLoss, winRate, roi, maxDD,
+    monthly, byDTE, startCap, endCap: capital, strategy
+  });
+}
+
+function renderBacktestResults(r) {
+  document.getElementById('bt-results').style.display = '';
+
+  const fmtD  = v => (v >= 0 ? '+' : '−') + '$' + Math.abs(Math.round(v)).toLocaleString();
+  const fmtPct = v => (v >= 0 ? '+' : '') + v.toFixed(1) + '%';
+
+  // ── Summary cards ──────────────────────────────────────────────
+  const cards = [
+    { label: 'TRADES',      val: r.nT,                               color: 'var(--white)'  },
+    { label: 'WIN RATE',    val: r.winRate.toFixed(1) + '%',         color: r.winRate >= 80 ? 'var(--green)' : r.winRate >= 70 ? 'var(--gold)' : 'var(--red)' },
+    { label: 'TOTAL P&L',  val: fmtD(r.totPnl),                     color: r.totPnl  >= 0 ? 'var(--green)' : 'var(--red)' },
+    { label: 'ROI',         val: fmtPct(r.roi),                      color: r.roi     >= 0 ? 'var(--green)' : 'var(--red)' },
+    { label: 'MAX DRAWDOWN',val: '−' + r.maxDD.toFixed(1) + '%',color: r.maxDD > 20 ? 'var(--red)' : r.maxDD > 10 ? 'var(--gold)' : 'var(--green)' },
+    { label: 'END CAPITAL', val: '$' + Math.round(r.endCap).toLocaleString(), color: 'var(--cyan)' },
+    { label: 'FULL WINS',   val: r.nW + ' (' + (r.nT > 0 ? (r.nW/r.nT*100).toFixed(0) : 0) + '%)', color: 'var(--green)' },
+    { label: 'PARTIAL',     val: r.nP,                               color: 'var(--gold)'  },
+    { label: 'MAX LOSS',    val: r.nML,                              color: 'var(--red)'   },
+    { label: 'AVG WIN',     val: fmtD(r.avgWin),                     color: 'var(--green)' },
+    { label: 'AVG LOSS',    val: fmtD(r.avgLoss),                    color: 'var(--red)'   },
+  ];
+  document.getElementById('bt-summary').innerHTML = cards.map(c =>
+    `<div style="background:var(--panelAlt);border:1px solid var(--border);padding:12px 14px">
+      <div style="font-size:9px;color:var(--textDim);letter-spacing:1.5px;margin-bottom:4px">${c.label}</div>
+      <div class="chakra" style="font-size:18px;font-weight:700;color:${c.color}">${c.val}</div>
+    </div>`
+  ).join('');
+
+  // ── Monthly P&L table ──────────────────────────────────────────
+  const months = Object.keys(r.monthly).sort();
+  document.getElementById('bt-monthly').innerHTML = `
+    <table class="trade-table" style="width:100%">
+      <thead><tr>
+        <th>MONTH</th>
+        <th style="text-align:right">P&amp;L</th>
+        <th style="text-align:center">WIN</th>
+        <th style="text-align:center">PART</th>
+        <th style="text-align:center">LOSS</th>
+        <th style="text-align:center">N</th>
+        <th style="text-align:right">WR</th>
+      </tr></thead>
+      <tbody>
+        ${months.map(m => {
+          const mo = r.monthly[m];
+          const wr = mo.total > 0 ? (mo.wins / mo.total * 100).toFixed(0) : 0;
+          const [yr, mn] = m.split('-');
+          const mName = new Date(+yr, +mn - 1, 1).toLocaleString('en-US', { month: 'short' });
+          const pC = mo.pnl >= 0 ? 'var(--green)' : 'var(--red)';
+          const wC = +wr >= 80 ? 'var(--green)' : +wr >= 70 ? 'var(--gold)' : 'var(--red)';
+          return `<tr>
+            <td style="font-family:'IBM Plex Mono',monospace;font-size:11px">${mName} ${yr}</td>
+            <td style="text-align:right;color:${pC};font-family:'Chakra Petch',sans-serif;font-weight:700">${mo.pnl>=0?'+':'−'}$${Math.abs(Math.round(mo.pnl)).toLocaleString()}</td>
+            <td style="text-align:center;color:var(--green)">${mo.wins}</td>
+            <td style="text-align:center;color:var(--gold)">${mo.partials}</td>
+            <td style="text-align:center;color:var(--red)">${mo.maxLosses}</td>
+            <td style="text-align:center;color:var(--textDim)">${mo.total}</td>
+            <td style="text-align:right;color:${wC};font-weight:700">${wr}%</td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table>`;
+
+  // ── Win Rate by DTE ────────────────────────────────────────────
+  const ENTRY_DAY = { 3:'Fri', 4:'Thu', 5:'Wed', 6:'Tue', 7:'Mon' };
+  const dtes      = Object.keys(r.byDTE).map(Number).sort((a,b) => a-b);
+  const dtePanelEl = document.getElementById('bt-dte-panel');
+  if (r.strategy === 'monday' || dtes.length <= 1) {
+    dtePanelEl.style.display = 'none';
+  } else {
+    dtePanelEl.style.display = '';
+    document.getElementById('bt-dte-breakdown').innerHTML = `
+      <table class="trade-table" style="width:100%">
+        <thead><tr>
+          <th>DTE</th>
+          <th>ENTRY</th>
+          <th style="text-align:right">WR</th>
+          <th style="text-align:right">N</th>
+          <th style="text-align:right">P&amp;L</th>
+        </tr></thead>
+        <tbody>
+          ${dtes.map(dte => {
+            const d  = r.byDTE[dte];
+            const wr = d.total > 0 ? (d.wins / d.total * 100).toFixed(1) : '0.0';
+            const wC = +wr >= 80 ? 'var(--green)' : +wr >= 70 ? 'var(--gold)' : 'var(--red)';
+            const pC = d.pnl >= 0 ? 'var(--green)' : 'var(--red)';
+            return `<tr>
+              <td><span class="chakra" style="font-size:15px;font-weight:700;color:var(--cyan)">${dte}</span></td>
+              <td style="color:var(--textMid)">${ENTRY_DAY[dte] || '?'}</td>
+              <td style="text-align:right;color:${wC};font-weight:700">${wr}%</td>
+              <td style="text-align:right;color:var(--textDim)">${d.total}</td>
+              <td style="text-align:right;color:${pC}">${d.pnl>=0?'+':'−'}$${Math.abs(Math.round(d.pnl)).toLocaleString()}</td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>`;
+  }
+
+  // ── Trade log ──────────────────────────────────────────────────
+  document.getElementById('bt-log-count').textContent = r.nT + ' trades';
+  const OC = { win:'var(--green)', partial:'var(--gold)', max_loss:'var(--red)' };
+  const OL = { win:'FULL WIN',    partial:'PARTIAL',     max_loss:'MAX LOSS'  };
+  document.getElementById('bt-log-body').innerHTML = r.trades.map(t => {
+    const c   = OC[t.outcome];
+    const pC  = t.totalPnl >= 0 ? 'var(--green)' : 'var(--red)';
+    const capC = t.capital >= t.capital ? 'var(--textMid)' : 'var(--red)'; // always textMid; colour via pnl
+    return `<tr>
+      <td style="color:var(--gold);font-weight:700;font-family:'Chakra Petch',sans-serif">${t.day}</td>
+      <td style="font-family:'IBM Plex Mono',monospace;font-size:11px">${t.date}</td>
+      <td style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--textMid)">${t.expiryStr}</td>
+      <td style="text-align:center;color:var(--cyan);font-family:'Chakra Petch',sans-serif;font-weight:700">${t.dte}</td>
+      <td style="font-family:'Chakra Petch',sans-serif">${Math.round(t.spot).toLocaleString()}</td>
+      <td style="font-size:11px;color:var(--textMid);font-family:'IBM Plex Mono',monospace">${t.shortPut}/${t.longPut}</td>
+      <td style="color:var(--green);font-family:'Chakra Petch',sans-serif">$${t.credit.toFixed(2)}</td>
+      <td style="font-family:'Chakra Petch',sans-serif">${Math.round(t.settlement).toLocaleString()}</td>
+      <td style="color:${c};font-weight:700;font-size:10px;letter-spacing:0.5px">${OL[t.outcome]}</td>
+      <td style="text-align:center">${t.cts}</td>
+      <td style="color:${pC};font-family:'Chakra Petch',sans-serif;font-weight:700">${t.totalPnl>=0?'+':'−'}$${Math.abs(Math.round(t.totalPnl)).toLocaleString()}</td>
+      <td style="font-family:'Chakra Petch',sans-serif;color:var(--textMid)">$${Math.round(t.capital).toLocaleString()}</td>
+    </tr>`;
+  }).join('');
 }
 
 </script>
