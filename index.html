@@ -952,28 +952,28 @@ const PHASE_DETAILS = {
 
 const PHASE_MILESTONES = {
   1: [
-    { capital: 10000,  month: 0,  cts: 1,  income: 300,  note: 'Start — 1ct minimum' },
-    { capital: 20000,  month: 8,  cts: 1,  income: 300,  note: 'On track' },
-    { capital: 35000,  month: 19, cts: 1,  income: 300,  note: 'Halfway there' },
-    { capital: 50000,  month: 32, cts: 2,  income: 600,  note: 'Graduate to Phase 2' },
+    { capital: 10000,  month: 0,  cts: 1,  income: 260,  note: 'Start — 1ct minimum' },
+    { capital: 20000,  month: 10, cts: 1,  income: 260,  note: 'On track' },
+    { capital: 35000,  month: 23, cts: 1,  income: 260,  note: 'Halfway there' },
+    { capital: 50000,  month: 36, cts: 2,  income: 520,  note: 'Graduate to Phase 2' },
   ],
   2: [
-    { capital: 50000,  month: 0,  cts: 2,  income: 600,  note: 'Start Phase 2' },
-    { capital: 100000, month: 16, cts: 4,  income: 1200, note: '+2 contracts' },
-    { capital: 150000, month: 25, cts: 6,  income: 1800, note: '+2 contracts' },
-    { capital: 200000, month: 31, cts: 8,  income: 2400, note: 'Graduate to Phase 3' },
+    { capital: 50000,  month: 0,  cts: 2,  income: 520,  note: 'Start Phase 2' },
+    { capital: 100000, month: 18, cts: 4,  income: 1040, note: '+2 contracts' },
+    { capital: 150000, month: 29, cts: 6,  income: 1560, note: '+2 contracts' },
+    { capital: 200000, month: 37, cts: 8,  income: 2080, note: 'Graduate to Phase 3' },
   ],
   3: [
-    { capital: 200000, month: 0,  cts: 8,  income: 2400, note: 'Start Phase 3' },
-    { capital: 300000, month: 8,  cts: 12, income: 3600, note: '+4 contracts' },
-    { capital: 450000, month: 16, cts: 18, income: 5400, note: '+6 contracts' },
-    { capital: 600000, month: 22, cts: 24, income: 7200, note: 'Graduate to Phase 4' },
+    { capital: 200000, month: 0,  cts: 8,  income: 2080, note: 'Start Phase 3' },
+    { capital: 300000, month: 9,  cts: 12, income: 3120, note: '+4 contracts' },
+    { capital: 450000, month: 18, cts: 18, income: 4680, note: '+6 contracts' },
+    { capital: 600000, month: 25, cts: 24, income: 6240, note: 'Graduate to Phase 4' },
   ],
   4: [
-    { capital: 600000,  month: 0,  cts: 24, income: 7200,  note: 'Start Phase 4' },
-    { capital: 750000,  month: 3,  cts: 30, income: 9000,  note: '+6 contracts' },
-    { capital: 900000,  month: 7,  cts: 36, income: 10800, note: '+6 contracts' },
-    { capital: 1000000, month: 10, cts: 40, income: 12000, note: 'THE MACHINE' },
+    { capital: 600000,  month: 0,  cts: 24, income: 6240,  note: 'Start Phase 4' },
+    { capital: 750000,  month: 4,  cts: 30, income: 7800,  note: '+6 contracts' },
+    { capital: 900000,  month: 7,  cts: 36, income: 9360,  note: '+6 contracts' },
+    { capital: 1000000, month: 11, cts: 40, income: 10400, note: 'THE MACHINE' },
   ],
 };
 
@@ -4058,9 +4058,9 @@ function renderTradeHistory() {
 function projectGrowth(startCapital, _unused1, _unused2, winRate, years) {
   winRate = winRate || 0.85;
   years = years || 12;
-  // ATM put spread model: ~$1.50 avg credit, 5-wide · $150 win / $350 loss per contract
+  // ATM put spread model: ~$2.50 avg credit, 5-wide · $250 win / $250 loss per contract (1:1)
   // Contracts = floor(capital × 2% / $500) = floor(capital / 25000), 4 trading days/week
-  const WIN_PER_CT = 150, LOSS_PER_CT = 350, TRADES_PER_WEEK = 4;
+  const WIN_PER_CT = 250, LOSS_PER_CT = 250, TRADES_PER_WEEK = 4;
   const data = [{week:0, capital:startCapital}];
   let capital = startCapital;
   for (let w = 1; w <= years*52; w++) {
@@ -4266,8 +4266,8 @@ function renderSensitivity() {
   const currentCap = traderData.currentCapital || 10000;
   const contracts = Math.max(1, Math.floor(currentCap / 25000));
   const TRADES_PER_WEEK = 4;
-  const WIN_PER_CT = 150, LOSS_PER_CT = 350;
-  // Breakeven WR = 400/(400+100) = 80.0% — this table shows the reality of the edge
+  const WIN_PER_CT = 250, LOSS_PER_CT = 250;
+  // Breakeven WR = 250/(250+250) = 50.0% — 1:1 risk/reward at $2.50 credit on 5-wide ATM
 
   const rows = [0.75, 0.80, 0.83, 0.85, 0.87, 0.90].map(wr => {
     const weeklyPnL = contracts * TRADES_PER_WEEK * (wr * WIN_PER_CT - (1 - wr) * LOSS_PER_CT);
