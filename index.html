@@ -2193,7 +2193,7 @@ function scan() {
       const tooLow    = hasTarget && pf < row.creditRange[0];
       const creditStatus = inRange ? 'var(--green)' : tooLow ? 'var(--gold)' : 'var(--cyan)';
       const creditIcon   = inRange ? '\u2713 IN RANGE' : tooLow ? '\u25BC BELOW TGT' : '\u25B2 ABOVE TGT';
-      return `<div style="display:grid;grid-template-columns:${cols};padding:9px 16px;background:${isRec?`color-mix(in srgb, ${activeColor} 5%, transparent)`:i%2===0?'var(--panelAlt)`:'var(--panel)'};border-left:${isRec?`3px solid ${activeColor}`:`3px solid transparent`};border-bottom:1px solid var(--border);align-items:center">
+      return `<div style="display:grid;grid-template-columns:${cols};padding:9px 16px;background:${isRec?`color-mix(in srgb, ${activeColor} 5%, transparent)`:i%2===0?'var(--panelAlt)':'var(--panel)'};border-left:${isRec?`3px solid ${activeColor}`:`3px solid transparent`};border-bottom:1px solid var(--border);align-items:center">
         <div style="font-size:13px;color:${isRec?activeColor:'var(--textMid)'};font-weight:${isRec?700:400}">\u0394${row.label}</div>
         <div style="font-size:10px;color:${isRec?activeColor:'var(--textDim)'}">${isRec?'\u25C0 ATM\u2605':row.tag}${hasTarget?`<div style="font-size:8px;color:${creditStatus};margin-top:1px">${creditIcon}</div>`:''}</div>
         <div style="font-size:13px;color:var(--white);font-weight:600">${row.sP}</div>
