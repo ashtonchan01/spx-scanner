@@ -803,14 +803,14 @@ const PHASE_DETAILS = {
     subtitle: 'Prove Consistency at Scale',
     range: '$100,000 → $150,000',
     timeline: '~21 months',
-    sizing: { contracts: '5ct start → 7ct at $140k (+1 per $20k)', perTrade: '$100 credit / $400 max loss per contract (5-wide, Δ0.15)', maxRisk: '2% of portfolio ($2,000 at start)', margin: '~$400/ct held — $2,000–$2,800 per trade' },
+    sizing: { contracts: '4ct at $100k → 6ct at $150k (+1 per $25k, 2% risk)', perTrade: 'ATM put spread · credit varies with VIX/DTE · max risk = $500 − credit×100/ct', maxRisk: '2% of portfolio ($2,000–$3,000)', margin: '~$500/ct held — $2,000–$3,000 per trade' },
     weeklyPlan: {
-      target: '$500–$700/week at 85% WR (4 trading days)',
-      Mon: 'Premarket bias check — confirm regime or sit out',
-      Tue: '0DTE morning (Δ0.15, 5-wide, $1.00+ credit) — primary day',
-      Wed: '0DTE morning if A+ setup — hard skip on FOMC days',
-      Thu: '0DTE morning with clear directional bias confirmed',
-      Fri: 'Skip or 50% size — pin risk is real on weekly expiry',
+      target: '4–6ct · ~$500–$700/week (hold Mon–Thu, SKIP Fri)',
+      Mon: '7DTE — best credit day; enter 9:45 AM ET · full 4ct',
+      Tue: '6DTE — standard entry 9:45 AM ET · full size',
+      Wed: '5DTE — FOMC/CPI day: SKIP (no exceptions in Phase 1)',
+      Thu: '4DTE — enter if VIX < 25, otherwise sit out',
+      Fri: 'SKIP Phase 1 — 3DTE gap risk over weekend is too high at this size',
     },
     rules: [
       'Hard cap: 2% daily risk (floor(capital / $20k) contracts × $400)',
@@ -837,14 +837,14 @@ const PHASE_DETAILS = {
     subtitle: 'Scale With the Same Discipline',
     range: '$150,000 → $300,000',
     timeline: '~34 months (~55 months cumulative)',
-    sizing: { contracts: '7ct at $150k → 15ct at $300k (+1 per $20k)', perTrade: '$100 credit / $400 max loss per contract', maxRisk: '2% of portfolio ($3,000–$6,000)', margin: 'Monitor margin utilization < 50%' },
+    sizing: { contracts: '6ct at $150k → 12ct at $300k (+1 per $25k, 2% risk)', perTrade: 'ATM put spread · credit varies with VIX/DTE · max risk = $500 − credit×100/ct', maxRisk: '2% of portfolio ($3,000–$6,000)', margin: 'Monitor margin utilization < 50%' },
     weeklyPlan: {
-      target: '$700–$1,500/week at 85% WR (4 trading days)',
-      Mon: 'Premarket regime check — size to 75% on unclear days',
-      Tue: '0DTE morning (Δ0.15, 5-wide) — full size if A+',
-      Wed: '0DTE morning if A+ — FOMC week: 50% size or skip',
-      Thu: '0DTE morning with confirmed directional bias only',
-      Fri: 'Skip or 50% size — protect weekly gains',
+      target: '6–12ct · ~$700–$1,500/week (Mon–Fri, cautious Fri)',
+      Mon: '7DTE full premium — anchor trade of the week · full size',
+      Tue: '6DTE — standard entry 9:45 AM ET · full size',
+      Wed: '5DTE — FOMC week: 50% size or skip',
+      Thu: '4DTE — enter if VIX < 25',
+      Fri: '3DTE — 50% size max; gap risk over weekend',
     },
     rules: [
       '2% rule is now $3,000–$6,000/day — respect it, don\'t stretch it',
@@ -871,14 +871,14 @@ const PHASE_DETAILS = {
     subtitle: 'Real Capital, Institutional Discipline',
     range: '$300,000 → $600,000',
     timeline: '~30 months (~85 months cumulative)',
-    sizing: { contracts: '15ct at $300k → 30ct at $600k (+1 per $20k)', perTrade: '$100 credit / $400 max loss per contract', maxRisk: '2% of portfolio ($6,000–$12,000)', margin: 'Monitor margin utilization < 40%' },
+    sizing: { contracts: '12ct at $300k → 24ct at $600k (+1 per $25k, 2% risk)', perTrade: 'ATM put spread · credit varies with VIX/DTE · max risk = $500 − credit×100/ct', maxRisk: '2% of portfolio ($6,000–$12,000)', margin: 'Monitor margin utilization < 40%' },
     weeklyPlan: {
-      target: '$1,500–$3,000/week at 85% WR (4 trading days)',
-      Mon: 'Regime + vol check — size to 60% on any uncertainty',
-      Tue: '0DTE morning (Δ0.15, 5-wide) — bread and butter, full size',
-      Wed: '0DTE morning if A+ — FOMC / CPI week: 50% or skip entirely',
-      Thu: '0DTE morning with confirmed bias only — no guessing at this size',
-      Fri: 'Skip or 30% size — protecting $1,500+ weekly gain takes priority',
+      target: '12–24ct · ~$1,500–$3,000/week (Mon–Fri)',
+      Mon: '7DTE full size — best credit day, anchor of the week',
+      Tue: '6DTE full size',
+      Wed: '5DTE — FOMC/CPI week: 30% size or skip entirely',
+      Thu: '4DTE — full size VIX < 25, 50% if higher',
+      Fri: '3DTE — 50% size max · $12k max loss day, gap risk is real',
     },
     rules: [
       '2% rule is now $6,000–$12,000/day — this is real risk, treat it like it',
@@ -905,14 +905,14 @@ const PHASE_DETAILS = {
     subtitle: 'Wealth Generation Engine',
     range: '$600,000 → $1,000,000',
     timeline: '~24 months (~109 months cumulative / ~9 years from $100k)',
-    sizing: { contracts: '30ct at $600k → 50ct at $1M (+1 per $20k)', perTrade: '$100 credit / $400 max loss per contract', maxRisk: '2% of portfolio ($12,000–$20,000)', margin: 'Monitor margin utilization < 35%; split across 2 brokers' },
+    sizing: { contracts: '24ct at $600k → 40ct at $1M (+1 per $25k, 2% risk)', perTrade: 'ATM put spread · credit varies with VIX/DTE · max risk = $500 − credit×100/ct', maxRisk: '2% of portfolio ($12,000–$20,000)', margin: 'Monitor margin utilization < 35%; split across 2 brokers' },
     weeklyPlan: {
-      target: '$3,000–$5,000/week at 85% WR (4 trading days)',
-      Mon: 'Premarket regime + macro calendar — 50% size on any ambiguity',
-      Tue: '0DTE morning (Δ0.15, 5-wide) — full size if A+ confirmed',
-      Wed: '0DTE if A+ — FOMC week: skip or 30% size maximum',
-      Thu: '0DTE with confirmed directional bias — no coin-flip trades at this size',
-      Fri: 'Skip entirely or 25% size — protecting $3k+ weekly P&L is the job',
+      target: '24–40ct · ~$3,000–$5,000/week (Mon–Fri)',
+      Mon: '7DTE full size — anchor trade of the week',
+      Tue: '6DTE full size',
+      Wed: '5DTE — FOMC week: SKIP or 25% max',
+      Thu: '4DTE — 75% size on ambiguous macro days',
+      Fri: 'SKIP or 25% max — protecting $3k+ weekly gain is the job',
     },
     rules: [
       '2% rule is now $12,000–$20,000/day — never breach this, ever',
@@ -3092,13 +3092,50 @@ function getPlaybook() {
   const entry945   = etToLocal(9.75);  // 9:45 AM ET
   const monOpenLoc = etToLocal(9.5) + ' ' + localTz;
 
-  function dayData(dayName, extraRules) {
-    const dte      = DTE_BY_DAY[dayName];
-    const credit   = pbCredit(dte);
-    const strikes  = pbStrikes();
+  // Current phase for phase-aware rules
+  const ph = getPhase(traderData.currentCapital);
+
+  // Per-phase, per-day guidance for the ATM put spread
+  const PHASE_DAY_RULES = {
+    1: {
+      Mon: ['7DTE — best credit day; full ' + riskCts + 'ct position'],
+      Tue: ['6DTE — standard entry; full size'],
+      Wed: ['5DTE — FOMC/CPI day: SKIP (no exceptions in Phase 1)', ...(isFomcWeek ? ['⚠ THIS IS AN FOMC WEEK — sit out today'] : [])],
+      Thu: ['4DTE — enter only if VIX < 25'],
+      Fri: ['Phase 1: SKIP FRIDAY — 3DTE gap risk over weekend too high at this account size'],
+    },
+    2: {
+      Mon: ['7DTE full premium — anchor trade of the week; full ' + riskCts + 'ct', ...(isFomcWeek ? ['⚠ FOMC week — 50% size (' + Math.max(1,Math.floor(riskCts/2)) + 'ct)'] : [])],
+      Tue: ['6DTE standard entry — full size'],
+      Wed: ['5DTE — ' + (isFomcWeek ? '⚠ FOMC day: SKIP or 50% size (' + Math.max(1,Math.floor(riskCts/2)) + 'ct)' : 'standard entry; skip on FOMC/CPI')],
+      Thu: ['4DTE — enter if VIX < 25, otherwise sit out'],
+      Fri: ['3DTE — optional; 50% size (' + Math.max(1,Math.floor(riskCts/2)) + 'ct) max · watch gap risk'],
+    },
+    3: {
+      Mon: ['7DTE full size — best credit day · ' + riskCts + 'ct', ...(isFomcWeek ? ['⚠ FOMC week — 50% size (' + Math.max(1,Math.floor(riskCts/2)) + 'ct)'] : [])],
+      Tue: ['6DTE — full size'],
+      Wed: ['5DTE — ' + (isFomcWeek ? '⚠ FOMC day: SKIP or 30% size (' + Math.max(1,Math.round(riskCts*0.3)) + 'ct)' : 'FOMC/CPI week: 30% size or skip entirely')],
+      Thu: ['4DTE — full size if VIX < 25, 50% (' + Math.max(1,Math.floor(riskCts/2)) + 'ct) if VIX 25–30'],
+      Fri: ['3DTE — 50% size (' + Math.max(1,Math.floor(riskCts/2)) + 'ct) max · $' + (riskCts*500).toLocaleString() + ' max-loss day, gap risk is real'],
+    },
+    4: {
+      Mon: ['7DTE full size — anchor trade · ' + riskCts + 'ct', ...(isFomcWeek ? ['⚠ FOMC week — 25% size (' + Math.max(1,Math.round(riskCts*0.25)) + 'ct) or skip'] : [])],
+      Tue: ['6DTE — full size'],
+      Wed: ['5DTE — ' + (isFomcWeek ? '⚠ FOMC day: SKIP entirely' : 'FOMC week: SKIP or 25% max')],
+      Thu: ['4DTE — 75% size (' + Math.max(1,Math.round(riskCts*0.75)) + 'ct) on ambiguous macro days'],
+      Fri: ['SKIP or 25% size (' + Math.max(1,Math.round(riskCts*0.25)) + 'ct) max — protecting $' + Math.round(riskCts*100*0.5).toLocaleString() + '+ weekly gain is the job'],
+    },
+  };
+  const phDayRules = PHASE_DAY_RULES[ph.id] || PHASE_DAY_RULES[1];
+
+  function dayData(dayName) {
+    const dte        = DTE_BY_DAY[dayName];
+    const credit     = pbCredit(dte);
+    const strikes    = pbStrikes();
     const creditStr  = credit  != null ? '$' + credit.toFixed(2) : '— (press SCAN for live)';
     const strikesStr = strikes != null ? strikes.short + ' / ' + strikes.long : '— / —';
     const maxLoss    = credit  != null ? ((5 - credit) * 100).toFixed(0) : null;
+    const phaseRules = phDayRules[dayName] || [];
     return {
       dte, expiry,
       trades: [{
@@ -3114,29 +3151,31 @@ function getPlaybook() {
       rules: [
         dte + 'DTE — settle next Monday AM open (' + expiry + ')',
         'Strikes: ' + strikesStr + ' · Credit: ' + creditStr,
-        maxLoss != null ? 'Max risk: $' + maxLoss + '/ct on 5-wide spread' : 'Press SCAN to price live strikes',
+        maxLoss != null ? 'Max risk: $' + maxLoss + '/ct  ·  $' + (parseInt(maxLoss) * riskCts).toLocaleString() + ' total (' + riskCts + 'ct)' : 'Press SCAN to price live strikes',
         'No intraday stop — hold to Monday AM settlement',
-        'Size: max(1, ⌊capital × 2% ÷ $500⌋) contracts',
-        ...(extraRules || []),
+        ...phaseRules,
       ].filter(Boolean),
       timing: [
         { t: etToLocal(9.5),  e: 'Market open — note gap & direction' },
-        { t: entry945,         e: '✴ ENTRY — ATM put spread (9:45 AM ET)' },
+        { t: entry945,        e: '✴ ENTRY — ATM put spread (9:45 AM ET)' },
         { t: etToLocal(10),   e: 'Confirm fill · check spread mid vs BSM' },
-        { t: '—',        e: 'Position open — no stop, no management' },
+        { t: '—',             e: 'Position open — no stop, no management' },
         { t: monOpenLoc,      e: '⛳ SETTLEMENT — Monday AM open' },
       ],
       expiryLabel: expiry,
       localTz,
+      phase: ph,
     };
   }
 
   return {
-    Mon: dayData('Mon', ['Best credit day — 7DTE, full premium', ...(isFomcWeek ? ['⚠ FOMC week — consider skipping or half size'] : [])]),
-    Tue: dayData('Tue', ['6DTE — solid credit, 1 day less than Monday']),
-    Wed: dayData('Wed', [...(isFomcWeek ? ['⚠ FOMC day — NO TRADE (skip entirely)'] : [])]),
-    Thu: dayData('Thu', ['4DTE — higher theta, less credit; wins faster']),
-    Fri: dayData('Fri', ['3DTE — least credit, fastest theta burn', 'Gap risk Fri close → Mon open: SPX can move overnight']),
+    Mon: dayData('Mon'),
+    Tue: dayData('Tue'),
+    Wed: dayData('Wed'),
+    Thu: dayData('Thu'),
+    Fri: dayData('Fri'),
+    _phase: ph,
+    _riskCts: riskCts,
   };
 }
 let selectedPlaybookDay = (function() { const ny = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' })); return ['Mon','Tue','Wed','Thu','Fri'][(ny.getDay() + 6) % 7] || 'Mon'; })();
@@ -3167,6 +3206,24 @@ function renderPlaybook() {
   document.getElementById('playbook-day-content').innerHTML = `
     <div class="day-card ${selectedPlaybookDay===todayName?'today':''}">
       <div class="day-header" style="color:var(--white)">${selectedPlaybookDay.toUpperCase()} PLAYBOOK</div>
+
+      <!-- Phase context strip -->
+      ${(() => {
+        const ph = PLAYBOOK._phase;
+        const phDetail = PHASE_DETAILS[ph.id];
+        const PHASE_RGBA = { 1:'0,208,132', 2:'59,130,246', 3:'240,180,41', 4:'168,85,247' };
+        const rgb = PHASE_RGBA[ph.id] || '0,229,255';
+        return `<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;padding:8px 12px;background:rgba(${rgb},0.05);border:1px solid rgba(${rgb},0.35);border-radius:4px;flex-wrap:wrap;row-gap:6px">
+          <span style="font-size:10px;font-weight:700;padding:3px 10px;background:rgba(${rgb},0.18);border:1px solid rgba(${rgb},0.7);color:${ph.color};letter-spacing:1px;white-space:nowrap">PHASE ${ph.id}: ${ph.name.toUpperCase()}</span>
+          <span style="font-size:11px;color:var(--textMid)">${phDetail.range}</span>
+          <span style="font-size:9px;color:var(--textDim)">|</span>
+          <span style="font-size:11px;color:var(--gold)">TARGET ${fmt$(ph.weekly)}/wk</span>
+          <span style="font-size:9px;color:var(--textDim)">|</span>
+          <span style="font-size:11px;color:${ph.color}">${ph.contracts}</span>
+          <span style="font-size:9px;color:var(--textDim)">|</span>
+          <span style="font-size:11px;color:var(--textMid)">${ph.roi} annual ROI</span>
+        </div>`;
+      })()}
 
       <!-- Badge row -->
       <div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap">
