@@ -371,8 +371,8 @@ input, select, button, textarea { font-family: 'IBM Plex Mono', monospace; outli
         <div style="flex:1;min-width:65px">
           <div class="label" style="margin-bottom:3px">W</div>
           <select id="widthSelect" style="width:100%;background:var(--panelAlt);border:1px solid var(--borderBright);color:var(--white);padding:0 4px;font-size:11px;font-weight:700;height:30px;cursor:pointer;box-sizing:border-box">
-            <option value="5">5</option>
-            <option value="10" selected>10★</option>
+            <option value="5" selected>5★</option>
+            <option value="10">10</option>
             <option value="15">15</option>
             <option value="20">20</option>
             <option value="25">25</option>
@@ -726,6 +726,19 @@ input, select, button, textarea { font-family: 'IBM Plex Mono', monospace; outli
   <!-- Results (hidden until run) -->
   <div id="bt-results" style="display:none">
 
+
+    <!-- Capital growth chart -->
+    <div class="panel" style="padding:16px;margin-bottom:12px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <div style="font-size:9px;color:var(--textDim);letter-spacing:1.5px">CAPITAL GROWTH</div>
+        <div style="display:flex;gap:12px;font-size:9px;color:var(--textDim)">
+          <span><span style="display:inline-block;width:12px;height:2px;background:var(--green);vertical-align:middle;margin-right:3px"></span>Capital</span>
+          <span><span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--green);vertical-align:middle;margin-right:3px"></span>Win</span>
+          <span><span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--red);vertical-align:middle;margin-right:3px"></span>Loss/Partial</span>
+        </div>
+      </div>
+      <canvas id="bt-chart" style="width:100%;height:220px;display:block"></canvas>
+    </div>
     <!-- Summary stat cards -->
     <div id="bt-summary" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin-bottom:12px"></div>
 
@@ -1302,7 +1315,7 @@ function toggleVixLock() {
   document.getElementById('vixInput').style.borderColor = vixLocked ? 'var(--gold)' : 'var(--borderBright)';
 }
 let state = {
-  spx: 5800, vix: 22, width: 10, mode: 'morning', strategy: 'auto',
+  spx: 5800, vix: 22, width: 5, mode: 'morning', strategy: 'auto',
   bias: 'neutral', dma200: parseFloat(localStorage.getItem('spx_dma200')) || 0,
   liveSpx: null, liveVix: null,
   lastUpdated: null,
@@ -1328,13 +1341,13 @@ let state = {
 };
 const SLIPPAGE = 0.05;
 const DELTA_ROWS = [
+  { delta: 0.50, label: '0.50', tag: 'ATM★', winPct: 52, targetCredit: 2.50, creditRange: [2.25, 2.75] },
+  { delta: 0.30, label: '0.30', tag: 'NEAR', winPct: 66 },
+  { delta: 0.25, label: '0.25', tag: 'OTM',  winPct: 72 },
+  { delta: 0.20, label: '0.20', tag: 'OTM',  winPct: 78 },
+  { delta: 0.15, label: '0.15', tag: 'FAR',  winPct: 83 },
+  { delta: 0.12, label: '0.12', tag: 'FAR',  winPct: 86 },
   { delta: 0.10, label: '0.10', tag: 'SAFE', winPct: 88 },
-  { delta: 0.12, label: '0.12', tag: 'CONS', winPct: 86 },
-  { delta: 0.15, label: '0.15', tag: 'REC', winPct: 83 },
-  { delta: 0.18, label: '0.18', tag: 'MED', winPct: 80 },
-  { delta: 0.20, label: '0.20', tag: 'AGGR', winPct: 78 },
-  { delta: 0.25, label: '0.25', tag: 'AGGR', winPct: 72 },
-  { delta: 0.30, label: '0.30', tag: 'HIGH RISK', winPct: 66 },
 ];
 
 // ── BSM MATH ──
@@ -1952,17 +1965,12 @@ function scan() {
 
   const rows = computeRows();
   const regime = getRegime(state.vix);
-  // Auto-adjust delta — sweep optimal: δ0.15 default, tighten in high VIX
+  // ATM strategy: default delta 0.50; tighten only in extreme VIX (>35)
   let recDelta;
-  if (state.mode === 'weekly') {
-    if (state.vix >= 25) recDelta = 0.10;
-    else recDelta = 0.12;
-  } else {
-    if (state.vix >= 25) recDelta = 0.10;
-    else if (state.vix >= 20) recDelta = 0.12;
-    else recDelta = 0.15;
-  }
-  const recRow = rows.find(r => r.delta === recDelta) || rows[2];
+  if (state.vix >= 35) recDelta = 0.30;
+  else if (state.vix >= 28) recDelta = 0.30;
+  else recDelta = 0.50;
+  const recRow = rows.find(r => r.delta === recDelta) || rows[0];
   // All-Weather AUTO — read opening price/trend, set bias, then:
   // Bullish open → sell put spreads, Bearish open → sell call spreads
   let autoStrat;
@@ -1995,7 +2003,8 @@ function scan() {
 
   const modeLabel = state.mode === 'weekly' ? 'WEEKLY 5DTE' : '11:30 AUTO';
   const sideLabel = state.strategy === 'auto' ? (autoStrat === 'call' ? 'CALLS' : 'PUTS') : state.strategy.toUpperCase();
-  document.getElementById('scanInfo').innerHTML = `${state.lastUpdated || ''} &middot; ${modeLabel} \u0394${recDelta} &middot; ${sideLabel} &middot; 15w &middot; TG 0.5h`;
+  const atmCredit = recRow && recRow.targetCredit ? `TG $${recRow.targetCredit.toFixed(2)} \u00b1$0.25` : '';
+  document.getElementById('scanInfo').innerHTML = `${state.lastUpdated || ''} &middot; ${modeLabel} &middot; \u03940.50 ATM &middot; 5w &middot; ${atmCredit ? atmCredit + ' &middot; ' : ''}${sideLabel}`;
   updateInputSummary();
 
   // ── COMPUTED VALUES FOR RENDERING ──
@@ -2179,14 +2188,19 @@ function scan() {
       const isRec = row.delta === recDelta;
       const pf = row.putFill; const cf = row.callFill;
       const pOK = pf >= 0.80, cOK = cf >= 0.80;
-      return `<div style="display:grid;grid-template-columns:${cols};padding:9px 16px;background:${isRec?`color-mix(in srgb, ${activeColor} 5%, transparent)`:i%2===0?'var(--panelAlt)':'var(--panel)'};border-left:${isRec?`3px solid ${activeColor}`:'3px solid transparent'};border-bottom:1px solid var(--border);align-items:center">
+      const hasTarget = !!row.targetCredit;
+      const inRange   = hasTarget && pf >= row.creditRange[0] && pf <= row.creditRange[1];
+      const tooLow    = hasTarget && pf < row.creditRange[0];
+      const creditStatus = inRange ? 'var(--green)' : tooLow ? 'var(--gold)' : 'var(--cyan)';
+      const creditIcon   = inRange ? '\u2713 IN RANGE' : tooLow ? '\u25BC BELOW TGT' : '\u25B2 ABOVE TGT';
+      return `<div style="display:grid;grid-template-columns:${cols};padding:9px 16px;background:${isRec?`color-mix(in srgb, ${activeColor} 5%, transparent)`:i%2===0?'var(--panelAlt)`:'var(--panel)'};border-left:${isRec?`3px solid ${activeColor}`:`3px solid transparent`};border-bottom:1px solid var(--border);align-items:center">
         <div style="font-size:13px;color:${isRec?activeColor:'var(--textMid)'};font-weight:${isRec?700:400}">\u0394${row.label}</div>
-        <div style="font-size:10px;color:${isRec?activeColor:'var(--textDim)'}">${isRec?'\u25C0 REC':row.tag}</div>
+        <div style="font-size:10px;color:${isRec?activeColor:'var(--textDim)'}">${isRec?'\u25C0 ATM\u2605':row.tag}${hasTarget?`<div style="font-size:8px;color:${creditStatus};margin-top:1px">${creditIcon}</div>`:''}</div>
         <div style="font-size:13px;color:var(--white);font-weight:600">${row.sP}</div>
         <div style="font-size:13px;color:var(--white);font-weight:600">${row.sC}</div>
         <div style="font-size:12px;color:var(--textDim)">${row.lP}</div>
         <div style="font-size:12px;color:var(--textDim)">${row.lC}</div>
-        <div><span style="font-size:14px;color:${pOK?'var(--green)':'var(--red)'};font-weight:700">\$${f2(pf)}</span> <span style="font-size:9px;color:${pOK?'var(--green)':'var(--red)'}">${pOK?'\u2713':'\u2717'}</span></div>
+        <div><span style="font-size:14px;color:${hasTarget?creditStatus:pOK?'var(--green)':'var(--red)'};font-weight:700">\$${f2(pf)}</span><span style="font-size:9px;color:${pOK?'var(--green)':'var(--red)'}"> ${pOK?'\u2713':'\u2717'}</span>${hasTarget?`<div style="font-size:8px;color:var(--textDim)">TG \$${row.creditRange[0].toFixed(2)}\u2013\$${row.creditRange[1].toFixed(2)}</div>`:''}</div>
         <div><span style="font-size:14px;color:${cOK?'var(--orange)':'var(--red)'};font-weight:700">\$${f2(cf)}</span> <span style="font-size:9px;color:${cOK?'var(--orange)':'var(--red)'}">${cOK?'\u2713':'\u2717'}</span></div>
         <div><span style="font-size:14px;color:${row.icOK?'var(--cyan)':'var(--red)'};font-weight:700">\$${f2(row.icFill)}</span></div>
         <div style="font-size:12px;color:var(--red)">\u2264${row.putStop}</div><div style="font-size:12px;color:var(--red)">\u2265${row.callStop}</div>
@@ -4833,8 +4847,92 @@ function runBacktest() {
   });
 }
 
+function drawBacktestChart(trades, startCap) {
+  const canvas = document.getElementById('bt-chart');
+  if (!canvas || !trades.length) return;
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width  = canvas.offsetWidth  * dpr;
+  canvas.height = canvas.offsetHeight * dpr;
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+  const W = canvas.offsetWidth, H = canvas.offsetHeight;
+  const PAD = { top: 16, right: 20, bottom: 32, left: 64 };
+  const cW = W - PAD.left - PAD.right;
+  const cH = H - PAD.top  - PAD.bottom;
+
+  // Capital series: [startCap, ...trade capitals]
+  const caps = [startCap, ...trades.map(t => t.capital)];
+  const minCap = Math.min(...caps) * 0.97;
+  const maxCap = Math.max(...caps) * 1.03;
+  const xScale = i => PAD.left + (i / (caps.length - 1)) * cW;
+  const yScale = v => PAD.top + cH - ((v - minCap) / (maxCap - minCap)) * cH;
+
+  // Grid lines
+  ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+  ctx.lineWidth = 1;
+  const yTicks = 5;
+  for (let i = 0; i <= yTicks; i++) {
+    const v = minCap + (maxCap - minCap) * (i / yTicks);
+    const y = yScale(v);
+    ctx.beginPath(); ctx.moveTo(PAD.left, y); ctx.lineTo(W - PAD.right, y); ctx.stroke();
+    ctx.fillStyle = 'rgba(255,255,255,0.35)';
+    ctx.font = `${9 * dpr / dpr}px IBM Plex Mono, monospace`;
+    ctx.textAlign = 'right';
+    ctx.fillText('$' + Math.round(v / 1000) + 'k', PAD.left - 6, y + 3);
+  }
+
+  // Starting capital reference line
+  ctx.strokeStyle = 'rgba(240,180,41,0.35)';
+  ctx.setLineDash([4, 4]);
+  ctx.lineWidth = 1;
+  const y0 = yScale(startCap);
+  ctx.beginPath(); ctx.moveTo(PAD.left, y0); ctx.lineTo(W - PAD.right, y0); ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Capital line
+  const grad = ctx.createLinearGradient(PAD.left, PAD.top, PAD.left, PAD.top + cH);
+  grad.addColorStop(0, 'rgba(0,208,132,0.6)');
+  grad.addColorStop(1, 'rgba(0,208,132,0.05)');
+  ctx.beginPath();
+  caps.forEach((v, i) => { i === 0 ? ctx.moveTo(xScale(i), yScale(v)) : ctx.lineTo(xScale(i), yScale(v)); });
+  ctx.lineTo(xScale(caps.length - 1), PAD.top + cH);
+  ctx.lineTo(PAD.left, PAD.top + cH);
+  ctx.closePath();
+  ctx.fillStyle = grad;
+  ctx.fill();
+
+  ctx.strokeStyle = '#00d084';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  caps.forEach((v, i) => { i === 0 ? ctx.moveTo(xScale(i), yScale(v)) : ctx.lineTo(xScale(i), yScale(v)); });
+  ctx.stroke();
+
+  // Trade outcome dots
+  trades.forEach((t, i) => {
+    const x = xScale(i + 1);
+    const y = yScale(t.capital);
+    const isWin = t.outcome === 'win';
+    ctx.beginPath();
+    ctx.arc(x, y, trades.length > 200 ? 1.5 : 3, 0, Math.PI * 2);
+    ctx.fillStyle = isWin ? 'rgba(0,208,132,0.9)' : 'rgba(255,71,87,0.9)';
+    ctx.fill();
+  });
+
+  // X-axis date labels (sample ~6 evenly)
+  ctx.fillStyle = 'rgba(255,255,255,0.35)';
+  ctx.font = '9px IBM Plex Mono, monospace';
+  ctx.textAlign = 'center';
+  const step = Math.max(1, Math.floor(trades.length / 6));
+  for (let i = 0; i < trades.length; i += step) {
+    const x = xScale(i + 1);
+    const label = trades[i].date.slice(2, 7); // "YY-MM"
+    ctx.fillText(label, x, H - PAD.bottom + 14);
+  }
+}
+
 function renderBacktestResults(r) {
   document.getElementById('bt-results').style.display = '';
+  setTimeout(() => drawBacktestChart(r.trades, r.startCap), 50);
 
   const fmtD  = v => (v >= 0 ? '+' : '−') + '$' + Math.abs(Math.round(v)).toLocaleString();
   const fmtPct = v => (v >= 0 ? '+' : '') + v.toFixed(1) + '%';
