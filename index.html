@@ -701,8 +701,7 @@ input, select, button, textarea { font-family: 'IBM Plex Mono', monospace; outli
         <label>CONTRACTS</label>
         <select id="bt-contracts" style="width:100%;background:var(--panelAlt);border:1px solid var(--borderBright);color:var(--white);padding:8px 10px;font-size:12px;cursor:pointer;height:38px" onchange="btContractsChange()">
           <option value="fixed">Fixed</option>
-          <option value="risk2pct">2% Risk Scaling (start 1ct)</option>
-          <option value="phase">Phase-Based (1 per $20k)</option>
+          <option value="phase" selected>Phase-Based (1 per $20k)</option>
         </select>
       </div>
       <div class="form-group" id="bt-fixed-cts-group">
@@ -715,7 +714,7 @@ input, select, button, textarea { font-family: 'IBM Plex Mono', monospace; outli
       Short ATM put (nearest 5pt) + long ATM&minus;5 put &mdash; expiry next Monday AM settlement (open).
       Credit priced with BSM using entry-day VIX as IV and calendar DTE/365 as T.
       No intraday stop &mdash; held to Monday open.
-      <span id="bt-risk-note" style="color:var(--cyan)"> &middot; 2% risk: max(1, &lfloor;capital &times; 2% &divide; $500&rfloor;) contracts.</span>
+      <span id="bt-risk-note" style="color:var(--cyan);display:none"> &middot; phase-based: max(1, &lfloor;capital &divide; $20k&rfloor;) contracts.</span>
     </div>
     <div style="display:flex;gap:10px;align-items:center">
       <button onclick="runBacktest()" style="padding:10px 28px;background:rgba(0,229,255,0.08);border:1px solid var(--cyan);color:var(--cyan);font-size:11px;font-weight:700;letter-spacing:2px;cursor:pointer;font-family:'IBM Plex Mono',monospace;transition:all 0.15s" onmouseover="this.style.background='rgba(0,229,255,0.18)'" onmouseout="this.style.background='rgba(0,229,255,0.08)'">&#9654; RUN BACKTEST</button>
@@ -805,20 +804,20 @@ const HIST_DATA=[["2024-03-22",5253.43,5261.1,5240.66,5241.53,12.92],["2024-03-2
 // ══════════════════════════════════════════════════════════════════════════════
 const LOCAL_TZ = new Intl.DateTimeFormat('en-AU', { timeZone: 'Australia/Sydney', timeZoneName: 'short' }).formatToParts(new Date()).find(p => p.type === 'timeZoneName')?.value || 'AEST';
 const PHASES = [
-  { id: 1, name: 'Bootstrap',    min: 10000,  target: 50000,   contracts: '1→2 (+1 per $25k)',   perK: 25000, weekly: 300,  roi: '26%', color: 'var(--green)'  },
-  { id: 2, name: 'Foundation',   min: 50000,  target: 200000,  contracts: '2→8 (+1 per $25k)',   perK: 25000, weekly: 1200, roi: '26%', color: 'var(--blue)'   },
-  { id: 3, name: 'Acceleration', min: 200000, target: 600000,  contracts: '8→24 (+1 per $25k)',  perK: 25000, weekly: 4800, roi: '26%', color: 'var(--gold)'   },
-  { id: 4, name: 'The Machine',  min: 600000, target: 1000000, contracts: '24→40 (+1 per $25k)', perK: 25000, weekly: 9000, roi: '26%', color: 'var(--purple)' },
+  { id: 1, name: 'Bootstrap',    min: 10000,  target: 50000,   contracts: '1→2 (+1 per $20k)',   perK: 20000, weekly: 260,  roi: '26%', color: 'var(--green)'  },
+  { id: 2, name: 'Foundation',   min: 50000,  target: 200000,  contracts: '2→10 (+1 per $20k)',  perK: 20000, weekly: 520,  roi: '26%', color: 'var(--blue)'   },
+  { id: 3, name: 'Acceleration', min: 200000, target: 600000,  contracts: '10→30 (+1 per $20k)', perK: 20000, weekly: 2600, roi: '26%', color: 'var(--gold)'   },
+  { id: 4, name: 'The Machine',  min: 600000, target: 1000000, contracts: '30→50 (+1 per $20k)', perK: 20000, weekly: 7800, roi: '26%', color: 'var(--purple)' },
 ];
 
 const PHASE_DETAILS = {
   1: {
     subtitle: 'Learn the Mechanics, Survive the Learning Curve',
     range: '$10,000 → $50,000',
-    timeline: '~32 months',
-    sizing: { contracts: '1ct ($10k–$49k) → 2ct at $50k · 2% floor forces 1ct minimum', perTrade: 'ATM put spread · credit varies with VIX/DTE · max risk = $500 − credit×100/ct', maxRisk: '1ct = ~$500/trade (~5% of $10k — accepted as cost of entry)', margin: '~$500/ct held · ~$500 per trade' },
+    timeline: '~12 months',
+    sizing: { contracts: '1ct ($10k–$39k) → 2ct at $40k (+1 per $20k)', perTrade: 'ATM put spread · $2.50 credit · $250 win / $250 loss per contract (1:1)', maxRisk: '1ct = $250/trade max loss · 2ct = $500/trade max loss', margin: '~$500/ct held · ~$500 per trade' },
     weeklyPlan: {
-      target: '1ct · ~$300/week · goal is consistency, not income',
+      target: '1ct · ~$260/week · goal is consistency, not income',
       Mon: '7DTE — best credit day; enter 9:45 AM ET · 1ct only',
       Tue: '6DTE — standard entry 9:45 AM ET · 1ct',
       Wed: '5DTE — FOMC/CPI day: SKIP (no exceptions in Phase 1)',
@@ -826,7 +825,7 @@ const PHASE_DETAILS = {
       Fri: 'SKIP — 3DTE gap risk over the weekend is too high at this account size',
     },
     rules: [
-      '1ct only until $50k — the 2% rule does not allow more below that threshold',
+      '1ct only until $40k — phase scaling adds a contract every $20k of capital',
       'Min credit: $1.00/ct on 5-wide — if you cannot get $1.00, do not trade',
       'SKIP Fri and Wed (FOMC/CPI) every week without exception',
       'NO STOP LOSS — hold to Monday AM settlement; $500 max loss is pre-sized',
@@ -844,15 +843,15 @@ const PHASE_DETAILS = {
       'Sizing up — there is no "sure thing"; 1ct is the hard rule until $50k',
       'Skipping the credit minimum — $0.60 on a $500 risk is a losing trade over time',
     ],
-    compounding: '$10k → $20k (Month 8) → $35k (Month 19) → $50k (Month 32)',
+    compounding: '$10k → $20k (Month 3) → $40k (Month 10) → $50k (Month 12)',
   },
   2: {
     subtitle: 'Scale the Strategy, Not Your Emotions',
     range: '$50,000 → $200,000',
-    timeline: '~31 months (~63 months cumulative)',
-    sizing: { contracts: '2ct at $50k → 8ct at $200k (+1 per $25k, 2% risk)', perTrade: 'ATM put spread · credit varies with VIX/DTE · max risk = $500 − credit×100/ct', maxRisk: '2% of portfolio ($1,000–$4,000)', margin: 'Monitor margin utilization < 50%' },
+    timeline: '~11 months (~23 months cumulative)',
+    sizing: { contracts: '2ct at $50k → 10ct at $200k (+1 per $20k)', perTrade: 'ATM put spread · $2.50 credit · $250 win / $250 loss per contract (1:1)', maxRisk: '$250/ct per trade · $500–$2,500/trade at 2–10ct', margin: 'Monitor margin utilization < 50%' },
     weeklyPlan: {
-      target: '2–8ct · ~$600–$2,400/week (Mon–Fri, cautious on Fri)',
+      target: '2–10ct · ~$520–$2,600/week (Mon–Fri, cautious on Fri)',
       Mon: '7DTE full premium — anchor trade of the week · full size',
       Tue: '6DTE — standard entry 9:45 AM ET · full size',
       Wed: '5DTE — FOMC week: 50% size or skip',
@@ -860,7 +859,7 @@ const PHASE_DETAILS = {
       Fri: '3DTE — optional; 50% size max · watch gap risk over weekend',
     },
     rules: [
-      '2% rule scales you from 2ct to 8ct automatically — never override it',
+      'Phase scaling: +1ct every $20k, from 2ct to 10ct — never override it',
       'Min credit: $1.00/ct — same rule as Phase 1, non-negotiable',
       'Tax reserve: 30–35% of all net wins, every week without exception',
       'Weekly review every Sunday — WR, avg credit, days traded, loss frequency',
@@ -874,19 +873,19 @@ const PHASE_DETAILS = {
       'Account reaches $200,000',
     ],
     risks: [
-      'Scaling impulse after a hot streak — the rule is floor(capital×0.02/500), not feelings',
+      'Scaling impulse after a hot streak — the rule is floor(capital÷$20k), not feelings',
       'Tax liability grows fast — 30% reserve is non-negotiable from $50k onward',
       'Complacency at 4ct — each contract is $500 real risk; trade it like it matters',
     ],
-    compounding: '$50k → $100k (Month 16) → $150k (Month 25) → $200k (Month 31)',
+    compounding: '$50k → $100k (Month 6) → $150k (Month 9) → $200k (Month 11)',
   },
   3: {
     subtitle: 'Real Capital, Institutional Discipline',
     range: '$200,000 → $600,000',
-    timeline: '~22 months (~85 months cumulative)',
-    sizing: { contracts: '8ct at $200k → 24ct at $600k (+1 per $25k, 2% risk)', perTrade: 'ATM put spread · credit varies with VIX/DTE · max risk = $500 − credit×100/ct', maxRisk: '2% of portfolio ($4,000–$12,000)', margin: 'Monitor margin utilization < 40%' },
+    timeline: '~8 months (~31 months cumulative)',
+    sizing: { contracts: '10ct at $200k → 30ct at $600k (+1 per $20k)', perTrade: 'ATM put spread · $2.50 credit · $250 win / $250 loss per contract (1:1)', maxRisk: '$250/ct per trade · $2,500–$7,500/trade at 10–30ct', margin: 'Monitor margin utilization < 40%' },
     weeklyPlan: {
-      target: '8–24ct · ~$2,400–$7,200/week (Mon–Fri)',
+      target: '10–30ct · ~$2,600–$7,800/week (Mon–Fri)',
       Mon: '7DTE full size — best credit day, anchor of the week',
       Tue: '6DTE full size',
       Wed: '5DTE — FOMC/CPI week: 30% size or skip entirely',
@@ -894,7 +893,7 @@ const PHASE_DETAILS = {
       Fri: '3DTE — 50% size max · gap risk is real at this capital level',
     },
     rules: [
-      '2% rule is now $4,000–$12,000/day — this is real risk, treat it accordingly',
+      'Phase scaling: 10ct to 30ct — $2,500 to $7,500 max risk per trade',
       'Tax reserve: 40% of all net wins — professional accounting required',
       'Split accounts above $500k across 2 brokers (SIPC limit is $500k)',
       'FOMC / CPI / NFP weeks: max 50% position size',
@@ -912,15 +911,15 @@ const PHASE_DETAILS = {
       'Black swan — max loss day at 24ct is $12,000; budget for 2–3 per year',
       'Tax liability — at $100k+/year income, 40% reserve is not conservative enough',
     ],
-    compounding: '$200k → $300k (Month 8) → $450k (Month 16) → $600k (Month 22)',
+    compounding: '$200k → $300k (Month 3) → $450k (Month 6) → $600k (Month 8)',
   },
   4: {
     subtitle: 'Wealth Generation Engine',
     range: '$600,000 → $1,000,000',
-    timeline: '~10 months (~95 months cumulative · ~8 years from $10k)',
-    sizing: { contracts: '24ct at $600k → 40ct at $1M (+1 per $25k, 2% risk)', perTrade: 'ATM put spread · credit varies with VIX/DTE · max risk = $500 − credit×100/ct', maxRisk: '2% of portfolio ($12,000–$20,000)', margin: 'Monitor margin utilization < 35%; split across 2 brokers' },
+    timeline: '~4 months (~35 months cumulative · ~3 years from $10k)',
+    sizing: { contracts: '30ct at $600k → 50ct at $1M (+1 per $20k)', perTrade: 'ATM put spread · $2.50 credit · $250 win / $250 loss per contract (1:1)', maxRisk: '$250/ct per trade · $7,500–$12,500/trade at 30–50ct', margin: 'Monitor margin utilization < 35%; split across 2 brokers' },
     weeklyPlan: {
-      target: '24–40ct · ~$7,200–$12,000/week (Mon–Fri)',
+      target: '30–50ct · ~$7,800–$13,000/week (Mon–Fri)',
       Mon: '7DTE full size — anchor trade of the week',
       Tue: '6DTE full size',
       Wed: '5DTE — FOMC week: SKIP or 25% max',
@@ -928,7 +927,7 @@ const PHASE_DETAILS = {
       Fri: 'SKIP or 25% max — protecting $7k+ weekly gain is the job',
     },
     rules: [
-      '2% rule is now $12,000–$20,000/day — never breach this, ever',
+      'Phase scaling: 30ct to 50ct — $7,500 to $12,500 max risk per trade',
       '40% tax reserve — non-negotiable; professional CPA on retainer',
       'Mandatory split: 2 brokers above $500k for SIPC coverage',
       '$10,000/month withdrawals begin at $700k; scale with comfort',
@@ -946,34 +945,34 @@ const PHASE_DETAILS = {
       'Black swan — max loss day is $20,000; this happens; it is in the math',
       'Overconfidence — the strategy that got you here is unchanged; do not improvise',
     ],
-    compounding: '$600k → $750k (Month 3) → $900k (Month 7) → $1M (Month 10)',
+    compounding: '$600k → $750k (Month 2) → $900k (Month 3) → $1M (Month 4)',
   },
 };
 
 const PHASE_MILESTONES = {
   1: [
     { capital: 10000,  month: 0,  cts: 1,  income: 260,  note: 'Start — 1ct minimum' },
-    { capital: 20000,  month: 10, cts: 1,  income: 260,  note: 'On track' },
-    { capital: 35000,  month: 23, cts: 1,  income: 260,  note: 'Halfway there' },
-    { capital: 50000,  month: 36, cts: 2,  income: 520,  note: 'Graduate to Phase 2' },
+    { capital: 20000,  month: 3,  cts: 1,  income: 260,  note: 'On track' },
+    { capital: 40000,  month: 10, cts: 2,  income: 520,  note: 'Phase scaling kicks in' },
+    { capital: 50000,  month: 12, cts: 2,  income: 520,  note: 'Graduate to Phase 2' },
   ],
   2: [
     { capital: 50000,  month: 0,  cts: 2,  income: 520,  note: 'Start Phase 2' },
-    { capital: 100000, month: 18, cts: 4,  income: 1040, note: '+2 contracts' },
-    { capital: 150000, month: 29, cts: 6,  income: 1560, note: '+2 contracts' },
-    { capital: 200000, month: 37, cts: 8,  income: 2080, note: 'Graduate to Phase 3' },
+    { capital: 100000, month: 6,  cts: 5,  income: 1300, note: '+3 contracts' },
+    { capital: 150000, month: 9,  cts: 7,  income: 1820, note: '+2 contracts' },
+    { capital: 200000, month: 11, cts: 10, income: 2600, note: 'Graduate to Phase 3' },
   ],
   3: [
-    { capital: 200000, month: 0,  cts: 8,  income: 2080, note: 'Start Phase 3' },
-    { capital: 300000, month: 9,  cts: 12, income: 3120, note: '+4 contracts' },
-    { capital: 450000, month: 18, cts: 18, income: 4680, note: '+6 contracts' },
-    { capital: 600000, month: 25, cts: 24, income: 6240, note: 'Graduate to Phase 4' },
+    { capital: 200000, month: 0,  cts: 10, income: 2600, note: 'Start Phase 3' },
+    { capital: 300000, month: 3,  cts: 15, income: 3900, note: '+5 contracts' },
+    { capital: 450000, month: 6,  cts: 22, income: 5720, note: '+7 contracts' },
+    { capital: 600000, month: 8,  cts: 30, income: 7800, note: 'Graduate to Phase 4' },
   ],
   4: [
-    { capital: 600000,  month: 0,  cts: 24, income: 6240,  note: 'Start Phase 4' },
-    { capital: 750000,  month: 4,  cts: 30, income: 7800,  note: '+6 contracts' },
-    { capital: 900000,  month: 7,  cts: 36, income: 9360,  note: '+6 contracts' },
-    { capital: 1000000, month: 11, cts: 40, income: 10400, note: 'THE MACHINE' },
+    { capital: 600000,  month: 0, cts: 30, income: 7800,  note: 'Start Phase 4' },
+    { capital: 750000,  month: 2, cts: 37, income: 9620,  note: '+7 contracts' },
+    { capital: 900000,  month: 3, cts: 45, income: 11700, note: '+8 contracts' },
+    { capital: 1000000, month: 4, cts: 50, income: 13000, note: 'THE MACHINE' },
   ],
 };
 
@@ -1073,22 +1072,22 @@ function renderPhases() {
     <!-- Path to $1M master timeline -->
     ${(() => {
       const RGBA = { 1:'0,208,132', 2:'59,130,246', 3:'240,180,41', 4:'168,85,247' };
-      const durations = [32, 31, 22, 10];
-      const totalMonths = 95;
+      const durations = [12, 11, 8, 4];
+      const totalMonths = 35;
       const phasePcts = durations.map(d => (d / totalMonths * 100).toFixed(2));
       const boundaries = [
         { capital: 10000,   label: '$10k',  cumMonth: 0 },
-        { capital: 50000,   label: '$50k',  cumMonth: 32 },
-        { capital: 200000,  label: '$200k', cumMonth: 63 },
-        { capital: 600000,  label: '$600k', cumMonth: 85 },
-        { capital: 1000000, label: '$1M',   cumMonth: 95 },
+        { capital: 50000,   label: '$50k',  cumMonth: 12 },
+        { capital: 200000,  label: '$200k', cumMonth: 23 },
+        { capital: 600000,  label: '$600k', cumMonth: 31 },
+        { capital: 1000000, label: '$1M',   cumMonth: 35 },
       ];
       const cap = traderData.currentCapital;
       return `
       <div class="panel" style="padding:16px;margin-bottom:12px">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:8px">
           <div class="label">PATH TO $1,000,000</div>
-          <div style="font-size:11px;color:var(--textDim)">~95 months · ~8 years · ATM put spread · 2% risk scaling</div>
+          <div style="font-size:11px;color:var(--textDim)">~35 months · ~3 years · ATM put spread · phase scaling (+1ct per $20k)</div>
         </div>
 
         <!-- Capital boundary labels above bar -->
@@ -3194,8 +3193,8 @@ function renderFindings() {
 function getPlaybook() {
   const pbRegime = getRegime(state.vix);
 
-  // Contract sizing: 2% risk scaling (primary) with regime adjustment
-  const riskRaw = Math.max(1, Math.floor(traderData.currentCapital * 0.02 / 500));
+  // Contract sizing: phase-based scaling (+1ct per $20k) with regime adjustment
+  const riskRaw = Math.max(1, Math.floor(traderData.currentCapital / 20000));
   const riskCts = Math.max(1, Math.round(riskRaw * pbRegime.size));
 
   // DTE per entry day (calendar days to next Monday)
@@ -3339,7 +3338,7 @@ function renderPlaybook() {
   const todayIdx  = new Date().getDay();
   const todayName = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][todayIdx];
   const pbRegime  = getRegime(state.vix);
-  const riskRaw   = Math.max(1, Math.floor(traderData.currentCapital * 0.02 / 500));
+  const riskRaw   = Math.max(1, Math.floor(traderData.currentCapital / 20000));
   const adjContracts = Math.max(1, Math.round(riskRaw * pbRegime.size));
   const sizeNote  = pbRegime.size < 1 ? ' (' + Math.round(pbRegime.size*100) + '% — ' + pbRegime.level + ' VIX)' : '';
 
@@ -3381,7 +3380,7 @@ function renderPlaybook() {
       <!-- Badge row -->
       <div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap">
         <span style="font-size:10px;padding:4px 8px;background:rgba(0,229,255,0.1);border:1px solid rgba(0,229,255,0.3);color:var(--cyan)">${day.dte}DTE — EXPIRY ${day.expiry}</span>
-        <span style="font-size:10px;padding:4px 8px;background:rgba(0,208,132,0.1);border:1px solid rgba(0,208,132,0.3);color:var(--green)">${adjContracts}ct (2% RISK SCALING${sizeNote})</span>
+        <span style="font-size:10px;padding:4px 8px;background:rgba(0,208,132,0.1);border:1px solid rgba(0,208,132,0.3);color:var(--green)">${adjContracts}ct (PHASE SCALING${sizeNote})</span>
         <span style="font-size:10px;padding:4px 8px;background:rgba(168,85,247,0.1);border:1px solid rgba(168,85,247,0.3);color:var(--purple)">ATM PUT SPREAD · 9:45 AM ET</span>
       </div>
 
@@ -3462,7 +3461,7 @@ function renderPlaybook() {
     <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px">
       ${[
         { label: 'WEEKLY TARGET', value: fmt$(phase.weekly), color: 'var(--gold)' },
-        { label: 'CONTRACTS (2% RISK)', value: adjContracts + 'ct', color: 'var(--green)' },
+        { label: 'CONTRACTS', value: adjContracts + 'ct', color: 'var(--green)' },
         { label: 'PHASE', value: phase.id + ': ' + phase.name, color: phase.color },
         { label: 'ANNUAL ROI', value: phase.roi, color: 'var(--cyan)' },
       ].map(s => `<div class="stat-card"><div class="stat-label">${s.label}</div><div class="stat-value" style="font-size:20px;color:${s.color}">${s.value}</div></div>`).join('')}
@@ -4059,12 +4058,12 @@ function projectGrowth(startCapital, _unused1, _unused2, winRate, years) {
   winRate = winRate || 0.85;
   years = years || 12;
   // ATM put spread model: ~$2.50 avg credit, 5-wide · $250 win / $250 loss per contract (1:1)
-  // Contracts = floor(capital × 2% / $500) = floor(capital / 25000), 4 trading days/week
+  // Contracts = floor(capital / $20k) — phase-based scaling, 4 trading days/week
   const WIN_PER_CT = 250, LOSS_PER_CT = 250, TRADES_PER_WEEK = 4;
   const data = [{week:0, capital:startCapital}];
   let capital = startCapital;
   for (let w = 1; w <= years*52; w++) {
-    const contracts = Math.max(1, Math.floor(capital / 25000));
+    const contracts = Math.max(1, Math.floor(capital / 20000));
     const weeklyPnL = contracts * TRADES_PER_WEEK * (winRate * WIN_PER_CT - (1 - winRate) * LOSS_PER_CT);
     capital += weeklyPnL;
     if (capital <= 0) { data.push({week:w, capital:0}); break; }
@@ -4264,7 +4263,7 @@ function renderMilestones() {
 
 function renderSensitivity() {
   const currentCap = traderData.currentCapital || 10000;
-  const contracts = Math.max(1, Math.floor(currentCap / 25000));
+  const contracts = Math.max(1, Math.floor(currentCap / 20000));
   const TRADES_PER_WEEK = 4;
   const WIN_PER_CT = 250, LOSS_PER_CT = 250;
   // Breakeven WR = 250/(250+250) = 50.0% — 1:1 risk/reward at $2.50 credit on 5-wide ATM
@@ -4277,7 +4276,7 @@ function renderSensitivity() {
     let cap = currentCap, weeks = 0;
     const maxWeeks = 52 * 30;
     while (cap < 1000000 && weeks < maxWeeks && cap > 0) {
-      const cts = Math.max(1, Math.floor(cap / 25000));
+      const cts = Math.max(1, Math.floor(cap / 20000));
       cap += cts * TRADES_PER_WEEK * (wr * WIN_PER_CT - (1 - wr) * LOSS_PER_CT);
       weeks++;
     }
