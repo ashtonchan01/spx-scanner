@@ -937,6 +937,34 @@ const PHASE_DETAILS = {
   },
 };
 
+const PHASE_MILESTONES = {
+  1: [
+    { capital: 100000,  month: 0,  cts: 4,  income: 500,  note: 'Start — 2% risk sizing' },
+    { capital: 115000,  month: 7,  cts: 4,  income: 500,  note: 'On track' },
+    { capital: 130000,  month: 14, cts: 5,  income: 625,  note: '+1 contract unlocked' },
+    { capital: 150000,  month: 21, cts: 6,  income: 750,  note: 'Graduate to Phase 2' },
+  ],
+  2: [
+    { capital: 150000,  month: 0,  cts: 6,  income: 750,  note: 'Start Phase 2' },
+    { capital: 200000,  month: 13, cts: 8,  income: 1000, note: '+2 contracts' },
+    { capital: 250000,  month: 24, cts: 10, income: 1250, note: '+2 contracts' },
+    { capital: 300000,  month: 34, cts: 12, income: 1500, note: 'Graduate to Phase 3' },
+  ],
+  3: [
+    { capital: 300000,  month: 0,  cts: 12, income: 1500, note: 'Start Phase 3' },
+    { capital: 400000,  month: 10, cts: 16, income: 2000, note: '+4 contracts' },
+    { capital: 500000,  month: 21, cts: 20, income: 2500, note: '+4 contracts' },
+    { capital: 600000,  month: 30, cts: 24, income: 3000, note: 'Graduate to Phase 4' },
+  ],
+  4: [
+    { capital: 600000,  month: 0,  cts: 24, income: 3000, note: 'Start Phase 4' },
+    { capital: 700000,  month: 6,  cts: 28, income: 3500, note: '+4 contracts' },
+    { capital: 800000,  month: 12, cts: 32, income: 4000, note: '+4 contracts' },
+    { capital: 900000,  month: 18, cts: 36, income: 4500, note: '+4 contracts' },
+    { capital: 1000000, month: 24, cts: 40, income: 5000, note: 'THE MACHINE' },
+  ],
+};
+
 let selectedPhase = 1;
 
 function renderPhases() {
@@ -1029,16 +1057,127 @@ function renderPhases() {
       </div>
     </div>
 
-    <!-- Compounding Timeline -->
-    <div class="panel" style="padding:16px">
-      <div class="label" style="margin-bottom:10px">COMPOUNDING TIMELINE</div>
-      <div style="font-size:13px;color:var(--white);font-family:'IBM Plex Mono',monospace;padding:10px;background:var(--panelAlt);border:1px solid var(--border)">
-        ${d.compounding}
+    <!-- Path to $1M master timeline -->
+    ${(() => {
+      const RGBA = { 1:'0,208,132', 2:'59,130,246', 3:'240,180,41', 4:'168,85,247' };
+      const durations = [21, 34, 30, 24];
+      const totalMonths = 109;
+      const phasePcts = durations.map(d => (d / totalMonths * 100).toFixed(2));
+      const boundaries = [
+        { capital: 100000, label: '$100k', cumMonth: 0 },
+        { capital: 150000, label: '$150k', cumMonth: 21 },
+        { capital: 300000, label: '$300k', cumMonth: 55 },
+        { capital: 600000, label: '$600k', cumMonth: 85 },
+        { capital: 1000000, label: '$1M', cumMonth: 109 },
+      ];
+      const cap = traderData.currentCapital;
+      return `
+      <div class="panel" style="padding:16px;margin-bottom:12px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:8px">
+          <div class="label">PATH TO $1,000,000</div>
+          <div style="font-size:11px;color:var(--textDim)">109 months · ~9 years · ATM put spread · 2% risk scaling</div>
+        </div>
+
+        <!-- Capital boundary labels above bar -->
+        <div style="position:relative;height:28px;margin-bottom:0">
+          ${boundaries.map(b => {
+            const pct = (b.capital - 100000) / 900000 * 100;
+            return `<div style="position:absolute;left:${pct}%;transform:translateX(-50%);text-align:center">
+              <div style="font-size:9px;font-weight:700;color:${cap >= b.capital ? 'var(--white)' : 'var(--textDim)'};white-space:nowrap">${b.label}</div>
+              <div style="font-size:8px;color:var(--textDim)">${b.cumMonth > 0 ? 'Mo.'+b.cumMonth : 'Start'}</div>
+            </div>`;
+          }).join('')}
+        </div>
+
+        <!-- Phase bar -->
+        <div style="display:flex;height:24px;border-radius:4px;overflow:hidden;margin-bottom:4px;position:relative">
+          ${PHASES.map((p, i) => {
+            const rgb = RGBA[p.id];
+            const isActive = currentPhase.id === p.id;
+            return `<div style="width:${phasePcts[i]}%;background:rgba(${rgb},${isActive?0.8:0.35});display:flex;align-items:center;justify-content:center;transition:all 0.3s;border-right:1px solid rgba(0,0,0,0.4)">
+              <span style="font-size:9px;font-weight:700;color:rgba(255,255,255,${isActive?1:0.6});white-space:nowrap;overflow:hidden;padding:0 3px">PH.${p.id} ${p.name}</span>
+            </div>`;
+          }).join('')}
+        </div>
+
+        <!-- Current position marker -->
+        ${(() => {
+          const pct = Math.min(99, Math.max(0, (cap - 100000) / 900000 * 100));
+          return `<div style="position:relative;height:14px;margin-bottom:4px">
+            <div style="position:absolute;left:${pct}%;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center">
+              <div style="width:0;height:0;border-left:5px solid transparent;border-right:5px solid transparent;border-top:7px solid var(--cyan)"></div>
+              <div style="font-size:8px;color:var(--cyan);white-space:nowrap;margin-top:1px">YOU · ${fmt$(cap, 0)}</div>
+            </div>
+          </div>`;
+        })()}
+
+        <!-- Phase duration + income labels -->
+        <div style="display:flex;margin-bottom:16px">
+          ${PHASES.map((p, i) => {
+            const rgb = RGBA[p.id];
+            return `<div style="width:${phasePcts[i]}%;text-align:center;font-size:9px;color:rgba(${rgb},${currentPhase.id===p.id?1:0.55});padding:2px 0;font-weight:${currentPhase.id===p.id?700:400}">${durations[i]}mo · $${p.weekly.toLocaleString()}/wk</div>`;
+          }).join('')}
+        </div>
+
+        <!-- Milestone summary cards -->
+        <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px">
+          ${boundaries.map((b, i) => {
+            const rgb = i < 4 ? RGBA[i+1] : RGBA[4];
+            const reached = cap >= b.capital;
+            const isNext = !reached && (i === 0 || cap >= boundaries[i-1].capital);
+            return `<div style="padding:8px 6px;border:1px solid rgba(${rgb},${reached?0.5:isNext?0.3:0.15});background:rgba(${rgb},${reached?0.1:isNext?0.06:0.02});text-align:center;border-radius:2px">
+              <div style="font-size:${i===4?13:12}px;font-weight:700;color:rgba(${rgb},${reached?1:isNext?0.6:0.3})">${b.label}</div>
+              <div style="font-size:8px;color:var(--textDim);margin-top:2px">${b.cumMonth===0?'Start':'Mo.'+b.cumMonth}</div>
+              ${reached ? '<div style="font-size:8px;color:var(--green);margin-top:3px;font-weight:700">✓</div>' : isNext ? '<div style="font-size:8px;color:var(--cyan);margin-top:3px">NEXT</div>' : ''}
+            </div>`;
+          }).join('')}
+        </div>
       </div>
-      <div style="margin-top:10px;font-size:11px;color:var(--textDim)">
-        Margin: ${d.sizing.margin}
+
+      <!-- Per-phase milestone checkpoints -->
+      <div class="panel" style="padding:16px">
+        <div class="label" style="margin-bottom:16px">PHASE ${selectedPhase} — MILESTONE CHECKPOINTS</div>
+        <div style="position:relative">
+          ${PHASE_MILESTONES[selectedPhase].map((m, idx) => {
+            const milestones = PHASE_MILESTONES[selectedPhase];
+            const rgb = RGBA[selectedPhase];
+            const reached = cap >= m.capital;
+            const isHere = reached && (idx === milestones.length - 1 || cap < milestones[idx+1].capital);
+            const isLast = idx === milestones.length - 1;
+            return `<div style="display:flex;gap:14px;align-items:flex-start;margin-bottom:${isLast?0:4}px">
+              <div style="display:flex;flex-direction:column;align-items:center;flex-shrink:0;margin-top:2px">
+                <div style="width:18px;height:18px;border-radius:50%;border:2px solid rgba(${rgb},${reached?1:0.25});background:rgba(${rgb},${reached?0.35:0.04});display:flex;align-items:center;justify-content:center">
+                  ${reached ? `<div style="width:7px;height:7px;border-radius:50%;background:rgba(${rgb},1)"></div>` : ''}
+                </div>
+                ${!isLast ? `<div style="width:1px;height:32px;background:rgba(${rgb},${reached?0.4:0.12});margin-top:3px"></div>` : ''}
+              </div>
+              <div style="flex:1;padding:8px 12px;background:rgba(${rgb},${isHere?0.08:reached?0.04:0.01});border:1px solid rgba(${rgb},${isHere?0.4:reached?0.2:0.1});border-radius:4px;margin-bottom:${isLast?0:8}px">
+                <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px">
+                  <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                    <span style="font-size:18px;font-weight:700;color:rgba(${rgb},${reached?1:0.35});font-family:'Chakra Petch',sans-serif">${m.capital >= 1000000 ? '$1,000,000' : '$'+Math.round(m.capital/1000)+'k'}</span>
+                    <span style="font-size:10px;color:var(--textDim)">${m.note}</span>
+                    ${isHere ? '<span style="font-size:9px;padding:2px 7px;background:rgba(0,229,255,0.12);border:1px solid rgba(0,229,255,0.35);color:var(--cyan);letter-spacing:1px;font-weight:700">YOU ARE HERE</span>' : ''}
+                  </div>
+                  <div style="text-align:right">
+                    <div style="font-size:11px;color:${reached?'var(--textMid)':'var(--textDim)'}">${m.month === 0 ? 'Mo. 0 — Start' : 'Month +'+m.month}</div>
+                  </div>
+                </div>
+                <div style="display:flex;gap:16px;margin-top:6px;flex-wrap:wrap">
+                  <span style="font-size:11px;color:${reached?'var(--textMid)':'var(--textDim)'}">${m.cts}ct</span>
+                  <span style="font-size:11px;color:${reached?'var(--gold)':'var(--textDim)'}">~$${m.income.toLocaleString()}/wk</span>
+                  <span style="font-size:11px;color:${reached?'var(--textMid)':'var(--textDim)'}">~$${(m.income * 4.33 / 1000).toFixed(1)}k/mo</span>
+                  <span style="font-size:11px;color:${reached?'var(--textMid)':'var(--textDim)'}">~$${Math.round(m.income * 4.33 * 12 / 1000)}k/yr</span>
+                </div>
+              </div>
+            </div>`;
+          }).join('')}
+        </div>
+        <div style="margin-top:12px;padding:8px 10px;background:var(--panelAlt);border:1px solid var(--border);font-size:10px;color:var(--textDim)">
+          Margin: ${d.sizing.margin}
+        </div>
       </div>
-    </div>
+      `;
+    })()}
   `;
 }
 
