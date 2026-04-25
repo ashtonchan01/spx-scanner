@@ -3037,313 +3037,246 @@ function renderFindings() {
 // ══════════════════════════════════════════════════════════════════════════════
 // PLAYBOOK TAB
 // ══════════════════════════════════════════════════════════════════════════════
-// Phase-aware playbook: All phases get morning session (primary), Phase 3+ adds arvo
+// Daily ATM Put Spread — next Monday expiry · 9:45 AM ET entry · no intraday stop
 function getPlaybook() {
-  const ph = getPhase(traderData.currentCapital);
-  const rawContracts = ph.perK ? Math.max(1, Math.floor(traderData.currentCapital / ph.perK)) : 2;
-  // Apply regime size adjustment so playbook matches order panel
   const pbRegime = getRegime(state.vix);
-  const contracts0DTE = Math.max(1, Math.round(rawContracts * pbRegime.size));
-  const dual = false; // Single session — All-Weather AUTO sweep config
-  const stagger = ph.id >= 3;
-  const sizeNote = stagger ? (ph.id >= 4 ? 'Scale in 3 batches' : 'Scale in 2 batches (50/50)') : '';
-  const sweepDelta = '\u0394 0.15';
-  const wklyCtMap = { 1: 1, 2: 1, 3: Math.max(1, Math.round(contracts0DTE * 0.25)), 4: Math.max(2, Math.round(contracts0DTE * 0.25)) };
-  const wklyCt = wklyCtMap[ph.id] || 1;
-  const wklyLabel = wklyCt + 'ct';
-  const halfCt = Math.max(1, Math.floor(contracts0DTE / 2));
-  // Check if this week has an FOMC meeting
-  const now = new Date();
-  const weekStart = new Date(now); weekStart.setDate(now.getDate() - now.getDay());
-  const weekEnd = new Date(weekStart); weekEnd.setDate(weekStart.getDate() + 6);
-  let isFomcWeek = false;
-  try {
-    isFomcWeek = FOMC_DATES_2026.some(([m, d]) => {
-      const fd = new Date(now.getFullYear(), m, d);
-      return fd >= weekStart && fd <= weekEnd;
-    });
-  } catch(e) {}
-  // Tiered arvo sizing rules (Phase 3+)
-  const tieredArvoRules = [
-    'Hold morning trade to expiry (do NOT close early)',
-    `Morning profitable → enter arvo at FULL size (${contracts0DTE}ct)`,
-    `Morning underwater → arvo at HALF size (${halfCt}ct), only A+ setup`,
-    'Morning stopped out + VIX spiking → SKIP arvo entirely',
-    'Two stops in a row → done for the day, no more trades',
-  ];
 
-  // Convert ET hour (e.g. 11.5 = 11:30 AM) to local Sydney time string
-  // Dynamically determines EDT/EST offset so both US and AU DST are handled
+  // Contract sizing: 2% risk scaling (primary) with regime adjustment
+  const riskRaw = Math.max(1, Math.floor(traderData.currentCapital * 0.02 / 500));
+  const riskCts = Math.max(1, Math.round(riskRaw * pbRegime.size));
+
+  // DTE per entry day (calendar days to next Monday)
+  const DTE_BY_DAY = { Mon: 7, Tue: 6, Wed: 5, Thu: 4, Fri: 3 };
+
+  // Live BSM credit + strikes from current scan data
+  function pbCredit(dte) {
+    if (!state.spx || state.spx < 100 || !state.vix) return null;
+    const S = state.spx, iv = state.vix / 100, T = dte / 365;
+    const sP = Math.round(S / 5) * 5, lP = sP - 5;
+    return Math.max(0, bsm(S, sP, T, 0.045, iv, 'put').price - bsm(S, lP, T, 0.045, iv, 'put').price);
+  }
+  function pbStrikes() {
+    if (!state.spx || state.spx < 100) return null;
+    const sP = Math.round(state.spx / 5) * 5;
+    return { short: sP, long: sP - 5 };
+  }
+
+  // Next Monday date label
+  function nextMondayLabel() {
+    const ny = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }));
+    const dow = ny.getDay();
+    const d = new Date(ny); d.setDate(ny.getDate() + (dow === 1 ? 7 : (8 - dow) % 7 || 7));
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  }
+
+  // ET → local Sydney time (handles EDT/EST + AEST/AEDT automatically)
   function etToLocal(etHour) {
-    // Find current ET→UTC offset by checking what hour it is in New York vs UTC
     const probe = new Date();
     const utcH = probe.getUTCHours();
     const nyH = parseInt(probe.toLocaleString('en-US', { timeZone: 'America/New_York', hour: 'numeric', hour12: false }));
-    const etOffset = ((utcH - nyH) % 24 + 24) % 24; // hours to add to ET to get UTC (4 for EDT, 5 for EST)
+    const etOffset = ((utcH - nyH) % 24 + 24) % 24;
     const ref = new Date();
-    const h = Math.floor(etHour);
-    const m = Math.round((etHour % 1) * 60);
-    ref.setUTCHours(h + etOffset, m, 0, 0);
-    const fmt = new Intl.DateTimeFormat('en-AU', { timeZone: 'Australia/Sydney', hour: 'numeric', minute: '2-digit', hour12: true });
-    return fmt.format(ref).replace(/\s/g, ' ');
+    ref.setUTCHours(Math.floor(etHour) + etOffset, Math.round((etHour % 1) * 60), 0, 0);
+    return new Intl.DateTimeFormat('en-AU', { timeZone: 'Australia/Sydney', hour: 'numeric', minute: '2-digit', hour12: true }).format(ref).replace(/\s/g, ' ');
   }
-  function etRangeLocal(etStart, etEnd) { return etToLocal(etStart) + '-' + etToLocal(etEnd); }
   const localTz = new Intl.DateTimeFormat('en-AU', { timeZone: 'Australia/Sydney', timeZoneName: 'short' }).formatToParts(new Date()).find(p => p.type === 'timeZoneName')?.value || 'AEST';
 
-  // All-Weather AUTO — δ0.15 · 15w · 11:30 AM ET · TG 0.5h · 2×/1×
-  const autoSide = 'auto'; // open bullish (above 200 SMA) → puts, bearish → calls
+  // FOMC week check
+  const now = new Date();
+  const weekStart = new Date(now); weekStart.setDate(now.getDate() - now.getDay());
+  const weekEnd   = new Date(weekStart); weekEnd.setDate(weekStart.getDate() + 6);
+  let isFomcWeek = false;
+  try { isFomcWeek = FOMC_DATES_2026.some(([m, d]) => { const fd = new Date(now.getFullYear(), m, d); return fd >= weekStart && fd <= weekEnd; }); } catch(e) {}
+
+  const expiry     = nextMondayLabel();
+  const entry945   = etToLocal(9.75);  // 9:45 AM ET
+  const monOpenLoc = etToLocal(9.5) + ' ' + localTz;
+
+  function dayData(dayName, extraRules) {
+    const dte      = DTE_BY_DAY[dayName];
+    const credit   = pbCredit(dte);
+    const strikes  = pbStrikes();
+    const creditStr  = credit  != null ? '$' + credit.toFixed(2) : '— (press SCAN for live)';
+    const strikesStr = strikes != null ? strikes.short + ' / ' + strikes.long : '— / —';
+    const maxLoss    = credit  != null ? ((5 - credit) * 100).toFixed(0) : null;
+    return {
+      dte, expiry,
+      trades: [{
+        name: 'ATM Put Spread',
+        time: entry945,
+        dte: dte + 'DTE',
+        strikes: strikesStr,
+        credit: creditStr,
+        maxRisk: maxLoss != null ? '$' + maxLoss + '/ct' : '—',
+        contracts: riskCts,
+        type: 'put',
+      }],
+      rules: [
+        dte + 'DTE — settle next Monday AM open (' + expiry + ')',
+        'Strikes: ' + strikesStr + ' · Credit: ' + creditStr,
+        maxLoss != null ? 'Max risk: $' + maxLoss + '/ct on 5-wide spread' : 'Press SCAN to price live strikes',
+        'No intraday stop — hold to Monday AM settlement',
+        'Size: max(1, ⌊capital × 2% ÷ $500⌋) contracts',
+        ...(extraRules || []),
+      ].filter(Boolean),
+      timing: [
+        { t: etToLocal(9.5),  e: 'Market open — note gap & direction' },
+        { t: entry945,         e: '✴ ENTRY — ATM put spread (9:45 AM ET)' },
+        { t: etToLocal(10),   e: 'Confirm fill · check spread mid vs BSM' },
+        { t: '—',        e: 'Position open — no stop, no management' },
+        { t: monOpenLoc,      e: '⛳ SETTLEMENT — Monday AM open' },
+      ],
+      expiryLabel: expiry,
+      localTz,
+    };
+  }
+
   return {
-    Mon: {
-      trades: [
-        { name: 'Weekly Spread', time: etRangeLocal(11, 11.25), dte: '5DTE', delta: '\u0394 0.10', credit: '$1.00 min', contracts: wklyLabel, type: 'put' },
-        { name: '0DTE Auto', time: etToLocal(11.5), dte: '0DTE', delta: sweepDelta, credit: '$0.60 min', contracts: 'phase', type: autoSide },
-      ],
-      rules: [
-        `Open weekly put spread first (${wklyCt}ct)`,
-        'Read opening trend: bullish → puts, bearish → calls',
-        'Skip if VIX > 28',
-        'TG 0.5h: 2× stop first 30min, 1× after',
-        ...(stagger ? [sizeNote] : []),
-      ].filter(Boolean),
-      timing: [
-        { t: etRangeLocal(11, 11.25), e: 'Enter weekly spread' },
-        { t: etRangeLocal(11.25, 11.5), e: 'Pre-scan — check levels + direction' },
-        { t: etToLocal(11.5), e: '0DTE ENTRY (11:30 AM ET)' },
-        { t: etRangeLocal(11.5, 12), e: '2× stop window (30min)' },
-        { t: etRangeLocal(12, 15.5), e: 'Theta zone — 1× stop active' },
-        { t: etRangeLocal(15.5, 16), e: 'Hard close all positions' },
-      ],
-      hardClose: etToLocal(16) + ' ' + localTz,
-    },
-    Tue: {
-      trades: [
-        { name: '0DTE Auto', time: etToLocal(11.5), dte: '0DTE', delta: sweepDelta, credit: '$0.60 min', contracts: 'phase', type: autoSide },
-      ],
-      rules: [
-        'Read opening trend: bullish → puts, bearish → calls',
-        'Skip if VIX > 28',
-        'TG 0.5h: 2× stop first 30min, 1× after',
-        'Hold to expiry — do not close early',
-        ...(stagger ? [sizeNote] : []),
-      ].filter(Boolean),
-      timing: [
-        { t: etRangeLocal(11, 11.5), e: 'Pre-scan — levels + direction' },
-        { t: etToLocal(11.5), e: '0DTE ENTRY (11:30 AM ET)' },
-        { t: etRangeLocal(11.5, 12), e: '2× stop window (30min)' },
-        { t: etRangeLocal(12, 15.5), e: 'Theta zone — 1× stop active' },
-        { t: etRangeLocal(15.5, 16), e: 'Hard close all positions' },
-      ],
-      hardClose: etToLocal(16) + ' ' + localTz,
-    },
-    Wed: {
-      trades: [
-        { name: '0DTE Auto', time: etToLocal(11.5), dte: '0DTE', delta: sweepDelta, credit: '$0.60 min', contracts: 'phase', type: autoSide },
-      ],
-      rules: [
-        ...(isFomcWeek ? ['FOMC day = NO TRADE'] : []),
-        'Read opening trend: bullish → puts, bearish → calls',
-        'Skip if VIX > 28',
-        'TG 0.5h: 2× stop first 30min, 1× after',
-        ...(isFomcWeek ? ['FOMC week: 50% position size'] : []),
-        ...(stagger ? [sizeNote] : []),
-      ].filter(Boolean),
-      timing: [
-        { t: etRangeLocal(11, 11.5), e: 'Pre-scan — levels + direction' },
-        { t: etToLocal(11.5), e: '0DTE ENTRY (11:30 AM ET)' },
-        { t: etRangeLocal(11.5, 12), e: '2× stop window (30min)' },
-        { t: etRangeLocal(12, 15.5), e: 'Theta zone — 1× stop active' },
-        { t: etRangeLocal(15.5, 16), e: 'Hard close all positions' },
-      ],
-      hardClose: etToLocal(16) + ' ' + localTz,
-    },
-    Thu: {
-      trades: [
-        { name: 'Weekly Check', time: '-', dte: '5DTE', delta: '-', credit: '-', contracts: wklyLabel, type: 'check' },
-        { name: '0DTE Auto', time: etToLocal(11.5), dte: '0DTE', delta: sweepDelta, credit: '$0.60 min', contracts: 'phase', type: autoSide },
-      ],
-      rules: [
-        'Check weekly — roll or close if tested',
-        'Read opening trend: bullish → puts, bearish → calls',
-        'Skip if VIX > 28',
-        'TG 0.5h: 2× stop first 30min, 1× after',
-        ...(stagger ? [sizeNote] : []),
-      ].filter(Boolean),
-      timing: [
-        { t: etRangeLocal(11, 11.25), e: 'Check weekly health' },
-        { t: etRangeLocal(11.25, 11.5), e: 'Pre-scan — levels + direction' },
-        { t: etToLocal(11.5), e: '0DTE ENTRY (11:30 AM ET)' },
-        { t: etRangeLocal(11.5, 12), e: '2× stop window (30min)' },
-        { t: etRangeLocal(12, 15.5), e: 'Theta zone — 1× stop active' },
-        { t: etRangeLocal(15.5, 16), e: 'Hard close all positions' },
-      ],
-      hardClose: etToLocal(16) + ' ' + localTz,
-    },
-    Fri: {
-      trades: [
-        { name: 'Close Weekly', time: '-', dte: '5DTE', delta: '-', credit: '-', contracts: wklyLabel, type: 'close' },
-        { name: '0DTE Auto (careful)', time: etToLocal(11.5), dte: '0DTE', delta: sweepDelta, credit: '$0.60 min', contracts: 'phase', type: autoSide },
-      ],
-      rules: [
-        'Close weekly first',
-        'Read opening trend: bullish → puts, bearish → calls',
-        'Skip if VIX > 28',
-        'TG 0.5h: 2× stop first 30min, 1× after',
-        'Max 1 loss on Fridays — protect the week\'s gains',
-        ...(stagger ? [sizeNote] : []),
-      ].filter(Boolean),
-      timing: [
-        { t: etRangeLocal(11, 11.25), e: 'Close weekly spread' },
-        { t: etRangeLocal(11.25, 11.5), e: 'Pre-scan — levels + direction' },
-        { t: etToLocal(11.5), e: '0DTE ENTRY (11:30 AM ET)' },
-        { t: etRangeLocal(11.5, 12), e: '2× stop window (30min)' },
-        { t: etRangeLocal(12, 15.5), e: 'Theta zone — 1× stop active' },
-        { t: etRangeLocal(15.5, 16), e: 'Hard close — protect weekly P&L' },
-      ],
-      hardClose: etToLocal(16) + ' ' + localTz,
-    },
+    Mon: dayData('Mon', ['Best credit day — 7DTE, full premium', ...(isFomcWeek ? ['⚠ FOMC week — consider skipping or half size'] : [])]),
+    Tue: dayData('Tue', ['6DTE — solid credit, 1 day less than Monday']),
+    Wed: dayData('Wed', [...(isFomcWeek ? ['⚠ FOMC day — NO TRADE (skip entirely)'] : [])]),
+    Thu: dayData('Thu', ['4DTE — higher theta, less credit; wins faster']),
+    Fri: dayData('Fri', ['3DTE — least credit, fastest theta burn', 'Gap risk Fri close → Mon open: SPX can move overnight']),
   };
 }
 let selectedPlaybookDay = (function() { const ny = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' })); return ['Mon','Tue','Wed','Thu','Fri'][(ny.getDay() + 6) % 7] || 'Mon'; })();
 if (!getPlaybook()[selectedPlaybookDay]) selectedPlaybookDay = 'Mon';
 
 function renderPlaybook() {
-  const PLAYBOOK = getPlaybook(); // Recalculate each render so phase changes are reflected
-  const todayIdx = new Date().getDay();
+  const PLAYBOOK = getPlaybook();
+  const todayIdx  = new Date().getDay();
   const todayName = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][todayIdx];
-  const ph = getPhase(traderData.currentCapital);
-  const dual = false; // Single session — All-Weather AUTO
+  const pbRegime  = getRegime(state.vix);
+  const riskRaw   = Math.max(1, Math.floor(traderData.currentCapital * 0.02 / 500));
+  const adjContracts = Math.max(1, Math.round(riskRaw * pbRegime.size));
+  const sizeNote  = pbRegime.size < 1 ? ' (' + Math.round(pbRegime.size*100) + '% — ' + pbRegime.level + ' VIX)' : '';
 
-  // Day selector buttons
+  // Day selector buttons — show DTE badge on each
+  const DTE_BADGE = { Mon:'7DTE', Tue:'6DTE', Wed:'5DTE', Thu:'4DTE', Fri:'3DTE' };
   document.getElementById('playbook-day-btns').innerHTML = ['Mon','Tue','Wed','Thu','Fri'].map(d =>
-    `<button class="btn" style="border-color:${d===selectedPlaybookDay?'var(--cyan)':'var(--border)'};color:${d===selectedPlaybookDay?'var(--cyan)':'var(--textDim)'};background:${d===selectedPlaybookDay?'rgba(0,229,255,0.1)':'transparent'};font-size:13px;padding:10px;font-weight:${d===selectedPlaybookDay?700:400};position:relative" onclick="selectedPlaybookDay='${d}';renderPlaybook()">
-      ${d.toUpperCase()}
-      ${d===todayName?'<span style="position:absolute;top:4px;right:8px;font-size:8px;color:var(--green)">TODAY</span>':''}
+    `<button class="btn" style="border-color:${d===selectedPlaybookDay?'var(--cyan)':'var(--border)'};color:${d===selectedPlaybookDay?'var(--cyan)':'var(--textDim)'};background:${d===selectedPlaybookDay?'rgba(0,229,255,0.1)':'transparent'};font-size:12px;padding:8px 6px;font-weight:${d===selectedPlaybookDay?700:400};position:relative;text-align:center" onclick="selectedPlaybookDay='${d}';renderPlaybook()">
+      <div>${d.toUpperCase()}</div>
+      <div style="font-size:9px;color:${d===selectedPlaybookDay?'var(--cyan)':'var(--textDim)'};margin-top:2px">${DTE_BADGE[d]}</div>
+      ${d===todayName?'<span style="position:absolute;top:3px;right:5px;font-size:7px;color:var(--green);font-weight:700">TODAY</span>':''}
     </button>`
   ).join('');
 
   const day = PLAYBOOK[selectedPlaybookDay];
-  const pbPhase = getPhase(traderData.currentCapital);
-  const pbRegime = getRegime(state.vix);
-  const pbSizeNote = pbRegime.size < 1 ? ` (${Math.round(pbRegime.size*100)}% — ${pbRegime.level} VIX)` : '';
-  const pbContractsRaw = pbPhase.perK ? Math.max(1, Math.floor(traderData.currentCapital / pbPhase.perK)) : 2;
-  const adjContracts = state._order ? state._order.adjContracts : Math.max(1, Math.round(pbContractsRaw * pbRegime.size));
+  const t   = day.trades[0]; // single trade per day
 
   document.getElementById('playbook-day-content').innerHTML = `
     <div class="day-card ${selectedPlaybookDay===todayName?'today':''}">
       <div class="day-header" style="color:var(--white)">${selectedPlaybookDay.toUpperCase()} PLAYBOOK</div>
+
+      <!-- Badge row -->
       <div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap">
-        <span style="font-size:10px;padding:4px 8px;background:rgba(255,71,87,0.1);border:1px solid rgba(255,71,87,0.3);color:var(--red)">HARD CLOSE: ${day.hardClose}</span>
-        <span style="font-size:10px;padding:4px 8px;background:rgba(0,208,132,0.1);border:1px solid rgba(0,208,132,0.3);color:var(--green)">PHASE ${pbPhase.id}: ${adjContracts} CONTRACTS${pbSizeNote}</span>
-        <span style="font-size:10px;padding:4px 8px;background:rgba(59,158,255,0.1);border:1px solid rgba(59,158,255,0.3);color:var(--blue)">ALL-WEATHER AUTO \u00B7 11:30 AM ET</span>
+        <span style="font-size:10px;padding:4px 8px;background:rgba(0,229,255,0.1);border:1px solid rgba(0,229,255,0.3);color:var(--cyan)">${day.dte}DTE — EXPIRY ${day.expiry}</span>
+        <span style="font-size:10px;padding:4px 8px;background:rgba(0,208,132,0.1);border:1px solid rgba(0,208,132,0.3);color:var(--green)">${adjContracts}ct (2% RISK SCALING${sizeNote})</span>
+        <span style="font-size:10px;padding:4px 8px;background:rgba(168,85,247,0.1);border:1px solid rgba(168,85,247,0.3);color:var(--purple)">ATM PUT SPREAD · 9:45 AM ET</span>
       </div>
 
-      <!-- Trades + Rules (left) | Timing (right) -->
+      <!-- Trade card + Rules (left) | Timing (right) -->
       <div style="display:flex;flex-wrap:wrap;gap:12px">
         <div style="flex:1 1 260px;min-width:0">
-          <div class="label" style="margin-bottom:6px">TRADES</div>
-          ${day.trades.map((t, tIdx) => {
-            const o = state._order || {};
-            const is0DTE = t.dte === '0DTE';
-            const isWeekly = t.dte === '5DTE';
-            const isMorn = t.name.toLowerCase().includes('morning');
-            const isArvo = t.name.toLowerCase().includes('arvo');
-            const hasOrder = is0DTE && o.recRow && ((isMorn && state.mode === 'morning') || (isArvo && state.mode === 'arvo') || (!isMorn && !isArvo));
-            const ctDisplay = hasOrder ? o.adjContracts + 'ct' : (t.contracts === '-' ? '-' : (t.contracts === '1ct' ? '1ct' : t.contracts === 'phase' ? adjContracts + 'ct' : t.contracts));
-            const showStagger = (hasOrder ? o.adjContracts : adjContracts) >= 4 && pbPhase.id >= 3 && t.contracts === 'phase';
-            const cts = hasOrder ? o.adjContracts : adjContracts;
-            const batches3 = pbPhase.id >= 4;
-            const b1 = showStagger ? (batches3 ? Math.floor(cts / 3) : Math.floor(cts / 2)) : 0;
-            const b2 = showStagger ? (batches3 ? Math.floor(cts / 3) : cts - Math.floor(cts / 2)) : 0;
-            const b3 = showStagger && batches3 ? cts - b1 - b2 : 0;
-            const tColor = hasOrder ? o.orderColor : (t.type === 'call' ? 'var(--orange)' : t.type === 'put' ? 'var(--green)' : t.type === 'close' ? 'var(--red)' : 'var(--textDim)');
-            return `
-            <div style="padding:8px 10px;border-left:3px solid ${tColor};background:var(--panel);font-size:11px;margin-bottom:4px;border-radius:0 3px 3px 0">
-              <div style="display:flex;justify-content:space-between;margin-bottom:3px">
-                <span style="font-size:12px;font-weight:600;color:var(--white)">${t.name}</span>
-                <span style="font-size:10px;color:var(--cyan)">${t.dte}</span>
-              </div>
-              <div style="display:flex;gap:16px;flex-wrap:wrap">
-                <span style="color:var(--textDim)">Time: <span style="color:var(--textMid)">${t.time}</span></span>
-                <span style="color:var(--textDim)">Delta: <span style="color:var(--cyan)">${hasOrder ? '\u0394' + o.recDelta : t.delta}</span></span>
-                <span style="color:var(--textDim)">Credit: <span style="color:var(--green)">${hasOrder ? '$' + f2(o.orderCredit) : t.credit}</span></span>
-                <span style="color:var(--textDim)">Size: <span style="color:var(--white);font-weight:600">${ctDisplay}</span></span>
-              </div>
-              ${showStagger ? `
-              <div style="margin-top:8px;padding:8px 10px;background:rgba(0,229,255,0.05);border:1px solid rgba(0,229,255,0.15);border-radius:4px">
-                <div style="font-size:10px;color:var(--cyan);letter-spacing:2px;margin-bottom:6px;font-weight:700">STAGGER PLAN \u2014 ${cts} CONTRACTS (${batches3?'3':'2'} BATCHES)</div>
-                <div style="display:grid;grid-template-columns:${batches3?'1fr 1fr 1fr':'1fr 1fr'};gap:6px">
-                  <div style="text-align:center;padding:6px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:3px">
-                    <div style="font-size:9px;color:var(--textDim);margin-bottom:2px">BATCH 1</div>
-                    <div style="font-size:16px;font-weight:700;color:var(--green)">${b1}ct</div>
-                  </div>
-                  <div style="text-align:center;padding:6px;background:rgba(255,215,0,0.08);border:1px solid rgba(255,215,0,0.2);border-radius:3px">
-                    <div style="font-size:9px;color:var(--textDim);margin-bottom:2px">BATCH 2</div>
-                    <div style="font-size:16px;font-weight:700;color:var(--gold)">${b2}ct</div>
-                  </div>
-                  ${batches3 ? `<div style="text-align:center;padding:6px;background:rgba(0,229,255,0.08);border:1px solid rgba(0,229,255,0.2);border-radius:3px">
-                    <div style="font-size:9px;color:var(--textDim);margin-bottom:2px">BATCH 3</div>
-                    <div style="font-size:16px;font-weight:700;color:var(--cyan)">${b3}ct</div>
-                  </div>` : ''}
-                </div>
-              </div>` : ''}
-            </div>`;
-          }).join('')}
 
-          ${day.rules.length ? `<div class="label" style="margin-top:10px;margin-bottom:4px">RULES</div>
-          ${day.rules.map(r => '<div style="padding:3px 0;font-size:11px;color:var(--textMid);border-bottom:1px solid var(--border)">\u2022 ' + r + '</div>').join('')}` : ''}
+          <!-- Single trade card -->
+          <div class="label" style="margin-bottom:6px">TRADE</div>
+          <div style="padding:12px;border-left:3px solid var(--green);background:var(--panel);border-radius:0 4px 4px 0;margin-bottom:10px">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+              <span style="font-size:13px;font-weight:700;color:var(--white)">${t.name}</span>
+              <span style="font-size:11px;font-weight:700;color:var(--cyan);background:rgba(0,229,255,0.1);padding:2px 8px;border:1px solid rgba(0,229,255,0.3)">${t.dte}</span>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+              <div style="background:var(--panelAlt);padding:8px;border:1px solid var(--border)">
+                <div style="font-size:9px;color:var(--textDim);letter-spacing:1px;margin-bottom:2px">ENTRY TIME</div>
+                <div style="font-size:13px;color:var(--white);font-weight:600">${t.time}</div>
+              </div>
+              <div style="background:var(--panelAlt);padding:8px;border:1px solid var(--border)">
+                <div style="font-size:9px;color:var(--textDim);letter-spacing:1px;margin-bottom:2px">STRIKES</div>
+                <div style="font-size:13px;color:var(--white);font-family:'Chakra Petch',sans-serif;font-weight:700">${t.strikes}</div>
+              </div>
+              <div style="background:var(--panelAlt);padding:8px;border:1px solid var(--border)">
+                <div style="font-size:9px;color:var(--textDim);letter-spacing:1px;margin-bottom:2px">BSM CREDIT</div>
+                <div style="font-size:15px;color:var(--green);font-family:'Chakra Petch',sans-serif;font-weight:700">${t.credit}</div>
+              </div>
+              <div style="background:var(--panelAlt);padding:8px;border:1px solid var(--border)">
+                <div style="font-size:9px;color:var(--textDim);letter-spacing:1px;margin-bottom:2px">MAX RISK</div>
+                <div style="font-size:13px;color:var(--red);font-family:'Chakra Petch',sans-serif;font-weight:700">${t.maxRisk}</div>
+              </div>
+              <div style="background:var(--panelAlt);padding:8px;border:1px solid var(--border)">
+                <div style="font-size:9px;color:var(--textDim);letter-spacing:1px;margin-bottom:2px">CONTRACTS</div>
+                <div style="font-size:15px;color:var(--white);font-family:'Chakra Petch',sans-serif;font-weight:700">${t.contracts}ct</div>
+              </div>
+              <div style="background:rgba(0,229,255,0.05);padding:8px;border:1px solid rgba(0,229,255,0.2)">
+                <div style="font-size:9px;color:var(--textDim);letter-spacing:1px;margin-bottom:2px">EXPIRY</div>
+                <div style="font-size:13px;color:var(--cyan);font-weight:700">Next Mon · ${day.expiry}</div>
+              </div>
+            </div>
+            <div style="margin-top:8px;padding:6px 10px;background:rgba(255,71,87,0.06);border:1px solid rgba(255,71,87,0.2);font-size:10px;color:var(--red);font-weight:600">
+              NO INTRADAY STOP — hold to Monday AM settlement
+            </div>
+          </div>
+
+          <!-- Rules -->
+          ${day.rules.length ? `<div class="label" style="margin-bottom:4px">RULES</div>
+          ${day.rules.map(r => '<div style="padding:4px 0;font-size:11px;color:var(--textMid);border-bottom:1px solid var(--border)">• ' + r + '</div>').join('')}` : ''}
         </div>
+
+        <!-- Timing column -->
         <div style="flex:0 0 250px;border-left:1px solid var(--border);padding-left:12px">
-          <div class="label" style="margin-bottom:6px">\u23F0 TODAY'S ENTRY WINDOWS <span style="font-size:9px;color:var(--textDim)">(${LOCAL_TZ})</span></div>
+          <div class="label" style="margin-bottom:6px">⏰ ENTRY WINDOW <span style="font-size:9px;color:var(--textDim)">(${LOCAL_TZ})</span></div>
           ${(day.timing||[]).map(ti => {
             const el = ti.e.toLowerCase();
-            const isEntry = el.includes('entry');
-            const isClose = el.includes('hard close');
-            const isTheta = el.includes('theta');
-            const isMid = el.includes('mid-session') || el.includes('direction');
-            const isOpen = el.includes('opening');
-            const icon = isEntry ? '\u2734' : isClose ? '\u26D4' : isTheta ? '\u26A1' : isMid ? '' : isOpen ? '\u26A0' : '';
-            const rowColor = isEntry ? 'var(--green)' : isClose ? 'var(--red)' : isTheta ? 'var(--gold)' : isOpen ? 'var(--gold)' : 'var(--textMid)';
-            const highlight = isEntry ? 'border-left:3px solid var(--green);background:rgba(0,208,132,0.06);padding-left:8px;' : isClose ? 'border-left:3px solid var(--red);padding-left:8px;' : '';
-            return `<div style="padding:6px 4px;font-size:11px;border-bottom:1px solid var(--border);${highlight}"><div style="display:flex;justify-content:space-between;align-items:center"><span style="color:var(--white);font-weight:600">${ti.t}</span><span style="color:${rowColor};font-size:10px;text-align:right">${icon} ${ti.e}</span></div></div>`;
+            const isEntry      = el.includes('entry');
+            const isSettle     = el.includes('settlement');
+            const isOpen       = el.includes('open');
+            const rowColor     = isEntry ? 'var(--green)' : isSettle ? 'var(--gold)' : 'var(--textMid)';
+            const highlight    = isEntry  ? 'border-left:3px solid var(--green);background:rgba(0,208,132,0.06);padding-left:8px;'
+                               : isSettle ? 'border-left:3px solid var(--gold);background:rgba(240,180,41,0.05);padding-left:8px;' : '';
+            return `<div style="padding:6px 4px;font-size:11px;border-bottom:1px solid var(--border);${highlight}">
+              <div style="display:flex;justify-content:space-between;align-items:center">
+                <span style="color:var(--white);font-weight:600">${ti.t}</span>
+                <span style="color:${rowColor};font-size:10px;text-align:right">${ti.e}</span>
+              </div>
+            </div>`;
           }).join('')}
         </div>
       </div>
-
     </div>`;
 
-  // Weekly income model strip (only if element exists)
-  const phase = getPhase(traderData.currentCapital);
+  // Weekly income model strip
+  const phase    = getPhase(traderData.currentCapital);
   const incomeEl = document.getElementById('playbook-income');
   if (!incomeEl) return;
   incomeEl.innerHTML = `
     <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px">
       ${[
         { label: 'WEEKLY TARGET', value: fmt$(phase.weekly), color: 'var(--gold)' },
-        { label: 'CONTRACTS', value: phase.contracts, color: 'var(--green)' },
-        { label: 'PHASE', value: `${phase.id}: ${phase.name}`, color: phase.color },
+        { label: 'CONTRACTS (2% RISK)', value: adjContracts + 'ct', color: 'var(--green)' },
+        { label: 'PHASE', value: phase.id + ': ' + phase.name, color: phase.color },
         { label: 'ANNUAL ROI', value: phase.roi, color: 'var(--cyan)' },
       ].map(s => `<div class="stat-card"><div class="stat-label">${s.label}</div><div class="stat-value" style="font-size:20px;color:${s.color}">${s.value}</div></div>`).join('')}
     </div>`;
 
-  // Economic calendar — dynamic, uses getEventsForDate() which already resolves all data
+  // Economic calendar
   const now = new Date();
   const weekStart = new Date(now);
-  weekStart.setDate(now.getDate() - now.getDay() + 1); // Monday
-  const dayNames = ['Mon','Tue','Wed','Thu','Fri'];
+  weekStart.setDate(now.getDate() - now.getDay() + 1);
+  const dayNames2 = ['Mon','Tue','Wed','Thu','Fri'];
   const econEvents = [];
   for (let i = 0; i < 5; i++) {
     const d = new Date(weekStart); d.setDate(weekStart.getDate() + i);
-    const dayLabel = dayNames[i];
-    const resolved = getEventsForDate(d.getFullYear(), d.getMonth(), d.getDate())
+    const dayLabel  = dayNames2[i];
+    const resolved  = getEventsForDate(d.getFullYear(), d.getMonth(), d.getDate())
       .filter(e => e.name !== 'SPX 0DTE Expiry');
     if (resolved.length === 0) {
-      econEvents.push({ day: dayLabel, event: '\u2014', time: '', impact: 'low' });
+      econEvents.push({ day: dayLabel, event: '—', time: '', impact: 'low' });
     } else {
       resolved.forEach(e => econEvents.push({ day: dayLabel, event: e.name, time: e.time || '', impact: e.impact }));
     }
   }
   document.getElementById('playbook-econ').innerHTML = `
-    <div class="label" style="margin-bottom:8px">ECONOMIC CALENDAR \u2014 WEEK OF ${weekStart.toLocaleDateString('en-AU',{month:'short',day:'numeric'})}</div>
+    <div class="label" style="margin-bottom:8px">ECONOMIC CALENDAR — WEEK OF ${weekStart.toLocaleDateString('en-AU',{month:'short',day:'numeric'})}</div>
     ${econEvents.map(e => {
       const impactColor = e.impact === 'high' ? 'var(--red)' : e.impact === 'medium' ? 'var(--gold)' : 'var(--green)';
       return `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border)">
@@ -3359,6 +3292,7 @@ function renderPlaybook() {
     }).join('')}
   `;
 }
+
 
 // ══════════════════════════════════════════════════════════════════════════════
 // ECONOMIC CALENDAR DATA & RENDERING
