@@ -138,6 +138,7 @@ input, select, button, textarea { font-family: 'IBM Plex Mono', monospace; outli
 .cal-upcoming-item.high { border-left: 3px solid var(--red); }
 .cal-upcoming-item.medium { border-left: 3px solid var(--gold); }
 .cal-upcoming-item.low { border-left: 3px solid var(--green); }
+.cal-week-pnl { grid-column: 1 / -1; display: flex; justify-content: flex-end; align-items: center; padding: 3px 10px; background: var(--panel); border: 1px solid var(--border); font-size: 10px; letter-spacing: 0.5px; gap: 8px; }
 
 /* ══ PWA / MOBILE RESPONSIVE ══════════════════════════════════════════════ */
 
@@ -1399,8 +1400,10 @@ function findStrike(S, iv, T, targetDelta, type) {
   }
   return Math.round(((lo + hi) / 2) / 5) * 5;
 }
-function getRegime(vix) {
-  if (vix >= 28) return { level: 'SKIP', color: '#FF4757', size: 0, action: 'NO TRADE — VIX>28', ic: false };
+function getRegime(vix, isUpDay) {
+  if (vix >= 28) return isUpDay
+    ? { level: 'HIGH VOL', color: '#FF6B35', size: 0.50, action: '50% SIZE — UP DAY', ic: false }
+    : { level: 'SKIP', color: '#FF4757', size: 0, action: 'NO TRADE — VIX>28', ic: false };
   if (vix >= 25) return { level: 'HIGH', color: '#FF6B35', size: 0.50, action: '50% SIZE', ic: false };
   if (vix >= 20) return { level: 'ELEVATED', color: '#F0B429', size: 0.75, action: '75% SIZE', ic: false };
   if (vix >= 15) return { level: 'NORMAL', color: '#00D084', size: 1.00, action: 'FULL SIZE', ic: false };
@@ -1663,14 +1666,15 @@ function buildReasoning() {
   }
 
   // 6. Macro risk
+  const isUpDayReasons = state.spx > 0 && state.prevClose > 0 && state.spx > state.prevClose;
   const macroLabels = {
     clear: { icon: '✅', text: 'No major economic events today — standard playbook' },
-    caution: { icon: '⚠️', text: 'Economic release today (PCE/data) — reduced size, delay entry' },
-    high: { icon: '❌', text: 'HIGH IMPACT event today (CPI/NFP) — skip morning, arvo only if settled' },
-    blackout: { icon: '🚫', text: 'FOMC / Market Holiday — NO TRADE today' },
+    caution: { icon: '⚠️', text: isUpDayReasons ? 'Economic release today — UP DAY OVERRIDE, trading normally' : 'Economic release today (PCE/data) — reduced size, delay entry' },
+    high: { icon: isUpDayReasons ? '⬆️' : '❌', text: isUpDayReasons ? 'HIGH IMPACT event today — UP DAY OVERRIDE, trading normally' : 'HIGH IMPACT event today (CPI/NFP) — skip morning, arvo only if settled' },
+    blackout: { icon: isUpDayReasons ? '⬆️' : '🚫', text: isUpDayReasons ? 'FOMC/Holiday — UP DAY OVERRIDE, trading normally' : 'FOMC / Market Holiday — NO TRADE today' },
   };
   const macroInfo = macroLabels[state.macroRisk] || macroLabels.clear;
-  reasons.push({ icon: macroInfo.icon, text: macroInfo.text, bullish: state.macroRisk === 'clear' ? true : state.macroRisk === 'blackout' ? false : null });
+  reasons.push({ icon: macroInfo.icon, text: macroInfo.text, bullish: state.macroRisk === 'clear' ? true : (state.macroRisk === 'blackout' && !isUpDayReasons) ? false : null });
 
   return reasons;
 }
@@ -1984,7 +1988,8 @@ function scan() {
   // Bias is set manually by user — 200 DMA is context only, does NOT override bias
 
   const rows = computeRows();
-  const regime = getRegime(state.vix);
+  const isUpDay = state.spx > 0 && state.prevClose > 0 && state.spx > state.prevClose;
+  const regime = getRegime(state.vix, isUpDay);
   // ATM strategy: default delta 0.50; tighten only in extreme VIX (>35)
   let recDelta;
   if (state.vix >= 35) recDelta = 0.30;
@@ -2029,7 +2034,7 @@ function scan() {
 
   // ── COMPUTED VALUES FOR RENDERING ──
   const macroColors = { clear: 'var(--green)', caution: 'var(--gold)', high: 'var(--red)', blackout: 'var(--red)' };
-  const macroLabelsShort = { clear: 'CLEAR', caution: 'CAUTION', high: 'HIGH RISK', blackout: 'NO TRADE' };
+  const macroLabelsShort = { clear: 'CLEAR', caution: isUpDay ? 'OVERRIDE' : 'CAUTION', high: isUpDay ? 'OVERRIDE' : 'HIGH RISK', blackout: isUpDay ? 'OVERRIDE' : 'NO TRADE' };
   const gexColors = { positive: 'var(--green)', neutral: 'var(--cyan)', cautious: 'var(--gold)', negative: 'var(--red)' };
   const gexLabelsShort = { positive: '+GEX', neutral: 'NEUT', cautious: 'CAUT', negative: '-GEX' };
 
@@ -2085,9 +2090,17 @@ function scan() {
   if (conviction === 'C') adjContracts = 1;
   const sizeNote = regime.size < 1 ? ' \u00B7 ' + Math.round(regime.size * 100) + '% size (VIX)' : '';
   convLabel += sizeNote;
-  if (state.macroRisk === 'blackout') { conviction = 'X'; convColor = 'var(--red)'; convLabel = 'NO TRADE \u2014 FOMC/Holiday'; adjContracts = 0; }
-  else if (state.macroRisk === 'high') { if (conviction === 'A+') { conviction = 'B'; convColor = 'var(--gold)'; convLabel = 'REDUCED \u2014 High-impact event'; adjContracts = Math.max(1, Math.round(adjContracts * 0.5)); } else { conviction = 'C'; convColor = 'var(--red)'; convLabel = 'MINIMAL \u2014 High-impact event'; adjContracts = 1; } }
-  else if (state.macroRisk === 'caution' && conviction === 'A+') { conviction = 'B'; convColor = 'var(--gold)'; convLabel = 'MODERATE \u2014 Caution day'; adjContracts = Math.max(1, Math.round(adjContracts * 0.75)); }
+  if (state.macroRisk === 'blackout') {
+    if (isUpDay) { convLabel += ' \u00b7 UP DAY OVERRIDE'; }
+    else { conviction = 'X'; convColor = 'var(--red)'; convLabel = 'NO TRADE \u2014 FOMC/Holiday'; adjContracts = 0; }
+  } else if (state.macroRisk === 'high') {
+    if (isUpDay) { convLabel += ' \u00b7 UP DAY OVERRIDE'; }
+    else if (conviction === 'A+') { conviction = 'B'; convColor = 'var(--gold)'; convLabel = 'REDUCED \u2014 High-impact event'; adjContracts = Math.max(1, Math.round(adjContracts * 0.5)); }
+    else { conviction = 'C'; convColor = 'var(--red)'; convLabel = 'MINIMAL \u2014 High-impact event'; adjContracts = 1; }
+  } else if (state.macroRisk === 'caution' && conviction === 'A+') {
+    if (isUpDay) { convLabel += ' \u00b7 UP DAY OVERRIDE'; }
+    else { conviction = 'B'; convColor = 'var(--gold)'; convLabel = 'MODERATE \u2014 Caution day'; adjContracts = Math.max(1, Math.round(adjContracts * 0.75)); }
+  }
   if (state.gexProxy === 'negative' && conviction !== 'X') { conviction = 'C'; convColor = 'var(--red)'; convLabel = 'MINIMAL \u2014 Negative GEX'; adjContracts = 1; }
   else if (state.gexProxy === 'cautious' && conviction === 'A+') { conviction = 'B'; convColor = 'var(--gold)'; convLabel = 'MODERATE \u2014 Cautious GEX'; adjContracts = Math.max(1, Math.round(adjContracts * 0.5)); }
   const adjIncome = orderCredit * adjContracts * 100;
@@ -2103,14 +2116,14 @@ function scan() {
     else if (etNow >= 15.75 && etNow < 16.0) { sessionStatus = 'HARD CLOSE'; sessionColor = 'var(--red)'; sessionNote = 'Close all positions NOW'; }
     else { sessionStatus = 'MARKET CLOSED'; sessionColor = 'var(--textDim)'; sessionNote = 'US market not open'; }
   } else {
-    if (state.vix >= 28) { sessionStatus = 'VIX SKIP'; sessionColor = 'var(--red)'; sessionNote = 'VIX > 28 \u2014 AUTO skips (sit out chaos)'; }
+    if (state.vix >= 28 && !isUpDay) { sessionStatus = 'VIX SKIP'; sessionColor = 'var(--red)'; sessionNote = 'VIX > 28 \u2014 AUTO skips (sit out chaos)'; }
     else if (etNow >= 11.5 && etNow < 12.0) { sessionStatus = '11:30 ENTRY'; sessionColor = 'var(--gold)'; sessionNote = '11:30 window \u2014 \u03940.15, 2\u00D7 stop (30min gate)'; }
     else if (etNow >= 12.0 && etNow < 15.75) { sessionStatus = 'LATE SESSION'; sessionColor = 'var(--green)'; sessionNote = 'Post-noon \u2014 1\u00D7 tight stop'; }
     else if (etNow >= 15.75 && etNow < 16.0) { sessionStatus = 'HARD CLOSE'; sessionColor = 'var(--red)'; sessionNote = 'Close all positions NOW'; }
     else if (etNow >= 9.5 && etNow < 11.5) { sessionStatus = 'PRE-ENTRY'; sessionColor = 'var(--textDim)'; sessionNote = 'Wait for 11:30 AM ET entry window'; }
     else { sessionStatus = 'MARKET CLOSED'; sessionColor = 'var(--textDim)'; sessionNote = 'US market not open'; }
   }
-  const canTrade = (sessionStatus === '11:30 ENTRY' || sessionStatus === 'LATE SESSION' || sessionStatus === 'WEEKLY ENTRY') && state.vix < 28;
+  const canTrade = (sessionStatus === '11:30 ENTRY' || sessionStatus === 'LATE SESSION' || sessionStatus === 'WEEKLY ENTRY') && (state.vix < 28 || isUpDay);
 
   // ── STORE SCAN RESULTS FOR PLAYBOOK ──
   state._order = {
@@ -2127,7 +2140,11 @@ function scan() {
   // Order panel — order strip with session selector + LOG
   let bannerHtml = '';
   if (state.macroRisk === 'blackout') {
-    bannerHtml = '<div style="border:2px solid var(--red);border-left:4px solid var(--red);padding:10px 16px;display:flex;align-items:center;gap:12px;background:rgba(255,71,87,0.08);margin-bottom:8px"><span style="font-size:20px">\u26D4</span><div><div style="font-size:13px;color:var(--red);font-weight:700;letter-spacing:1px">NO TRADE TODAY</div><div style="font-size:11px;color:var(--textMid);margin-top:2px">FOMC / Market Holiday \u2014 capital preservation day</div></div></div>';
+    if (isUpDay) {
+      bannerHtml = '<div style="border:2px solid var(--gold);border-left:4px solid var(--gold);padding:10px 16px;display:flex;align-items:center;gap:12px;background:rgba(240,180,41,0.08);margin-bottom:8px"><span style="font-size:20px">\u2B06\uFE0F</span><div><div style="font-size:13px;color:var(--gold);font-weight:700;letter-spacing:1px">UP DAY OVERRIDE</div><div style="font-size:11px;color:var(--textMid);margin-top:2px">FOMC/Holiday day \u2014 trading normally (market is up from prev close)</div></div></div>';
+    } else {
+      bannerHtml = '<div style="border:2px solid var(--red);border-left:4px solid var(--red);padding:10px 16px;display:flex;align-items:center;gap:12px;background:rgba(255,71,87,0.08);margin-bottom:8px"><span style="font-size:20px">\u26D4</span><div><div style="font-size:13px;color:var(--red);font-weight:700;letter-spacing:1px">NO TRADE TODAY</div><div style="font-size:11px;color:var(--textMid);margin-top:2px">FOMC / Market Holiday \u2014 capital preservation day</div></div></div>';
+    }
   }
   const oc = orderColor;
   const orderStripHtml = `
@@ -3083,7 +3100,8 @@ function renderFindings() {
   if (!el) return;
 
   const findings = [];
-  const regime = getRegime(state.vix);
+  const isUpDay = state.spx > 0 && state.prevClose > 0 && state.spx > state.prevClose;
+  const regime = getRegime(state.vix, isUpDay);
   const dailyMove = Math.round(state.spx * (state.vix / 100) / Math.sqrt(365));
   const dmaAbove = state.dma200 > 0 ? state.spx > state.dma200 : null;
   const dmaDist = state.dma200 > 0 ? Math.round(state.spx - state.dma200) : null;
@@ -3176,7 +3194,9 @@ function renderFindings() {
 
   // Macro risk
   if (state.macroRisk && state.macroRisk !== 'clear') {
-    const labels = { caution: 'Economic data release today \u2014 reduced size, delay entry', high: 'High-impact event \u2014 consider skipping or 1ct max', blackout: 'FOMC/Holiday blackout \u2014 NO TRADE' };
+    const isUpDayFindings = state.spx > 0 && state.prevClose > 0 && state.spx > state.prevClose;
+    const upDaySuffix = isUpDayFindings ? ' (UP DAY \u2014 trading normally)' : '';
+    const labels = { caution: 'Economic data release today \u2014 reduced size, delay entry' + upDaySuffix, high: 'High-impact event \u2014 consider skipping or 1ct max' + upDaySuffix, blackout: isUpDayFindings ? 'FOMC/Holiday blackout \u2014 UP DAY OVERRIDE, trading normally' : 'FOMC/Holiday blackout \u2014 NO TRADE' };
     findings.push({
       icon: state.macroRisk === 'blackout' ? '\uD83D\uDED1' : '\u26A0\uFE0F',
       text: labels[state.macroRisk] || state.macroRisk,
@@ -3269,34 +3289,35 @@ function getPlaybook() {
   const ph = getPhase(traderData.currentCapital);
 
   // Per-phase, per-day guidance for the ATM put spread
+  const upDayNote = isUpDay ? ' (UP DAY — override applies)' : '';
   const PHASE_DAY_RULES = {
     1: {
       Mon: ['7DTE — best credit day; full ' + riskCts + 'ct position'],
       Tue: ['6DTE — standard entry; full size'],
-      Wed: ['5DTE — FOMC/CPI day: SKIP (no exceptions in Phase 1)', ...(isFomcWeek ? ['⚠ THIS IS AN FOMC WEEK — sit out today'] : [])],
-      Thu: ['4DTE — enter only if VIX < 25'],
-      Fri: ['Phase 1: SKIP FRIDAY — 3DTE gap risk over weekend too high at this account size'],
+      Wed: ['5DTE — ' + (isUpDay ? 'FOMC/CPI day: UP DAY OVERRIDE — trading normally' : 'FOMC/CPI day: SKIP (no exceptions in Phase 1)'), ...(isFomcWeek && !isUpDay ? ['⚠ THIS IS AN FOMC WEEK — sit out today'] : isFomcWeek ? ['⚠ FOMC WEEK — up day override active'] : [])],
+      Thu: ['4DTE — enter only if VIX < 25' + upDayNote],
+      Fri: ['Phase 1: SKIP FRIDAY — 3DTE gap risk over weekend too high at this account size' + upDayNote],
     },
     2: {
-      Mon: ['7DTE full premium — anchor trade of the week; full ' + riskCts + 'ct', ...(isFomcWeek ? ['⚠ FOMC week — 50% size (' + Math.max(1,Math.floor(riskCts/2)) + 'ct)'] : [])],
+      Mon: ['7DTE full premium — anchor trade of the week; full ' + riskCts + 'ct', ...(isFomcWeek ? ['⚠ FOMC week — ' + (isUpDay ? 'UP DAY OVERRIDE, full size' : '50% size (' + Math.max(1,Math.floor(riskCts/2)) + 'ct)')] : [])],
       Tue: ['6DTE standard entry — full size'],
-      Wed: ['5DTE — ' + (isFomcWeek ? '⚠ FOMC day: SKIP or 50% size (' + Math.max(1,Math.floor(riskCts/2)) + 'ct)' : 'standard entry; skip on FOMC/CPI')],
-      Thu: ['4DTE — enter if VIX < 25, otherwise sit out'],
-      Fri: ['3DTE — optional; 50% size (' + Math.max(1,Math.floor(riskCts/2)) + 'ct) max · watch gap risk'],
+      Wed: ['5DTE — ' + (isFomcWeek ? (isUpDay ? '⚠ FOMC day: UP DAY OVERRIDE — full size' : '⚠ FOMC day: SKIP or 50% size (' + Math.max(1,Math.floor(riskCts/2)) + 'ct)') : 'standard entry; skip on FOMC/CPI unless up day')],
+      Thu: ['4DTE — enter if VIX < 25, otherwise sit out' + upDayNote],
+      Fri: ['3DTE — optional; 50% size (' + Math.max(1,Math.floor(riskCts/2)) + 'ct) max · watch gap risk' + upDayNote],
     },
     3: {
-      Mon: ['7DTE full size — best credit day · ' + riskCts + 'ct', ...(isFomcWeek ? ['⚠ FOMC week — 50% size (' + Math.max(1,Math.floor(riskCts/2)) + 'ct)'] : [])],
+      Mon: ['7DTE full size — best credit day · ' + riskCts + 'ct', ...(isFomcWeek ? ['⚠ FOMC week — ' + (isUpDay ? 'UP DAY OVERRIDE, full size' : '50% size (' + Math.max(1,Math.floor(riskCts/2)) + 'ct)')] : [])],
       Tue: ['6DTE — full size'],
-      Wed: ['5DTE — ' + (isFomcWeek ? '⚠ FOMC day: SKIP or 30% size (' + Math.max(1,Math.round(riskCts*0.3)) + 'ct)' : 'FOMC/CPI week: 30% size or skip entirely')],
-      Thu: ['4DTE — full size if VIX < 25, 50% (' + Math.max(1,Math.floor(riskCts/2)) + 'ct) if VIX 25–30'],
-      Fri: ['3DTE — 50% size (' + Math.max(1,Math.floor(riskCts/2)) + 'ct) max · $' + (riskCts*500).toLocaleString() + ' max-loss day, gap risk is real'],
+      Wed: ['5DTE — ' + (isFomcWeek ? (isUpDay ? '⚠ FOMC day: UP DAY OVERRIDE — trading normally' : '⚠ FOMC day: SKIP or 30% size (' + Math.max(1,Math.round(riskCts*0.3)) + 'ct)') : 'FOMC/CPI week: 30% size or skip unless up day')],
+      Thu: ['4DTE — full size if VIX < 25, 50% (' + Math.max(1,Math.floor(riskCts/2)) + 'ct) if VIX 25–30' + upDayNote],
+      Fri: ['3DTE — 50% size (' + Math.max(1,Math.floor(riskCts/2)) + 'ct) max · $' + (riskCts*500).toLocaleString() + ' max-loss day, gap risk is real' + upDayNote],
     },
     4: {
-      Mon: ['7DTE full size — anchor trade · ' + riskCts + 'ct', ...(isFomcWeek ? ['⚠ FOMC week — 25% size (' + Math.max(1,Math.round(riskCts*0.25)) + 'ct) or skip'] : [])],
+      Mon: ['7DTE full size — anchor trade · ' + riskCts + 'ct', ...(isFomcWeek ? ['⚠ FOMC week — ' + (isUpDay ? 'UP DAY OVERRIDE, full size' : '25% size (' + Math.max(1,Math.round(riskCts*0.25)) + 'ct) or skip')] : [])],
       Tue: ['6DTE — full size'],
-      Wed: ['5DTE — ' + (isFomcWeek ? '⚠ FOMC day: SKIP entirely' : 'FOMC week: SKIP or 25% max')],
-      Thu: ['4DTE — 75% size (' + Math.max(1,Math.round(riskCts*0.75)) + 'ct) on ambiguous macro days'],
-      Fri: ['SKIP or 25% size (' + Math.max(1,Math.round(riskCts*0.25)) + 'ct) max — protecting $' + Math.round(riskCts*100*0.5).toLocaleString() + '+ weekly gain is the job'],
+      Wed: ['5DTE — ' + (isFomcWeek ? (isUpDay ? '⚠ FOMC day: UP DAY OVERRIDE — trading normally' : '⚠ FOMC day: SKIP entirely') : (isUpDay ? 'FOMC week: UP DAY OVERRIDE — trading' : 'FOMC week: SKIP or 25% max'))],
+      Thu: ['4DTE — 75% size (' + Math.max(1,Math.round(riskCts*0.75)) + 'ct) on ambiguous macro days' + upDayNote],
+      Fri: [(isUpDay ? '' : 'SKIP or ') + '25% size (' + Math.max(1,Math.round(riskCts*0.25)) + 'ct) max — protecting $' + Math.round(riskCts*100*0.5).toLocaleString() + '+ weekly gain is the job' + upDayNote],
     },
   };
   const phDayRules = PHASE_DAY_RULES[ph.id] || PHASE_DAY_RULES[1];
@@ -3744,6 +3765,33 @@ function renderCalendarMonth() {
   const today = new Date();
   const isThisMonth = today.getFullYear() === calViewYear && today.getMonth() === calViewMonth;
 
+  // Build trade lookup by date
+  const tradeLookup = {};
+  (traderData.trades || []).forEach(t => {
+    if (!t.date) return;
+    if (!tradeLookup[t.date]) tradeLookup[t.date] = { total: 0, trades: [] };
+    tradeLookup[t.date].total += (t.result || 0);
+    tradeLookup[t.date].trades.push(t);
+  });
+
+  // Helper: get week P&L given 7 cell dates [{y,m,d}]
+  function weekPnlHtml(cells) {
+    let weekPnl = 0, weekTrades = 0;
+    cells.forEach(({ y, mo, d }) => {
+      const key = `${y}-${String(mo+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+      const entry = tradeLookup[key];
+      if (entry) { weekPnl += entry.total; weekTrades += entry.trades.length; }
+    });
+    const hasData = weekTrades > 0;
+    const pnlColor = weekPnl > 0 ? 'var(--green)' : weekPnl < 0 ? 'var(--red)' : 'var(--textDim)';
+    const sign = weekPnl >= 0 ? '+' : '';
+    return `<div class="cal-week-pnl">
+      <span style="color:var(--textDim);font-size:9px;letter-spacing:1px">WEEK P&L</span>
+      <span style="font-weight:700;color:${hasData ? pnlColor : 'var(--textDim)'};font-family:'IBM Plex Mono',monospace;font-size:11px">${hasData ? sign + '$' + weekPnl.toFixed(0) : '—'}</span>
+      ${hasData ? `<span style="color:var(--textDim);font-size:9px">${weekTrades} trade${weekTrades>1?'s':''}</span>` : ''}
+    </div>`;
+  }
+
   let html = '<div class="cal-month-grid">';
   // Headers (Mon-first)
   ['MON','TUE','WED','THU','FRI','SAT','SUN'].forEach(d => {
@@ -3753,26 +3801,20 @@ function renderCalendarMonth() {
   // Adjust firstDay to Mon-first (0=Mon, 6=Sun)
   const startOffset = (firstDay + 6) % 7;
 
+  // Build all cells in order: prev-fill + current + next-fill, tracking dates
+  const cells = []; // { html, y, mo, d }
+
   // Previous month fill
+  const pm = calViewMonth === 0 ? 11 : calViewMonth - 1;
+  const py = calViewMonth === 0 ? calViewYear - 1 : calViewYear;
   for (let i = startOffset - 1; i >= 0; i--) {
     const d = daysInPrev - i;
-    const pm = calViewMonth === 0 ? 11 : calViewMonth - 1;
-    const py = calViewMonth === 0 ? calViewYear - 1 : calViewYear;
     const evts = getEventsForDate(py, pm, d).filter(e => e.name !== 'SPX 0DTE Expiry');
-    html += `<div class="cal-day-cell other-month">
+    cells.push({ html: `<div class="cal-day-cell other-month">
       <div class="cal-day-num" style="color:var(--textDim)">${d}</div>
       ${evts.slice(0,3).map(e => `<div class="cal-event ${e.impact}">${e.name}</div>`).join('')}
-    </div>`;
+    </div>`, y: py, mo: pm, d });
   }
-
-  // Build trade lookup by date
-  const tradeLookup = {};
-  (traderData.trades || []).forEach(t => {
-    if (!t.date) return;
-    if (!tradeLookup[t.date]) tradeLookup[t.date] = { total: 0, trades: [] };
-    tradeLookup[t.date].total += (t.result || 0);
-    tradeLookup[t.date].trades.push(t);
-  });
 
   // Current month
   for (let d = 1; d <= daysInMonth; d++) {
@@ -3789,32 +3831,37 @@ function renderCalendarMonth() {
     const tradeBg = isWin ? 'rgba(0,230,118,0.12)' : isLoss ? 'rgba(255,82,82,0.12)' : '';
     const tradeBorder = isWin ? 'border-left:3px solid var(--green)' : isLoss ? 'border-left:3px solid var(--red)' : '';
     const cellStyle = [tradeBg ? `background:${tradeBg}` : '', tradeBorder, evts.length || hasTrade ? 'cursor:pointer' : ''].filter(Boolean).join(';');
-
-    html += `<div class="cal-day-cell ${isToday?'today':''} ${isWeekend?'weekend':''}" ${evts.length ? `onclick="showDayDetail(${calViewYear},${calViewMonth},${d})"` : ''} style="position:relative;${cellStyle}">
+    cells.push({ html: `<div class="cal-day-cell ${isToday?'today':''} ${isWeekend?'weekend':''}" ${evts.length ? `onclick="showDayDetail(${calViewYear},${calViewMonth},${d})"` : ''} style="position:relative;${cellStyle}">
       <div class="cal-day-num">${d}</div>
       ${hasTrade ? `<div style="position:absolute;top:4px;right:6px;font-size:14px;font-weight:700;color:${isWin?'var(--green)':'var(--red)'};font-family:'IBM Plex Mono',monospace">${isWin?'+':''}$${dayPnl.toFixed(0)}</div>
       <div style="font-size:8px;color:var(--textDim);margin-top:2px">${dayTrade.trades.length} trade${dayTrade.trades.length>1?'s':''}</div>` : ''}
       ${evts.slice(0,2).map(e => `<div class="cal-event ${e.impact}">${e.name}</div>`).join('')}
       ${evts.length > 2 ? `<div style="font-size:8px;color:var(--textDim)">+${evts.length-2} more</div>` : ''}
-    </div>`;
+    </div>`, y: calViewYear, mo: calViewMonth, d });
   }
 
-  // Next month fill (complete the grid)
-  const totalCells = startOffset + daysInMonth;
+  // Next month fill
+  const totalCells = cells.length;
   const remaining = (7 - (totalCells % 7)) % 7;
+  const nm = calViewMonth === 11 ? 0 : calViewMonth + 1;
+  const ny = calViewMonth === 11 ? calViewYear + 1 : calViewYear;
   for (let d = 1; d <= remaining; d++) {
-    const nm = calViewMonth === 11 ? 0 : calViewMonth + 1;
-    const ny = calViewMonth === 11 ? calViewYear + 1 : calViewYear;
     const evts = getEventsForDate(ny, nm, d).filter(e => e.name !== 'SPX 0DTE Expiry');
-    html += `<div class="cal-day-cell other-month">
+    cells.push({ html: `<div class="cal-day-cell other-month">
       <div class="cal-day-num" style="color:var(--textDim)">${d}</div>
       ${evts.slice(0,3).map(e => `<div class="cal-event ${e.impact}">${e.name}</div>`).join('')}
-    </div>`;
+    </div>`, y: ny, mo: nm, d });
+  }
+
+  // Emit cells row by row, injecting weekly P&L after each row of 7
+  for (let i = 0; i < cells.length; i++) {
+    html += cells[i].html;
+    if ((i + 1) % 7 === 0) {
+      html += weekPnlHtml(cells.slice(i - 6, i + 1));
+    }
   }
 
   html += '</div>';
-
-  // Day detail popup area
   html += '<div id="cal-day-detail" style="margin-top:12px"></div>';
 
   document.getElementById('cal-body').innerHTML = html;
@@ -4539,7 +4586,8 @@ function renderAnalysis() {
   }).join('');
 
   // ── B: Key Levels ──
-  const regime = getRegime(state.vix);
+  const isUpDay = state.spx > 0 && state.prevClose > 0 && state.spx > state.prevClose;
+  const regime = getRegime(state.vix, isUpDay);
   const dailyMove = Math.round(state.spx * (state.vix / 100) / Math.sqrt(365));
   const expLow = Math.round(state.spx - dailyMove);
   const expHigh = Math.round(state.spx + dailyMove);
