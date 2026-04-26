@@ -3232,7 +3232,8 @@ function renderFindings() {
 // ══════════════════════════════════════════════════════════════════════════════
 // Daily ATM Put Spread — next Monday expiry · 9:45 AM ET entry · no intraday stop
 function getPlaybook() {
-  const pbRegime = getRegime(state.vix);
+  const isUpDay = state.spx > 0 && state.prevClose > 0 && state.spx > state.prevClose;
+  const pbRegime = getRegime(state.vix, isUpDay);
 
   // Contract sizing: phase-based scaling (+1ct per $20k) with regime adjustment
   const riskRaw = ctForCapital(traderData.currentCapital);
