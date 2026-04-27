@@ -115,7 +115,7 @@ input, select, button, textarea { font-family: 'IBM Plex Mono', monospace; outli
 .econ-headline .econ-dot { width: 6px; height: 6px; border-radius: 50%; display: inline-block; }
 
 /* Calendar tab */
-.cal-month-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 1px; }
+.cal-month-grid { display: grid; grid-template-columns: repeat(5, 1fr) 100px; gap: 1px; }
 .cal-header-cell { padding: 8px 4px; text-align: center; font-size: 10px; letter-spacing: 2px; color: var(--textDim); background: var(--panel); }
 .cal-day-cell { min-height: 80px; padding: 6px; background: var(--panelAlt); border: 1px solid var(--border); vertical-align: top; cursor: default; transition: border-color 0.15s; }
 .cal-day-cell:hover { border-color: var(--borderBright); }
@@ -138,7 +138,10 @@ input, select, button, textarea { font-family: 'IBM Plex Mono', monospace; outli
 .cal-upcoming-item.high { border-left: 3px solid var(--red); }
 .cal-upcoming-item.medium { border-left: 3px solid var(--gold); }
 .cal-upcoming-item.low { border-left: 3px solid var(--green); }
-.cal-week-pnl { grid-column: 1 / -1; display: flex; justify-content: flex-end; align-items: center; padding: 3px 10px; background: var(--panel); border: 1px solid var(--border); font-size: 10px; letter-spacing: 0.5px; gap: 8px; }
+.cal-week-pnl { display: flex; flex-direction: column; align-items: center; justify-content: center; background: var(--panel); border: 1px solid var(--border); padding: 6px 4px; text-align: center; min-height: 80px; }
+.cal-wt-entry { font-size: 9px; padding: 2px 4px; margin-bottom: 2px; border-left: 2px solid var(--gold); background: rgba(240,180,41,0.08); color: var(--gold); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
+.cal-wt-entry.resolved { border-color: var(--green); background: rgba(0,208,132,0.08); color: var(--green); }
+.cal-wt-entry.loss { border-color: var(--red); background: rgba(255,71,87,0.08); color: var(--red); }
 
 /* ══ PWA / MOBILE RESPONSIVE ══════════════════════════════════════════════ */
 
@@ -486,6 +489,7 @@ input, select, button, textarea { font-family: 'IBM Plex Mono', monospace; outli
     <div id="cal-month-title" class="chakra" style="font-size:20px;font-weight:700;color:var(--white);min-width:200px;text-align:center"></div>
     <button class="cal-nav-btn" onclick="calNavMonth(1)">&rarr;</button>
     <button class="btn" style="border-color:var(--cyan);color:var(--cyan);margin-left:8px" onclick="calGoToday()">TODAY</button>
+    <button class="btn" style="border-color:var(--green);color:var(--green);margin-left:4px" onclick="refreshCalSettlement()" id="cal-refresh-btn">&#8635; REFRESH</button>
     <div class="cal-view-toggle" style="margin-left:auto">
       <button class="btn active" id="cal-view-month" onclick="setCalView('month')">MONTH</button>
       <button class="btn" id="cal-view-list" onclick="setCalView('list')">LIST</button>
@@ -1212,7 +1216,7 @@ function getPhase(capital) {
 }
 
 const CLOUD_STORAGE_KEY = 'spx_cloud_config';
-const DEFAULT_DATA = { startCapital: 10000, currentCapital: 10000, trades: [], startDate: new Date().toISOString().slice(0,10), riskAllotment: 2.5 };
+const DEFAULT_DATA = { startCapital: 10000, currentCapital: 10000, trades: [], weeklyTrades: [], startDate: new Date().toISOString().slice(0,10), riskAllotment: 2.5 };
 
 function getCloudConfig() {
   try { return JSON.parse(localStorage.getItem(CLOUD_STORAGE_KEY) || '{}'); } catch(e) { return {}; }
@@ -3690,112 +3694,305 @@ function renderCalendar() {
 }
 
 function renderCalendarMonth() {
-  const firstDay = new Date(calViewYear, calViewMonth, 1).getDay(); // 0=Sun
+  const firstDay = new Date(calViewYear, calViewMonth, 1).getDay();
   const daysInMonth = new Date(calViewYear, calViewMonth + 1, 0).getDate();
   const daysInPrev = new Date(calViewYear, calViewMonth, 0).getDate();
   const today = new Date();
   const isThisMonth = today.getFullYear() === calViewYear && today.getMonth() === calViewMonth;
 
-  // Build trade lookup by date
-  const tradeLookup = {};
-  (traderData.trades || []).forEach(t => {
-    if (!t.date) return;
-    if (!tradeLookup[t.date]) tradeLookup[t.date] = { total: 0, trades: [] };
-    tradeLookup[t.date].total += (t.result || 0);
-    tradeLookup[t.date].trades.push(t);
+  if (!traderData.weeklyTrades) traderData.weeklyTrades = [];
+
+  // Build weeklyTrade lookup by entryDate
+  const wtByDate = {};
+  traderData.weeklyTrades.forEach(wt => {
+    if (!wtByDate[wt.entryDate]) wtByDate[wt.entryDate] = [];
+    wtByDate[wt.entryDate].push(wt);
+  });
+  // Build weeklyTrade lookup by expiryDate (for WK P&L cell)
+  const wtByExpiry = {};
+  traderData.weeklyTrades.forEach(wt => {
+    if (!wtByExpiry[wt.expiryDate]) wtByExpiry[wt.expiryDate] = [];
+    wtByExpiry[wt.expiryDate].push(wt);
   });
 
-  // Helper: get week P&L given 7 cell dates [{y,m,d}]
-  function weekPnlHtml(cells) {
-    let weekPnl = 0, weekTrades = 0;
-    cells.forEach(({ y, mo, d }) => {
-      const key = `${y}-${String(mo+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-      const entry = tradeLookup[key];
-      if (entry) { weekPnl += entry.total; weekTrades += entry.trades.length; }
-    });
-    const hasData = weekTrades > 0;
-    const pnlColor = weekPnl > 0 ? 'var(--green)' : weekPnl < 0 ? 'var(--red)' : 'var(--textDim)';
-    const sign = weekPnl >= 0 ? '+' : '';
-    return `<div class="cal-week-pnl">
-      <span style="color:var(--textDim);font-size:9px;letter-spacing:1px">WEEK P&L</span>
-      <span style="font-weight:700;color:${hasData ? pnlColor : 'var(--textDim)'};font-family:'IBM Plex Mono',monospace;font-size:11px">${hasData ? sign + '$' + weekPnl.toFixed(0) : '—'}</span>
-      ${hasData ? `<span style="color:var(--textDim);font-size:9px">${weekTrades} trade${weekTrades>1?'s':''}</span>` : ''}
+  // Build economic events lookup
+  function evtsFor(y, mo, d) {
+    return getEventsForDate(y, mo, d).filter(e => e.name !== 'SPX 0DTE Expiry');
+  }
+
+  // Render a single weekday cell
+  function makeDayCell(y, mo, d, isCurrent) {
+    const dt = new Date(y, mo, d);
+    const isToday = isCurrent && isThisMonth && d === today.getDate();
+    const dateStr = `${y}-${String(mo+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const evts = isCurrent ? evtsFor(y, mo, d) : evtsFor(y, mo, d).slice(0,1);
+    const wts = wtByDate[dateStr] || [];
+    const hasWt = wts.length > 0;
+    const bg = hasWt ? 'background:rgba(240,180,41,0.06);' : '';
+    const border = hasWt ? 'border-left:3px solid var(--gold);' : '';
+    const clickable = isCurrent ? `onclick="openCalTradeForm('${dateStr}')"` : '';
+    const cls = `cal-day-cell${isToday?' today':''} ${isCurrent?'':'other-month'}`;
+    return `<div class="${cls}" style="position:relative;cursor:pointer;${bg}${border}" ${clickable}>
+      <div class="cal-day-num" style="${isCurrent?'':'color:var(--textDim)'}">${d}</div>
+      ${evts.slice(0,1).map(e=>`<div class="cal-event ${e.impact}">${e.name}</div>`).join('')}
+      ${wts.map(wt=>`<div class="cal-wt-entry ${wt.status==='win'?'resolved':wt.status==='loss'?'loss':''}" onclick="event.stopPropagation();openCalTradeForm('${dateStr}')" title="Strike:${wt.shortStrike} | ${wt.status.toUpperCase()}">${wt.status==='open'?'OPEN':''}${wt.status==='win'?'+$'+(wt.pnl||0).toFixed(0):''}${wt.status==='loss'?'-$'+Math.abs(wt.pnl||0).toFixed(0):''} ${wt.contracts}ct</div>`).join('')}
     </div>`;
   }
 
+  // Render WK P&L cell for a week, given that week's Monday dateStr
+  function makeWkPnlCell(mondayDateStr) {
+    // Expiry = monday + 7 days
+    const monDate = new Date(mondayDateStr + 'T12:00:00');
+    const expDate = new Date(monDate); expDate.setDate(monDate.getDate() + 7);
+    const expiryStr = expDate.toISOString().slice(0, 10);
+    const wts = wtByExpiry[expiryStr] || [];
+    if (wts.length === 0) {
+      return `<div class="cal-week-pnl" onclick="openSettlementForm('${expiryStr}')">
+        <span style="font-size:9px;letter-spacing:1px;color:var(--textDim)">WK P&L</span>
+        <span style="font-size:13px;color:var(--textDim);margin-top:2px">—</span>
+      </div>`;
+    }
+    const openCount = wts.filter(w => w.status === 'open').length;
+    const resolvedPnl = wts.filter(w => w.status !== 'open').reduce((s, w) => s + (w.pnl || 0), 0);
+    const totalCredit = wts.reduce((s, w) => s + (w.creditReceived - w.feesPaid), 0);
+    const allOpen = openCount === wts.length;
+    const pnlColor = allOpen ? 'var(--gold)' : resolvedPnl >= 0 ? 'var(--green)' : 'var(--red)';
+    const pnlText = allOpen
+      ? `<span style="font-size:9px;color:var(--gold);margin-top:2px">OPEN</span><span style="font-size:10px;color:var(--textDim)">+$${totalCredit.toFixed(0)} if win</span>`
+      : `<span style="font-size:13px;font-weight:700;font-family:'IBM Plex Mono',monospace;color:${pnlColor};margin-top:2px">${resolvedPnl>=0?'+':'-'}$${Math.abs(resolvedPnl).toFixed(0)}</span>${openCount>0?`<span style="font-size:9px;color:var(--gold)">${openCount} still open</span>`:''}`;
+    return `<div class="cal-week-pnl" style="cursor:pointer" onclick="openSettlementForm('${expiryStr}')">
+      <span style="font-size:9px;letter-spacing:1px;color:var(--textDim)">WK P&L</span>
+      ${pnlText}
+      <span style="font-size:8px;color:var(--textDim);margin-top:2px">${wts.length} entr${wts.length>1?'ies':'y'}</span>
+    </div>`;
+  }
+
+  // startOffset: 0=Mon, 1=Tue, ..., 4=Fri, 5=Sat, 6=Sun (Mon-first)
+  const startOffset = (firstDay + 6) % 7;
+  const weekdayFillCount = Math.min(startOffset, 5);
+  const pm = calViewMonth === 0 ? 11 : calViewMonth - 1;
+  const py = calViewMonth === 0 ? calViewYear - 1 : calViewYear;
+  const nm = calViewMonth === 11 ? 0 : calViewMonth + 1;
+  const ny = calViewMonth === 11 ? calViewYear + 1 : calViewYear;
+
+  // Build flat array of weekday cells only {html, dateStr, isCurrentMonth}
+  const cells = [];
+
+  // Prev month fill (weekdays only)
+  const firstFillDay = weekdayFillCount === 0 ? null :
+    startOffset <= 4 ? daysInPrev - startOffset + 1 :
+    startOffset === 5 ? daysInPrev - 4 : daysInPrev - 5;
+  for (let i = 0; i < weekdayFillCount; i++) {
+    const d = firstFillDay + i;
+    const dateStr = `${py}-${String(pm+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    cells.push({ html: makeDayCell(py, pm, d, false), dateStr });
+  }
+
+  // Current month — weekdays only (Mon=1, Tue=2, Wed=3, Thu=4, Fri=5)
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dow = new Date(calViewYear, calViewMonth, d).getDay();
+    if (dow === 0 || dow === 6) continue;
+    const dateStr = `${calViewYear}-${String(calViewMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    cells.push({ html: makeDayCell(calViewYear, calViewMonth, d, true), dateStr, isCurrent: true });
+  }
+
+  // Next month fill to complete to multiple of 5
+  const remaining = (5 - (cells.length % 5)) % 5;
+  let nmDay = 1;
+  for (let i = 0; i < remaining; i++, nmDay++) {
+    // Skip weekends in next month fill
+    while (new Date(ny, nm, nmDay).getDay() === 0 || new Date(ny, nm, nmDay).getDay() === 6) nmDay++;
+    const dateStr = `${ny}-${String(nm+1).padStart(2,'0')}-${String(nmDay).padStart(2,'0')}`;
+    cells.push({ html: makeDayCell(ny, nm, nmDay, false), dateStr });
+    nmDay++;
+  }
+
   let html = '<div class="cal-month-grid">';
-  // Headers (Mon-first)
-  ['MON','TUE','WED','THU','FRI','SAT','SUN'].forEach(d => {
+  // Headers
+  ['MON','TUE','WED','THU','FRI','WK P&L'].forEach(d => {
     html += `<div class="cal-header-cell">${d}</div>`;
   });
 
-  // Adjust firstDay to Mon-first (0=Mon, 6=Sun)
-  const startOffset = (firstDay + 6) % 7;
-
-  // Build all cells in order: prev-fill + current + next-fill, tracking dates
-  const cells = []; // { html, y, mo, d }
-
-  // Previous month fill
-  const pm = calViewMonth === 0 ? 11 : calViewMonth - 1;
-  const py = calViewMonth === 0 ? calViewYear - 1 : calViewYear;
-  for (let i = startOffset - 1; i >= 0; i--) {
-    const d = daysInPrev - i;
-    const evts = getEventsForDate(py, pm, d).filter(e => e.name !== 'SPX 0DTE Expiry');
-    cells.push({ html: `<div class="cal-day-cell other-month">
-      <div class="cal-day-num" style="color:var(--textDim)">${d}</div>
-      ${evts.slice(0,3).map(e => `<div class="cal-event ${e.impact}">${e.name}</div>`).join('')}
-    </div>`, y: py, mo: pm, d });
-  }
-
-  // Current month
-  for (let d = 1; d <= daysInMonth; d++) {
-    const dt = new Date(calViewYear, calViewMonth, d);
-    const isToday = isThisMonth && d === today.getDate();
-    const isWeekend = dt.getDay() === 0 || dt.getDay() === 6;
-    const evts = getEventsForDate(calViewYear, calViewMonth, d).filter(e => e.name !== 'SPX 0DTE Expiry');
-    const dateKey = `${calViewYear}-${String(calViewMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-    const dayTrade = tradeLookup[dateKey];
-    const hasTrade = dayTrade && dayTrade.trades.length > 0;
-    const dayPnl = hasTrade ? dayTrade.total : 0;
-    const isWin = dayPnl > 0;
-    const isLoss = dayPnl < 0;
-    const tradeBg = isWin ? 'rgba(0,230,118,0.12)' : isLoss ? 'rgba(255,82,82,0.12)' : '';
-    const tradeBorder = isWin ? 'border-left:3px solid var(--green)' : isLoss ? 'border-left:3px solid var(--red)' : '';
-    const cellStyle = [tradeBg ? `background:${tradeBg}` : '', tradeBorder, evts.length || hasTrade ? 'cursor:pointer' : ''].filter(Boolean).join(';');
-    cells.push({ html: `<div class="cal-day-cell ${isToday?'today':''} ${isWeekend?'weekend':''}" ${evts.length ? `onclick="showDayDetail(${calViewYear},${calViewMonth},${d})"` : ''} style="position:relative;${cellStyle}">
-      <div class="cal-day-num">${d}</div>
-      ${hasTrade ? `<div style="position:absolute;top:4px;right:6px;font-size:14px;font-weight:700;color:${isWin?'var(--green)':'var(--red)'};font-family:'IBM Plex Mono',monospace">${isWin?'+':''}$${dayPnl.toFixed(0)}</div>
-      <div style="font-size:8px;color:var(--textDim);margin-top:2px">${dayTrade.trades.length} trade${dayTrade.trades.length>1?'s':''}</div>` : ''}
-      ${evts.slice(0,2).map(e => `<div class="cal-event ${e.impact}">${e.name}</div>`).join('')}
-      ${evts.length > 2 ? `<div style="font-size:8px;color:var(--textDim)">+${evts.length-2} more</div>` : ''}
-    </div>`, y: calViewYear, mo: calViewMonth, d });
-  }
-
-  // Next month fill
-  const totalCells = cells.length;
-  const remaining = (7 - (totalCells % 7)) % 7;
-  const nm = calViewMonth === 11 ? 0 : calViewMonth + 1;
-  const ny = calViewMonth === 11 ? calViewYear + 1 : calViewYear;
-  for (let d = 1; d <= remaining; d++) {
-    const evts = getEventsForDate(ny, nm, d).filter(e => e.name !== 'SPX 0DTE Expiry');
-    cells.push({ html: `<div class="cal-day-cell other-month">
-      <div class="cal-day-num" style="color:var(--textDim)">${d}</div>
-      ${evts.slice(0,3).map(e => `<div class="cal-event ${e.impact}">${e.name}</div>`).join('')}
-    </div>`, y: ny, mo: nm, d });
-  }
-
-  // Emit cells row by row, injecting weekly P&L after each row of 7
-  for (let i = 0; i < cells.length; i++) {
-    html += cells[i].html;
-    if ((i + 1) % 7 === 0) {
-      html += weekPnlHtml(cells.slice(i - 6, i + 1));
-    }
+  // Emit rows of 5 + WK P&L
+  for (let i = 0; i < cells.length; i += 5) {
+    const row = cells.slice(i, i + 5);
+    // Monday of this row = first cell's dateStr
+    const mondayDateStr = row[0].dateStr;
+    row.forEach(c => { html += c.html; });
+    // Pad if last row is short
+    for (let p = row.length; p < 5; p++) html += '<div class="cal-day-cell other-month"></div>';
+    html += makeWkPnlCell(mondayDateStr);
   }
 
   html += '</div>';
   html += '<div id="cal-day-detail" style="margin-top:12px"></div>';
-
   document.getElementById('cal-body').innerHTML = html;
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// WEEKLY TRADE HELPERS
+// ══════════════════════════════════════════════════════════════════════════════
+
+function getExpiryMonday(entryDateStr) {
+  const d = new Date(entryDateStr + 'T12:00:00');
+  const dow = d.getDay(); // 0=Sun,1=Mon,...,5=Fri,6=Sat
+  const daysToNext = [7,7,6,5,4,3,8][dow]; // Mon→7,Tue→6,Wed→5,Thu→4,Fri→3
+  const exp = new Date(d);
+  exp.setDate(d.getDate() + daysToNext);
+  return exp.toISOString().slice(0, 10);
+}
+
+let _calFormDate = null;
+let _settleExpiryDate = null;
+
+function openCalTradeForm(dateStr) {
+  _calFormDate = dateStr;
+  const d = new Date(dateStr + 'T12:00:00');
+  const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const expiry = getExpiryMonday(dateStr);
+  const expiryFmt = new Date(expiry + 'T12:00:00').toLocaleDateString('en-AU', {weekday:'short',day:'numeric',month:'short'});
+  document.getElementById('ctm-title').textContent = 'LOG WEEKLY TRADE';
+  document.getElementById('ctm-meta').textContent = days[d.getDay()] + ' ' + dateStr;
+  document.getElementById('ctm-expiry').textContent = expiryFmt;
+
+  // Show existing trades for this date as a list below inputs (if any)
+  const existingWts = (traderData.weeklyTrades || []).filter(w => w.entryDate === dateStr);
+
+  // Pre-fill contracts from phase sizing
+  const defCts = ctForCapital(traderData.currentCapital);
+  document.getElementById('ctm-contracts').value = defCts;
+  document.getElementById('ctm-strike').value = '';
+  document.getElementById('ctm-credit').value = '';
+  document.getElementById('ctm-fees').value = '';
+
+  const modal = document.getElementById('cal-trade-modal');
+  modal.style.display = 'flex';
+}
+
+function closeCalTradeModal() {
+  document.getElementById('cal-trade-modal').style.display = 'none';
+}
+
+function submitCalWeeklyTrade() {
+  const strike = parseFloat(document.getElementById('ctm-strike').value);
+  const credit = parseFloat(document.getElementById('ctm-credit').value);
+  const fees = parseFloat(document.getElementById('ctm-fees').value) || 0;
+  const contracts = parseInt(document.getElementById('ctm-contracts').value) || 1;
+  if (!strike || !credit) { alert('Enter short strike and credit received'); return; }
+
+  const expiryDate = getExpiryMonday(_calFormDate);
+  const id = 'wt_' + Date.now();
+  const wt = {
+    id,
+    entryDate: _calFormDate,
+    expiryDate,
+    shortStrike: strike,
+    creditReceived: credit,
+    feesPaid: fees,
+    contracts,
+    status: 'open',
+    settlement: null,
+    pnl: null
+  };
+  if (!traderData.weeklyTrades) traderData.weeklyTrades = [];
+  traderData.weeklyTrades.push(wt);
+  saveData(traderData);
+  closeCalTradeModal();
+  renderCalendar();
+  if (document.getElementById('tab-log').classList.contains('active')) renderTradeHistory();
+}
+
+function openSettlementForm(expiryDateStr) {
+  _settleExpiryDate = expiryDateStr;
+  const wts = (traderData.weeklyTrades || []).filter(w => w.expiryDate === expiryDateStr);
+  if (wts.length === 0) { alert('No trades found expiring ' + expiryDateStr); return; }
+  const open = wts.filter(w => w.status === 'open');
+  const resolved = wts.filter(w => w.status !== 'open');
+  const expiryFmt = new Date(expiryDateStr + 'T12:00:00').toLocaleDateString('en-AU', {weekday:'long',day:'numeric',month:'short'});
+  document.getElementById('csm-meta').textContent = 'Expiry: ' + expiryFmt;
+  document.getElementById('csm-trades-info').innerHTML =
+    `${wts.length} total entr${wts.length>1?'ies':'y'} · <span style="color:var(--gold)">${open.length} open</span>${resolved.length?' · '+resolved.length+' resolved':''}` +
+    (open.length ? '<br>Strikes: ' + open.map(w => w.shortStrike).join(', ') : '');
+  document.getElementById('csm-price').value = '';
+  document.getElementById('cal-settle-modal').style.display = 'flex';
+}
+
+function closeSettleModal() {
+  document.getElementById('cal-settle-modal').style.display = 'none';
+}
+
+function submitSettlement() {
+  const settlement = parseFloat(document.getElementById('csm-price').value);
+  if (!settlement) { alert('Enter settlement price'); return; }
+  if (!traderData.weeklyTrades) return;
+
+  let changed = 0;
+  traderData.weeklyTrades.forEach(wt => {
+    if (wt.expiryDate !== _settleExpiryDate || wt.status !== 'open') return;
+    wt.settlement = settlement;
+    const win = settlement > wt.shortStrike;
+    wt.status = win ? 'win' : 'loss';
+    wt.pnl = win
+      ? wt.creditReceived - wt.feesPaid
+      : -(5 * 100 * wt.contracts - wt.creditReceived) - wt.feesPaid;
+    changed++;
+  });
+
+  if (changed === 0) { alert('No open trades to resolve'); return; }
+  saveData(traderData);
+  closeSettleModal();
+  renderCalendar();
+  if (document.getElementById('tab-log').classList.contains('active')) renderTradeHistory();
+}
+
+async function refreshCalSettlement() {
+  const btn = document.getElementById('cal-refresh-btn');
+  btn.textContent = '⏳ FETCHING...';
+  btn.disabled = true;
+  try {
+    const url = 'https://query1.finance.yahoo.com/v8/finance/chart/%5ESPX?range=1d&interval=1m';
+    const res = await fetch(url);
+    const data = await res.json();
+    const result = data?.chart?.result?.[0];
+    const price = result?.meta?.regularMarketPrice || result?.meta?.previousClose;
+    btn.textContent = '↻ REFRESH';
+    btn.disabled = false;
+    if (!price) { alert('Could not fetch SPX price. Try again.'); return; }
+
+    const now = new Date();
+    const isMonday = now.getDay() === 1;
+    const todayStr = now.toISOString().slice(0, 10);
+
+    if (isMonday) {
+      const openToday = (traderData.weeklyTrades || []).filter(w => w.expiryDate === todayStr && w.status === 'open');
+      if (openToday.length > 0) {
+        const confirm = window.confirm(`SPX: ${price.toFixed(2)}\n\nApply as settlement for ${openToday.length} open trade${openToday.length>1?'s':''} expiring today (${todayStr})?`);
+        if (confirm) {
+          _settleExpiryDate = todayStr;
+          document.getElementById('csm-price').value = price.toFixed(2);
+          submitSettlement();
+          return;
+        }
+      } else {
+        alert(`SPX: ${price.toFixed(2)}\n\nNo open trades expiring today (${todayStr}).`);
+      }
+    } else {
+      // Not Monday — show price and let user pick which expiry to settle
+      const openWts = (traderData.weeklyTrades || []).filter(w => w.status === 'open');
+      if (openWts.length === 0) {
+        alert(`SPX: ${price.toFixed(2)}\n\nNo open trades to settle.`);
+        return;
+      }
+      const expiries = [...new Set(openWts.map(w => w.expiryDate))].sort();
+      openSettlementForm(expiries[0]);
+      document.getElementById('csm-price').value = price.toFixed(2);
+      document.getElementById('csm-meta').textContent += `  ·  Live SPX: ${price.toFixed(2)}`;
+    }
+  } catch(e) {
+    btn.textContent = '↻ REFRESH';
+    btn.disabled = false;
+    alert('Could not fetch SPX price: ' + e.message);
+  }
 }
 
 function renderCalendarList() {
@@ -3952,6 +4149,14 @@ function logTradeFromOrder(session, suffix) {
   setTimeout(() => switchTab('log'), 800);
 }
 
+function deleteWeeklyTrade(id) {
+  if (!confirm('Delete this weekly trade?')) return;
+  traderData.weeklyTrades = (traderData.weeklyTrades || []).filter(w => w.id !== id);
+  saveData(traderData);
+  renderCalendar();
+  renderTradeHistory();
+}
+
 function deleteTrade(id) {
   if (!confirm('Delete this trade?')) return;
   const idx = traderData.trades.findIndex(t => t.id === id);
@@ -4002,7 +4207,23 @@ function renderTradeHistory() {
     daySelect.value = days[d.getDay()] || 'Mon';
   }
 
-  const trades = traderData.trades.slice().reverse();
+  // Merge regular trades + weekly trades, sorted by date desc
+  const regularTrades = (traderData.trades || []).map(t => ({ ...t, _isWeekly: false }));
+  const weeklyTrades = (traderData.weeklyTrades || []).map(wt => ({
+    id: wt.id,
+    date: wt.entryDate,
+    day: new Date(wt.entryDate + 'T12:00:00').toLocaleDateString('en-AU', {weekday:'short'}),
+    type: 'Weekly Put Spread',
+    credit: (wt.creditReceived / (wt.contracts * 100)).toFixed(2),
+    contracts: wt.contracts,
+    result: wt.pnl,
+    win: wt.status === 'win',
+    notes: `Strike:${wt.shortStrike} · Expiry:${wt.expiryDate} · Fees:$${wt.feesPaid}`,
+    status: wt.status,
+    _isWeekly: true,
+    _wtId: wt.id
+  }));
+  const trades = [...regularTrades, ...weeklyTrades].sort((a, b) => b.date.localeCompare(a.date));
   if (trades.length === 0) {
     document.getElementById('trade-history').innerHTML = '<div style="font-size:12px;color:var(--textDim);padding:30px 0;text-align:center">No trades logged yet. Use the form to add your first trade.</div>';
     return;
@@ -4029,18 +4250,27 @@ function renderTradeHistory() {
         </td>
       </tr>`;
     } else {
-      html += `<tr>
+      const isOpen = t._isWeekly && t.status === 'open';
+      const rowColor = isOpen ? 'var(--gold)' : t.win ? 'var(--green)' : 'var(--red)';
+      const pnlText = isOpen ? '—' : (t.win ? '+' : '') + fmt$(t.result || 0);
+      const wlBadge = isOpen ? 'OPEN' : t.win ? 'WIN' : 'LOSS';
+      const wlBorder = isOpen ? 'var(--gold)' : t.win ? 'var(--green)' : 'var(--red)';
+      const editBtn = t._isWeekly
+        ? `<button class="btn" style="border-color:var(--gold);color:var(--gold);font-size:9px;padding:3px 8px;margin-right:4px" onclick="openSettlementForm('${(traderData.weeklyTrades||[]).find(w=>w.id===t._wtId)?.expiryDate||''}')">SETTLE</button>`
+        : `<button class="btn" style="border-color:var(--cyan);color:var(--cyan);font-size:9px;padding:3px 8px;margin-right:4px" onclick="startEdit('${t.id}')">EDIT</button>`;
+      const delFn = t._isWeekly ? `deleteWeeklyTrade('${t._wtId}')` : `deleteTrade('${t.id}')`;
+      html += `<tr style="${isOpen?'background:rgba(240,180,41,0.04)':''}">
         <td style="color:var(--white)">${t.date}</td>
         <td>${t.day||'-'}</td>
         <td style="font-size:11px">${t.type||'-'}</td>
-        <td>$${(t.credit||0).toFixed(2)}</td>
+        <td>$${(parseFloat(t.credit)||0).toFixed(2)}</td>
         <td>${t.contracts||'-'}</td>
-        <td style="font-weight:700;color:${t.win?'var(--green)':'var(--red)'}">${t.win?'+':''}${fmt$(t.result||0)}</td>
-        <td><span style="padding:2px 6px;font-size:10px;border:1px solid ${t.win?'var(--green)':'var(--red)'};color:${t.win?'var(--green)':'var(--red)'}">${t.win?'WIN':'LOSS'}</span></td>
+        <td style="font-weight:700;color:${rowColor}">${pnlText}</td>
+        <td><span style="padding:2px 6px;font-size:10px;border:1px solid ${wlBorder};color:${wlBorder}">${wlBadge}</span></td>
         <td style="font-size:10px;color:var(--textDim);max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${t.notes||'-'}</td>
         <td style="white-space:nowrap">
-          <button class="btn" style="border-color:var(--cyan);color:var(--cyan);font-size:9px;padding:3px 8px;margin-right:4px" onclick="startEdit('${t.id}')">EDIT</button>
-          <button class="btn" style="border-color:var(--red);color:var(--red);font-size:9px;padding:3px 8px" onclick="deleteTrade('${t.id}')">DEL</button>
+          ${editBtn}
+          <button class="btn" style="border-color:var(--red);color:var(--red);font-size:9px;padding:3px 8px" onclick="${delFn}">DEL</button>
         </td>
       </tr>`;
     }
@@ -5066,5 +5296,52 @@ function renderBacktestResults(r) {
 }
 
 </script>
+
+<!-- WEEKLY TRADE MODAL -->
+<div id="cal-trade-modal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.85);z-index:9999;align-items:center;justify-content:center">
+  <div style="background:var(--panel);border:1px solid var(--borderBright);border-top:3px solid var(--cyan);padding:20px;max-width:340px;width:92%;position:relative">
+    <div class="chakra" style="font-size:15px;font-weight:700;color:var(--white);margin-bottom:4px" id="ctm-title">LOG WEEKLY TRADE</div>
+    <div style="font-size:11px;color:var(--cyan);margin-bottom:14px" id="ctm-meta"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
+      <div>
+        <div class="label" style="margin-bottom:4px">SHORT STRIKE</div>
+        <input id="ctm-strike" type="number" step="5" placeholder="5480" style="width:100%;height:32px;background:var(--panelAlt);border:1px solid var(--borderBright);color:var(--white);padding:0 8px;font-size:13px;font-weight:700;font-family:'Chakra Petch',sans-serif;box-sizing:border-box">
+      </div>
+      <div>
+        <div class="label" style="margin-bottom:4px">CONTRACTS</div>
+        <input id="ctm-contracts" type="number" value="1" min="1" style="width:100%;height:32px;background:var(--panelAlt);border:1px solid var(--borderBright);color:var(--white);padding:0 8px;font-size:13px;font-weight:700;font-family:'Chakra Petch',sans-serif;box-sizing:border-box">
+      </div>
+      <div>
+        <div class="label" style="margin-bottom:4px">CREDIT RECEIVED ($)</div>
+        <input id="ctm-credit" type="number" step="0.01" placeholder="500.00" style="width:100%;height:32px;background:var(--panelAlt);border:1px solid var(--borderBright);color:var(--green);padding:0 8px;font-size:13px;font-weight:700;font-family:'Chakra Petch',sans-serif;box-sizing:border-box">
+      </div>
+      <div>
+        <div class="label" style="margin-bottom:4px">FEES PAID ($)</div>
+        <input id="ctm-fees" type="number" step="0.01" placeholder="6.00" style="width:100%;height:32px;background:var(--panelAlt);border:1px solid var(--borderBright);color:var(--red);padding:0 8px;font-size:13px;font-weight:700;font-family:'Chakra Petch',sans-serif;box-sizing:border-box">
+      </div>
+    </div>
+    <div style="font-size:10px;color:var(--textDim);margin-bottom:12px">Expiry: next Monday · <span id="ctm-expiry" style="color:var(--cyan)"></span></div>
+    <div style="display:flex;gap:8px">
+      <button onclick="submitCalWeeklyTrade()" style="flex:1;height:36px;font-size:11px;font-weight:700;letter-spacing:1px;cursor:pointer;border:1px solid var(--green);background:rgba(0,208,132,0.1);color:var(--green);font-family:'IBM Plex Mono',monospace">LOG TRADE</button>
+      <button onclick="closeCalTradeModal()" style="flex:0 0 80px;height:36px;font-size:11px;cursor:pointer;border:1px solid var(--textDim);background:transparent;color:var(--textDim);font-family:'IBM Plex Mono',monospace">CANCEL</button>
+    </div>
+  </div>
+</div>
+
+<!-- SETTLEMENT MODAL -->
+<div id="cal-settle-modal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.85);z-index:9999;align-items:center;justify-content:center">
+  <div style="background:var(--panel);border:1px solid var(--borderBright);border-top:3px solid var(--gold);padding:20px;max-width:320px;width:92%;position:relative">
+    <div class="chakra" style="font-size:15px;font-weight:700;color:var(--white);margin-bottom:4px">SETTLEMENT PRICE</div>
+    <div style="font-size:11px;color:var(--textDim);margin-bottom:14px" id="csm-meta"></div>
+    <div class="label" style="margin-bottom:4px">SPX SETTLEMENT</div>
+    <input id="csm-price" type="number" step="0.01" placeholder="5480.00" style="width:100%;height:36px;background:var(--panelAlt);border:1px solid var(--borderBright);color:var(--white);padding:0 8px;font-size:15px;font-weight:700;font-family:'Chakra Petch',sans-serif;box-sizing:border-box;margin-bottom:12px">
+    <div style="font-size:10px;color:var(--textDim);margin-bottom:12px" id="csm-trades-info"></div>
+    <div style="display:flex;gap:8px">
+      <button onclick="submitSettlement()" style="flex:1;height:36px;font-size:11px;font-weight:700;letter-spacing:1px;cursor:pointer;border:1px solid var(--gold);background:rgba(240,180,41,0.1);color:var(--gold);font-family:'IBM Plex Mono',monospace">APPLY SETTLEMENT</button>
+      <button onclick="closeSettleModal()" style="flex:0 0 80px;height:36px;font-size:11px;cursor:pointer;border:1px solid var(--textDim);background:transparent;color:var(--textDim);font-family:'IBM Plex Mono',monospace">CANCEL</button>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
