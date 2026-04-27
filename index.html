@@ -2147,66 +2147,7 @@ function scan() {
     }
   }
   const oc = orderColor;
-  const orderStripHtml = `
-    <div style="padding:10px 14px;background:${oc}08;border:1px solid ${oc}30;border-left:3px solid ${oc}">
-      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-        <span style="font-size:12px;font-weight:700;color:${oc}">${orderIcon} ${orderType}</span>
-        <span class="chakra" style="font-size:13px;font-weight:700;color:${convColor}">${conviction}</span>
-        <span style="font-size:11px;color:var(--textDim)">\u0394${recDelta} \u00B7 ${adjContracts}ct \u00B7 $${f2(orderCredit)} credit${state.mode === 'weekly' ? ' \u00B7 5DTE' : ''}</span>
-        <span style="font-size:10px;color:${stopInfo.windowColor}">&#183; ${stopInfo.window} &#183; Stop @ $${stopInfo.stopSpreadVal} &#183; Fee: $3/spread</span>
-      </div>
-      <div style="display:flex;gap:6px;align-items:end;margin-top:8px;flex-wrap:nowrap">
-        <div style="flex:1.2;min-width:85px">
-          <div class="label" style="margin-bottom:3px">TYPE</div>
-          <select id="log-type-o" style="width:100%;height:30px;background:var(--panelAlt);border:1px solid var(--borderBright);color:var(--cyan);font-size:9px;font-weight:700;font-family:'IBM Plex Mono',monospace;padding:0 4px;cursor:pointer;letter-spacing:1px;box-sizing:border-box">
-            <option value="Put Spread" ${!useCall && !useIC ? 'selected' : ''}>PUT SPREAD</option>
-            <option value="Call Spread" ${useCall && !useIC ? 'selected' : ''}>CALL SPREAD</option>
-            <option value="IC" ${useIC ? 'selected' : ''}>IRON CONDOR</option>
-          </select>
-        </div>
-        <div style="flex:1.8;min-width:120px">
-          <div class="label" style="margin-bottom:3px">SELL / BUY</div>
-          <div style="display:flex;height:30px">
-            <input id="log-sell-o" type="number" value="${useCall ? recRow.sC : recRow.sP}" style="width:100%;background:var(--panelAlt);border:1px solid var(--borderBright);color:var(--white);font-size:13px;font-weight:700;font-family:'IBM Plex Mono',monospace;padding:0 6px;height:100%;box-sizing:border-box;min-width:0;text-align:center" placeholder="SELL">
-            <span style="display:flex;align-items:center;padding:0 3px;color:var(--textDim);font-weight:700;font-size:12px">/</span>
-            <input id="log-buy-o" type="number" value="${useCall ? recRow.lC : recRow.lP}" style="width:100%;background:var(--panelAlt);border:1px solid var(--borderBright);color:var(--white);font-size:13px;font-weight:700;font-family:'IBM Plex Mono',monospace;padding:0 6px;height:100%;box-sizing:border-box;min-width:0;text-align:center" placeholder="BUY">
-          </div>
-        </div>
-        <div style="flex:0.6;min-width:45px">
-          <div class="label" style="margin-bottom:3px">SIZE</div>
-          <input id="log-cts-o" type="number" value="${adjContracts}" style="width:100%;height:30px;text-align:center;background:var(--panelAlt);border:1px solid var(--borderBright);color:var(--green);font-size:13px;font-weight:700;font-family:'Chakra Petch',sans-serif;padding:0 4px;box-sizing:border-box;min-width:0">
-        </div>
-        <div style="flex:0.8;min-width:55px">
-          <div class="label" style="margin-bottom:3px">CREDIT</div>
-          <input id="log-credit-o" type="number" step="0.01" value="${f2(orderCredit)}" style="width:100%;height:30px;text-align:center;background:var(--panelAlt);border:1px solid var(--borderBright);color:${oc};font-size:13px;font-weight:700;font-family:'Chakra Petch',sans-serif;padding:0 4px;box-sizing:border-box;min-width:0" placeholder="0.00">
-        </div>
-        <div style="flex:0.8;min-width:55px">
-          <div class="label" style="margin-bottom:3px">P&L $</div>
-          <input id="log-pnl-o" type="number" step="1" value="${Math.round(adjIncome)}" style="width:100%;height:30px;text-align:center;background:var(--panelAlt);border:1px solid var(--borderBright);color:var(--green);font-size:13px;font-weight:700;font-family:'Chakra Petch',sans-serif;padding:0 4px;box-sizing:border-box;min-width:0" placeholder="0">
-        </div>
-        <div style="flex:0.6;min-width:50px">
-          <div class="label" style="margin-bottom:3px">RESULT</div>
-          <select id="log-win-o" style="width:100%;height:30px;background:var(--panelAlt);border:1px solid var(--borderBright);color:var(--green);font-size:11px;font-weight:700;font-family:'IBM Plex Mono',monospace;padding:0 4px;cursor:pointer;box-sizing:border-box" onchange="this.style.color=this.value==='true'?'var(--green)':'var(--red)'">
-            <option value="true" style="color:var(--green)">WIN</option>
-            <option value="false" style="color:var(--red)">LOSS</option>
-          </select>
-        </div>
-        <div style="width:1px;height:30px;background:var(--border);flex-shrink:0"></div>
-        <div style="flex:1.2;min-width:90px">
-          <div class="label" style="margin-bottom:3px">SESSION</div>
-          <select id="log-session-o" style="width:100%;height:30px;background:var(--panelAlt);border:1px solid var(--borderBright);color:var(--gold);font-size:9px;font-weight:700;font-family:'IBM Plex Mono',monospace;padding:0 4px;cursor:pointer;letter-spacing:1px;box-sizing:border-box">
-            <option value="morning" ${state.mode==='morning'?'selected':''}>MORNING 0DTE</option>
-            <option value="arvo" ${state.mode==='arvo'?'selected':''}>ARVO 0DTE</option>
-            <option value="weekly" ${state.mode==='weekly'?'selected':''}>WEEKLY 5DTE</option>
-          </select>
-        </div>
-        <div style="flex:0.8;min-width:70px">
-          <div class="label" style="margin-bottom:3px">&nbsp;</div>
-          <button onclick="logTradeFromOrder(document.getElementById('log-session-o').value, 'o')" style="width:100%;height:30px;font-size:10px;font-weight:700;font-family:'IBM Plex Mono',monospace;letter-spacing:2px;cursor:pointer;border:1px solid var(--green);background:rgba(0,208,132,0.1);color:var(--green);white-space:nowrap">LOG \u2713</button>
-        </div>
-      </div>
-    </div>`;
-  document.getElementById('orderPanel').innerHTML = bannerHtml + orderStripHtml;
+  document.getElementById('orderPanel').innerHTML = bannerHtml;
 
   // Market analysis now on dedicated ANALYSIS tab
 
