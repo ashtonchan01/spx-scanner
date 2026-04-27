@@ -89,9 +89,9 @@ input, select, button, textarea { font-family: 'IBM Plex Mono', monospace; outli
 .delta-full { margin-bottom: 8px; }
 
 /* Playbook day card */
-.day-card { background: var(--panelAlt); border: 1px solid var(--border); padding: 14px; margin-bottom: 8px; }
+.day-card { background: var(--panelAlt); border: 1px solid var(--border); padding: 10px; margin-bottom: 8px; }
 .day-card.today { border-color: var(--cyan); border-width: 2px; }
-.day-card .day-header { font-family: 'Chakra Petch', sans-serif; font-size: 18px; font-weight: 700; margin-bottom: 8px; }
+.day-card .day-header { font-family: 'Chakra Petch', sans-serif; font-size: 14px; font-weight: 700; margin-bottom: 6px; }
 .trade-entry { padding: 8px; background: var(--panel); border: 1px solid var(--border); margin-bottom: 6px; font-size: 11px; }
 
 /* Projection milestone */
@@ -3408,7 +3408,7 @@ function renderPlaybook() {
         const phDetail = PHASE_DETAILS[ph.id];
         const PHASE_RGBA = { 1:'0,208,132', 2:'59,130,246', 3:'240,180,41', 4:'168,85,247' };
         const rgb = PHASE_RGBA[ph.id] || '0,229,255';
-        return `<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;padding:8px 12px;background:rgba(${rgb},0.05);border:1px solid rgba(${rgb},0.35);border-radius:4px;flex-wrap:wrap;row-gap:6px">
+        return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;padding:5px 10px;background:rgba(${rgb},0.05);border:1px solid rgba(${rgb},0.35);border-radius:4px;flex-wrap:wrap;row-gap:4px">
           <span style="font-size:10px;font-weight:700;padding:3px 10px;background:rgba(${rgb},0.18);border:1px solid rgba(${rgb},0.7);color:${ph.color};letter-spacing:1px;white-space:nowrap">PHASE ${ph.id}: ${ph.name.toUpperCase()}</span>
           <span style="font-size:11px;color:var(--textMid)">${phDetail.range}</span>
           <span style="font-size:9px;color:var(--textDim)">|</span>
@@ -3421,7 +3421,7 @@ function renderPlaybook() {
       })()}
 
       <!-- Badge row -->
-      <div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap">
+      <div style="display:flex;gap:4px;margin-bottom:8px;flex-wrap:wrap">
         <span style="font-size:10px;padding:4px 8px;background:rgba(0,229,255,0.1);border:1px solid rgba(0,229,255,0.3);color:var(--cyan)">${day.dte}DTE — EXPIRY ${day.expiry}</span>
         <span style="font-size:10px;padding:4px 8px;background:rgba(0,208,132,0.1);border:1px solid rgba(0,208,132,0.3);color:var(--green)">${adjContracts}ct (${getRiskPct()} ALLOTMENT${sizeNote})</span>
         <span style="font-size:10px;padding:4px 8px;background:rgba(168,85,247,0.1);border:1px solid rgba(168,85,247,0.3);color:var(--purple)">ATM PUT SPREAD · 9:45 AM ET</span>
@@ -3432,8 +3432,8 @@ function renderPlaybook() {
         <div style="flex:1 1 260px;min-width:0">
 
           <!-- Single trade card -->
-          <div class="label" style="margin-bottom:6px">TRADE</div>
-          <div style="padding:12px;border-left:3px solid var(--green);background:var(--panel);border-radius:0 4px 4px 0;margin-bottom:10px">
+          <div class="label" style="margin-bottom:4px">TRADE</div>
+          <div style="padding:8px;border-left:3px solid var(--green);background:var(--panel);border-radius:0 4px 4px 0;margin-bottom:8px">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
               <span style="font-size:13px;font-weight:700;color:var(--white)">${t.name}</span>
               <span style="font-size:11px;font-weight:700;color:var(--cyan);background:rgba(0,229,255,0.1);padding:2px 8px;border:1px solid rgba(0,229,255,0.3)">${t.dte}</span>
@@ -3469,9 +3469,6 @@ function renderPlaybook() {
             </div>
           </div>
 
-          <!-- Rules -->
-          ${day.rules.length ? `<div class="label" style="margin-bottom:4px">RULES</div>
-          ${day.rules.map(r => '<div style="padding:4px 0;font-size:11px;color:var(--textMid);border-bottom:1px solid var(--border)">• ' + r + '</div>').join('')}` : ''}
         </div>
 
         <!-- Timing column -->
