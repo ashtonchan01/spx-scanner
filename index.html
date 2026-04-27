@@ -115,7 +115,7 @@ input, select, button, textarea { font-family: 'IBM Plex Mono', monospace; outli
 .econ-headline .econ-dot { width: 6px; height: 6px; border-radius: 50%; display: inline-block; }
 
 /* Calendar tab */
-.cal-month-grid { display: grid; grid-template-columns: repeat(5, 1fr) 100px; gap: 1px; }
+.cal-month-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 1px; }
 .cal-header-cell { padding: 8px 4px; text-align: center; font-size: 10px; letter-spacing: 2px; color: var(--textDim); background: var(--panel); }
 .cal-day-cell { min-height: 80px; padding: 6px; background: var(--panelAlt); border: 1px solid var(--border); vertical-align: top; cursor: default; transition: border-color 0.15s; }
 .cal-day-cell:hover { border-color: var(--borderBright); }
@@ -1439,9 +1439,13 @@ async function fetchLivePrices() {
         if (!result) continue;
         const meta = result.meta;
         if (!meta?.regularMarketPrice) continue;
-        // Attach closes array for DMA calculation
-        const closes = result.indicators?.quote?.[0]?.close?.filter(v => v != null) || [];
+        // Attach closes + opens + timestamps for DMA and calendar display
+        const q = result.indicators?.quote?.[0] || {};
+        const closes = q.close?.filter(v => v != null) || [];
         if (closes.length) meta._closes = closes;
+        if (result.timestamp) meta._timestamps = result.timestamp;
+        if (q.open) meta._opens = q.open;
+        if (q.close) meta._allCloses = q.close;
         return meta;
       } catch {}
     }
@@ -1458,6 +1462,18 @@ async function fetchLivePrices() {
       yahooFetch('CL=F', '1m', '1d'),
       yahooFetch('ES=F', '1m', '1d'),
     ]);
+
+    // Store daily OHLC for calendar display
+    if (spxHistory?._timestamps && spxHistory?._opens && spxHistory?._allCloses) {
+      state.spxDaily = {};
+      spxHistory._timestamps.forEach((ts, i) => {
+        const o = spxHistory._opens[i], c = spxHistory._allCloses[i];
+        if (o == null || c == null) return;
+        const d = new Date(ts * 1000);
+        const key = d.getUTCFullYear() + '-' + String(d.getUTCMonth()+1).padStart(2,'0') + '-' + String(d.getUTCDate()).padStart(2,'0');
+        state.spxDaily[key] = { open: parseFloat(o.toFixed(2)), close: parseFloat(c.toFixed(2)) };
+      });
+    }
 
     // SPX live price
     if (spxHistory?.regularMarketPrice) {
@@ -3751,9 +3767,12 @@ function renderCalendarMonth() {
     const border = hasTrade ? tradeBorder + ';' : wtBorder;
     const clickable = isCurrent ? `onclick="openCalTradeForm('${dateStr}')"` : '';
     const cls = `cal-day-cell${isToday?' today':''} ${isCurrent?'':'other-month'}`;
+    const spxDay = (state.spxDaily || {})[dateStr];
+    const spxHtml = spxDay ? `<div style="font-size:9px;color:var(--textDim);margin-top:2px;line-height:1.4"><span style="color:var(--textDim)">O</span><span style="color:var(--white);font-family:'IBM Plex Mono',monospace;margin-left:2px">${spxDay.open}</span> <span style="color:var(--textDim)">C</span><span style="color:${spxDay.close>=spxDay.open?'var(--green)':'var(--red)'};font-family:'IBM Plex Mono',monospace;margin-left:2px">${spxDay.close}</span></div>` : '';
     return `<div class="${cls}" style="position:relative;cursor:pointer;${bg}${border}" ${clickable}>
       <div class="cal-day-num" style="${isCurrent?'':'color:var(--textDim)'}">${d}</div>
       ${hasTrade ? `<div style="position:absolute;top:4px;right:6px;font-size:13px;font-weight:700;color:${isWin?'var(--green)':'var(--red)'};font-family:'IBM Plex Mono',monospace">${isWin?'+':''}$${dayPnl.toFixed(0)}</div>` : ''}
+      ${spxHtml}
       ${evts.slice(0,1).map(e=>`<div class="cal-event ${e.impact}">${e.name}</div>`).join('')}
       ${wts.map(wt=>`<div class="cal-wt-entry ${wt.status==='win'?'resolved':wt.status==='loss'?'loss':''}" onclick="event.stopPropagation();openCalTradeForm('${dateStr}')" title="Strike:${wt.shortStrike} | ${wt.status.toUpperCase()}">${wt.status==='open'?'OPEN':''}${wt.status==='win'?'+$'+(wt.pnl||0).toFixed(0):''}${wt.status==='loss'?'-$'+Math.abs(wt.pnl||0).toFixed(0):''} ${wt.contracts}ct</div>`).join('')}
     </div>`;
@@ -3881,7 +3900,6 @@ function openCalTradeForm(dateStr) {
   // Pre-fill contracts from phase sizing
   const defCts = ctForCapital(traderData.currentCapital);
   document.getElementById('ctm-contracts').value = defCts;
-  document.getElementById('ctm-strike').value = '';
   document.getElementById('ctm-credit').value = '';
   document.getElementById('ctm-fees').value = '';
 
@@ -3894,11 +3912,10 @@ function closeCalTradeModal() {
 }
 
 function submitCalWeeklyTrade() {
-  const strike = parseFloat(document.getElementById('ctm-strike').value);
   const credit = parseFloat(document.getElementById('ctm-credit').value);
   const fees = parseFloat(document.getElementById('ctm-fees').value) || 0;
   const contracts = parseInt(document.getElementById('ctm-contracts').value) || 1;
-  if (!strike || !credit) { alert('Enter short strike and credit received'); return; }
+  if (!credit) { alert('Enter credit received'); return; }
 
   const expiryDate = getExpiryMonday(_calFormDate);
   const id = 'wt_' + Date.now();
@@ -3906,7 +3923,7 @@ function submitCalWeeklyTrade() {
     id,
     entryDate: _calFormDate,
     expiryDate,
-    shortStrike: strike,
+    shortStrike: null,
     creditReceived: credit,
     feesPaid: fees,
     contracts,
@@ -5333,10 +5350,7 @@ function renderBacktestResults(r) {
     <div class="chakra" style="font-size:15px;font-weight:700;color:var(--white);margin-bottom:4px" id="ctm-title">LOG WEEKLY TRADE</div>
     <div style="font-size:11px;color:var(--cyan);margin-bottom:14px" id="ctm-meta"></div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
-      <div>
-        <div class="label" style="margin-bottom:4px">SHORT STRIKE</div>
-        <input id="ctm-strike" type="number" step="5" placeholder="5480" style="width:100%;height:32px;background:var(--panelAlt);border:1px solid var(--borderBright);color:var(--white);padding:0 8px;font-size:13px;font-weight:700;font-family:'Chakra Petch',sans-serif;box-sizing:border-box">
-      </div>
+
       <div>
         <div class="label" style="margin-bottom:4px">CONTRACTS</div>
         <input id="ctm-contracts" type="number" value="1" min="1" style="width:100%;height:32px;background:var(--panelAlt);border:1px solid var(--borderBright);color:var(--white);padding:0 8px;font-size:13px;font-weight:700;font-family:'Chakra Petch',sans-serif;box-sizing:border-box">
