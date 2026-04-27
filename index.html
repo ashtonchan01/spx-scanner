@@ -1861,8 +1861,8 @@ function drawLiveChart() {
   ctx.scale(dpr, dpr);
 
   // Show only last N candles that fit
-  const candleSpacing = chartTf === '1d' ? 8 : 6;
-  const candleWidth = chartTf === '1d' ? 5 : 4;
+  const candleSpacing = chartTf === '1d' ? 12 : 9;
+  const candleWidth = chartTf === '1d' ? 8 : 6;
   const priceAxisW = 55;
   const pad = { top: 10, bottom: 22, left: 4, right: priceAxisW + 8 };
   const cw = W - pad.left - pad.right;
