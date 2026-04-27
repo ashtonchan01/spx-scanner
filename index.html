@@ -3720,6 +3720,15 @@ function renderCalendarMonth() {
     return getEventsForDate(y, mo, d).filter(e => e.name !== 'SPX 0DTE Expiry');
   }
 
+  // Build regular trade lookup by date
+  const tradeLookup = {};
+  (traderData.trades || []).forEach(t => {
+    if (!t.date) return;
+    if (!tradeLookup[t.date]) tradeLookup[t.date] = { total: 0, trades: [] };
+    tradeLookup[t.date].total += (t.result || 0);
+    tradeLookup[t.date].trades.push(t);
+  });
+
   // Render a single weekday cell
   function makeDayCell(y, mo, d, isCurrent) {
     const dt = new Date(y, mo, d);
@@ -3728,12 +3737,23 @@ function renderCalendarMonth() {
     const evts = isCurrent ? evtsFor(y, mo, d) : evtsFor(y, mo, d).slice(0,1);
     const wts = wtByDate[dateStr] || [];
     const hasWt = wts.length > 0;
-    const bg = hasWt ? 'background:rgba(240,180,41,0.06);' : '';
-    const border = hasWt ? 'border-left:3px solid var(--gold);' : '';
+    // Regular trade P&L
+    const dayTrade = tradeLookup[dateStr];
+    const hasTrade = dayTrade && dayTrade.trades.length > 0;
+    const dayPnl = hasTrade ? dayTrade.total : 0;
+    const isWin = dayPnl > 0;
+    const isLoss = dayPnl < 0;
+    const tradeBg = hasTrade ? (isWin ? 'rgba(0,230,118,0.12)' : 'rgba(255,82,82,0.12)') : '';
+    const tradeBorder = hasTrade ? (isWin ? 'border-left:3px solid var(--green)' : 'border-left:3px solid var(--red)') : '';
+    const wtBg = hasWt && !hasTrade ? 'background:rgba(240,180,41,0.06);' : '';
+    const wtBorder = hasWt && !hasTrade ? 'border-left:3px solid var(--gold);' : '';
+    const bg = hasTrade ? `background:${tradeBg};` : wtBg;
+    const border = hasTrade ? tradeBorder + ';' : wtBorder;
     const clickable = isCurrent ? `onclick="openCalTradeForm('${dateStr}')"` : '';
     const cls = `cal-day-cell${isToday?' today':''} ${isCurrent?'':'other-month'}`;
     return `<div class="${cls}" style="position:relative;cursor:pointer;${bg}${border}" ${clickable}>
       <div class="cal-day-num" style="${isCurrent?'':'color:var(--textDim)'}">${d}</div>
+      ${hasTrade ? `<div style="position:absolute;top:4px;right:6px;font-size:13px;font-weight:700;color:${isWin?'var(--green)':'var(--red)'};font-family:'IBM Plex Mono',monospace">${isWin?'+':''}$${dayPnl.toFixed(0)}</div>` : ''}
       ${evts.slice(0,1).map(e=>`<div class="cal-event ${e.impact}">${e.name}</div>`).join('')}
       ${wts.map(wt=>`<div class="cal-wt-entry ${wt.status==='win'?'resolved':wt.status==='loss'?'loss':''}" onclick="event.stopPropagation();openCalTradeForm('${dateStr}')" title="Strike:${wt.shortStrike} | ${wt.status.toUpperCase()}">${wt.status==='open'?'OPEN':''}${wt.status==='win'?'+$'+(wt.pnl||0).toFixed(0):''}${wt.status==='loss'?'-$'+Math.abs(wt.pnl||0).toFixed(0):''} ${wt.contracts}ct</div>`).join('')}
     </div>`;
@@ -3950,11 +3970,21 @@ async function refreshCalSettlement() {
   btn.textContent = '⏳ FETCHING...';
   btn.disabled = true;
   try {
-    const url = 'https://query1.finance.yahoo.com/v8/finance/chart/%5ESPX?range=1d&interval=1m';
-    const res = await fetch(url);
-    const data = await res.json();
-    const result = data?.chart?.result?.[0];
-    const price = result?.meta?.regularMarketPrice || result?.meta?.previousClose;
+    const YAHOO = 'https://query1.finance.yahoo.com/v8/finance/chart/';
+    const PROXY = 'https://corsproxy.io/?';
+    const url = `${YAHOO}${encodeURIComponent('^GSPC')}?interval=1m&range=1d&_t=${Date.now()}`;
+    const proxied = `${PROXY}${encodeURIComponent(url)}`;
+    let price = null;
+    for (const base of [proxied, url]) {
+      try {
+        const res = await fetch(base, { signal: AbortSignal.timeout(12000) });
+        if (!res.ok) continue;
+        const data = await res.json();
+        const result = data?.chart?.result?.[0];
+        const p = result?.meta?.regularMarketPrice || result?.meta?.previousClose;
+        if (p) { price = p; break; }
+      } catch {}
+    }
     btn.textContent = '↻ REFRESH';
     btn.disabled = false;
     if (!price) { alert('Could not fetch SPX price. Try again.'); return; }
