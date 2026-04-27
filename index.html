@@ -3361,12 +3361,6 @@ function renderPlaybook() {
         </div>`;
       })()}
 
-      <!-- Badge row -->
-      <div style="display:flex;gap:4px;margin-bottom:8px;flex-wrap:wrap">
-        <span style="font-size:10px;padding:4px 8px;background:rgba(0,229,255,0.1);border:1px solid rgba(0,229,255,0.3);color:var(--cyan)">${day.dte}DTE — EXPIRY ${day.expiry}</span>
-        <span style="font-size:10px;padding:4px 8px;background:rgba(0,208,132,0.1);border:1px solid rgba(0,208,132,0.3);color:var(--green)">${adjContracts}ct (${getRiskPct()} ALLOTMENT${sizeNote})</span>
-        <span style="font-size:10px;padding:4px 8px;background:rgba(168,85,247,0.1);border:1px solid rgba(168,85,247,0.3);color:var(--purple)">ATM PUT SPREAD · 9:45 AM ET</span>
-      </div>
 
       <!-- Trade card + Rules (left) | Timing (right) -->
       <div style="display:flex;flex-wrap:wrap;gap:12px">
